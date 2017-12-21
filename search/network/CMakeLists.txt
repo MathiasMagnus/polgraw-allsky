@@ -103,7 +103,7 @@ endif (BUILD_TESTS)
   endif (${BUILD_OPENMP})
 
   if (${USE_OPENCL})
-    add_subdirectory (src-gpu)
+    add_subdirectory (src-opencl)
   endif (${USE_OPENCL})
   
   if (${USE_CUDA})

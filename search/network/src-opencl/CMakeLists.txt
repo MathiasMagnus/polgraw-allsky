@@ -11,34 +11,34 @@ cmake_minimum_required (VERSION 3.1.0)
 set (Target_NAME gwsearch-gpu)
 
 # Adding source code files according to configuration
-set (HDRS ${CMAKE_CURRENT_SOURCE_DIR}/auxi.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/floats.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/init.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/jobcore.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/settings.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/spline_z.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/struct.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/timer.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/CL/util.h)
+set (HDRS inc/auxi.h
+          inc/floats.h
+          inc/init.h
+          inc/jobcore.h
+          inc/settings.h
+          inc/spline_z.h
+          inc/struct.h
+          inc/timer.h
+          inc/CL/util.h)
 
-set (SRCS ${CMAKE_CURRENT_SOURCE_DIR}/main.c
-          ${CMAKE_CURRENT_SOURCE_DIR}/auxi.c
-          ${CMAKE_CURRENT_SOURCE_DIR}/settings.c
-          #${CMAKE_CURRENT_SOURCE_DIR}/timer.c
-          ${CMAKE_CURRENT_SOURCE_DIR}/init.c
-          ${CMAKE_CURRENT_SOURCE_DIR}/jobcore.c
-          ${CMAKE_CURRENT_SOURCE_DIR}/spline_z.c
-          ${CMAKE_CURRENT_SOURCE_DIR}/CL/util.c)
+set (SRCS src/main.c
+          src/auxi.c
+          src/settings.c
+          #src/timer.c
+          src/init.c
+          src/jobcore.c
+          src/spline_z.c
+          src/CL/util.c)
 
-set (KRNS ${CMAKE_CURRENT_SOURCE_DIR}/floats.hcl
-          ${CMAKE_CURRENT_SOURCE_DIR}/kernels.hcl
-          ${CMAKE_CURRENT_SOURCE_DIR}/kernels.cl)
+set (KRNS krn/floats.h.cl
+          krn/kernels.h.cl
+          krn/kernels.cl)
 
 # Generate the configuration file for application to locate kernel files
-configure_file (${CMAKE_CURRENT_SOURCE_DIR}/locations.in.h
-                ${CMAKE_CURRENT_BINARY_DIR}/locations.h)
+configure_file (${CMAKE_CURRENT_SOURCE_DIR}/inc/locations.in.h
+                ${CMAKE_CURRENT_BINARY_DIR}/inc/locations.h)
 
-list (APPEND HDRS ${CMAKE_CURRENT_BINARY_DIR}/locations.h)
+list (APPEND HDRS ${CMAKE_CURRENT_BINARY_DIR}/inc/locations.h)
 
 # Variable to hold ALL files to build and be visible in IDE
 set (BUILD ${HDRS} ${SRCS} ${KRNS})
@@ -52,8 +52,8 @@ source_group ("Kernels" FILES ${KRNS})
 add_executable (${Target_NAME} ${BUILD})
 
 # Append our project's include directory to the "#include <>" paths
-target_include_directories (${Target_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-                                                  ${CMAKE_CURRENT_BINARY_DIR}
+target_include_directories (${Target_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc
+                                                  ${CMAKE_CURRENT_BINARY_DIR}/inc
                                                   ${OpenCL_INCLUDE_DIRS}
                                                   ${CLFFT_INCLUDE_DIRS}
                                                   ${CLBLAS_INCLUDE_DIRS})
@@ -92,11 +92,11 @@ if (BUILD_TESTS)
 
   add_test(NAME ${Target_NAME}
            COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${Target_NAME}
-                   -data ${POLGRAW_SEARCH_NETWORK_ROOT}/../../testdata/test-data-network-injection
+                   -data ${PROJECT_SOURCE_DIR}/../../testdata/test-data-network-injection
                    -ident 205
                    -label J0322+0441
                    -band 000
                    -fpo 1391.3
-                   -r ${POLGRAW_SEARCH_NETWORK_ROOT}/../../testdata/range-J0322+0441.txt)
+                   -r ${PROJECT_SOURCE_DIR}/../../testdata/range-J0322+0441.txt)
 		
 endif (BUILD_TESTS)
