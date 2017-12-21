@@ -19,44 +19,47 @@ cmake_minimum_required (VERSION 3.1.0)
 project (polgraw-search LANGUAGES C)
 	
 # Behavioural options for the project
-option (USE_OPENCL "Build OpenCL accelerated search suite" ON)
-option (USE_CUDA "Build CUDA accelerated search suite" OFF)
+option (BUILD_C "Build native C search suite" ON)
+option (BUILD_OPENMP "Build OpenMP accelerated search suite" OFF)
+option (BUILD_OPENCL "Build OpenCL accelerated search suite" ON)
+option (BUILD_CUDA "Build CUDA accelerated search suite" OFF)
 option (BUILD_TESTS "Build unit tests" OFF)
-option (VERBOSE "Verbose output" OFF)
+option (VERBOSE "Verbose output of search suite" OFF)
 
 #
 # Set platform-independent variables
 #
+
+  # Append modules directory of shipped FindModule scripts
   list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
-  find_package(GSL REQUIRED)
-  find_package(FFTW REQUIRED)
+  # Find delpendencies
+  if (${BUILD_C})
+    find_package(GSL REQUIRED)
+    find_package(FFTW REQUIRED)
+  endif (${BUILD_C})
 
-  # Find delpendencies		
+  if (${BUILD_OPENMP})
+    find_package(OpenMP REQUIRED)
+  endif (${BUILD_OPENMP})
+
   if (${USE_OPENCL})
-
     find_package(OpenCL REQUIRED)
     find_package(clFFT REQUIRED CONFIG)
     find_package(clBLAS REQUIRED CONFIG)
-
   endif (${USE_OPENCL})
   
   if (${USE_CUDA})
-
     find_package(CUDA REQUIRED)
-
   endif (${USE_CUDA})
   
-  # Use solution folders in IDEs
+  # Use solution folders in IDEs (logical grouping of targets)
   set_property (GLOBAL PROPERTY USE_FOLDERS ON)
   
   # Override predefined default output directories
   set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
   set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
   set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${CMAKE_BUILD_TYPE})
-
-  # Set curent path for later use
-  set (POLGRAW_SEARCH_NETWORK_ROOT ${PROJECT_SOURCE_DIR})
 	
 #
 # Set platform-specific variables
@@ -78,10 +81,8 @@ option (VERBOSE "Verbose output" OFF)
 #########################
 
 # Enable testing
-if (BUILD_TESTS)
-	
+if (BUILD_TESTS)	
   include(CTest)
-		
 endif (BUILD_TESTS)
 	
 #########################
@@ -93,11 +94,18 @@ endif (BUILD_TESTS)
 #
 # Process targets based on user-input
 #
-  add_subdirectory (src-cpu)
+  if (${BUILD_C})
+    add_subdirectory (src-cpu)
+  endif (${BUILD_C})
+
+  if (${BUILD_OPENMP})
+    message (FATAL "OpenMP search suite CMake build automation not yet implemented.")
+  endif (${BUILD_OPENMP})
 
   if (${USE_OPENCL})
-  
     add_subdirectory (src-gpu)
-  
   endif (${USE_OPENCL})
   
+  if (${USE_CUDA})
+  message (FATAL "CUDA search suite CMake build automation not yet implemented.")
+  endif (${USE_CUDA})
