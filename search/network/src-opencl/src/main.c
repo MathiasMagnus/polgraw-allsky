@@ -8,7 +8,7 @@
 #include <auxi.h>*/
 #include <settings.h>
 #include <struct.h>
-/*#include <jobcore.h>*/
+#include <jobcore.h>
 #include <init.h>/*
 
 // Posix includes

@@ -998,7 +998,7 @@ void FStat_gpu_simple(cl_mem F_d,
 
     size_t gsi = N;
 
-    size_t wgs = min(gsi, max_wgs);
+    size_t wgs = gsi < max_wgs ? gsi : max_wgs;
 
     cl_event exec;
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[FStatSimple], 1, NULL, &gsi, &wgs, 0, NULL, &exec);
