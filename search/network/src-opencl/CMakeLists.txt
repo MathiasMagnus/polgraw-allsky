@@ -8,7 +8,7 @@
 cmake_minimum_required (VERSION 3.1.0)
 
 # The name of our project
-set (Target_NAME gwsearch-gpu)
+set (Target_NAME gwsearch-ocl)
 
 # Adding source code files according to configuration
 set (HDRS inc/auxi.h
