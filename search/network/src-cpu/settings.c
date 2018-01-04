@@ -1,12 +1,70 @@
+// C behavioral defines
+//
+// MSVC: macro to include constants, such as M_PI (include before math.h)
+#define _USE_MATH_DEFINES
+
+// Polgraw includes
+#include <settings.h>
+#include <auxi.h>
+
+// Posix includes
+#ifdef _WIN32
+#include <direct.h>
+#include <dirent.h>
+#else
+#include <dirent.h>
+#endif // WIN32
+
+// Standard C includes
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <dirent.h>
+#include <errno.h>
 
-#include "settings.h"
-#include "auxi.h"
-#include "struct.h"
+//#include <math.h>
+//#include <string.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <dirent.h>
+//
+//#include "settings.h"
+//#include "auxi.h"
+//#include "struct.h"
+
+// GCC: M_PI not being defined by C99 or C11, falls victim to -std=c11 instead of -std=gnu11
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#define M_PI_2 (3.14159265358979323846/2)
+#endif
+
+/// <summary>Create directory for disk output.</summary>
+///
+void setup_output(struct stat* buff,
+                  Command_line_opts* opts)
+{
+    if (stat(opts->prefix, buff) == -1)
+    {
+        if (errno == ENOENT)
+        {
+            // Output directory apparently does not exist, try to create one
+#ifdef _WIN32
+            if (_mkdir(opts->prefix) == -1)
+#else
+            if (mkdir(opts->prefix, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1)
+#endif
+            {
+                perror(opts->prefix);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else // can't access output directory
+        {
+            perror(opts->prefix);
+            exit(EXIT_FAILURE);
+        }
+    }
+}
 
 
 /* Search settings: 
@@ -17,7 +75,7 @@ void search_settings(
   Search_settings* sett) {
 
   double dt, B, oms, omr, Smin, Smax;
-  int N, nfft, s, nd, interpftpad;
+  int nod, N, nfft, s, nd, interpftpad;
 
 
   dt = sett->dt;                    // data sampling time:  
@@ -29,7 +87,8 @@ void search_settings(
 
   omr = C_OMEGA_R*dt;
 
-  N = round (sett->nod*C_SIDDAY/dt);      // No. of data points 
+  nod = 2;                          // Observation time in days
+  N = (int)round(nod*C_SIDDAY/dt);  // No. of data points, cast silences warning
 
   nfft = 1 << (int)ceil(log(N)/log(2.));    // length of FFT
   s = 1;                                    // No. of spindowns
@@ -58,6 +117,7 @@ void search_settings(
   sett->B=B;          	// bandwidth
   sett->oms=oms;      	// dimensionless angular frequency
   sett->omr=omr;      	// C_OMEGA_R * dt
+  sett->nod=nod;      	// number of days of observation
   sett->N=N;          	// number of data points
   sett->nfft=nfft;    	// length of fft
   sett->s=s;          	// number of spindowns
@@ -72,8 +132,9 @@ void search_settings(
   // The value of sett->fftpad (zero padding - original grids: 2, new grids: 1) 
   // is read from the grid.bin file in read_grid() (see init.c) 
 
-  sett->nmin = sett->fftpad*NAV*sett->B;
-  sett->nmax = (sett->nfft/2 - NAV*sett->B)*sett->fftpad;
+  // cast silences warning
+  sett->nmin = (int)(sett->fftpad*NAV*sett->B);
+  sett->nmax = (int)((sett->nfft/2 - NAV*sett->B)*sett->fftpad);
 
   // initial value of number of known instrumental lines in band 
   sett->numlines_band=0; 
@@ -113,8 +174,7 @@ void detectors_settings(
       // check if it's a dir
       // name is 2 char long
       // not a directory name of the type "./" or ".."
-      // if opts->usedet is not set (length equal 0), 
-      // or is set and dir name is substring of it 
+      // if usedef is not set (length equal 0), or is set and dir name is substring of it 
       if((ep->d_type == DT_DIR) && 
         (strlen(ep->d_name)==DETNAME_LENGTH) && 
         (strncmp(&ep->d_name[0],".",1)) && 
@@ -181,7 +241,7 @@ void detectors_settings(
       // Geographical longitude in radians
       ifo[i].elam = (10.+30./60.+16.1885/3600.)/RAD_TO_DEG;
       // Height h above the Earth ellipsoid in meters
-      ifo[i].eheight = 51.884;
+      ifo[i].eheight = 53.238;
       // Orientation of the detector gamma
       ifo[i].egam = (135. - (19.0+25./60.0+57.96/3600.))/RAD_TO_DEG;
 
@@ -329,7 +389,7 @@ int read_lines(
     Command_line_opts *opts, 
     Detector_settings *ifo) { 
 
-    int i=0, lnum, alllines, j; 
+    int i=0, lnum/*, alllines*/, j; 
     double l[MAXL][7]; 
     char linefile[512], line[128] = {0}; 
     FILE *data; 
@@ -555,7 +615,7 @@ void lines_in_band(
 
     int i, j, k=0; 
     double bs, be;        // Band start and end  
-    double ll, lr, l, r;  // Line left and right side
+    double ll, lr/*, l, r*/;  // Line left and right side
 
     // if narrowdown option 
     if(opts->narrowdown < 0.5*M_PI) k = sett->numlines_band;
@@ -598,7 +658,7 @@ void lines_in_band(
 void check_if_band_is_fully_vetoed(
     Search_settings* sett) { 
 
-    short i;
+    int i; 
     double ll=0.; 
 
     // Sorting the excluded parts of a band (1st then 2nd column) 
@@ -618,39 +678,8 @@ void check_if_band_is_fully_vetoed(
 
     }        
 
-    if(!(ll < M_PI)) {  
-      printf("This band is fully vetoed. My work here is done, exiting...\n"); 
-      exit(EXIT_SUCCESS); 
-    } 
+    printf("This band is fully vetoed. My work here is done, exiting...\n"); 
+    exit(EXIT_SUCCESS); 
 
-}
 
-void fraction_of_band_vetoed(
-    Search_settings* sett, 
-    Command_line_opts *opts) { 
-
-    short i; 
-    double ll=0.; 
-
-    // Sorting the excluded parts of a band (1st then 2nd column) 
-    qsort(sett->lines, sett->numlines_band, 2*sizeof(double), compared2c); 
-
-    for(i=0; i<sett->numlines_band; i++) {  
-
-      if(i>0 && (sett->lines[i][0] < sett->lines[i-1][1]))
-        ll += sett->lines[i][1] - sett->lines[i-1][1];
-      else 
-        ll += sett->lines[i][1] - sett->lines[i][0]; 
-
-    } 
-
-    ll /= M_PI; 
-
-    printf("Veto fraction for band %04d: %f\n", opts->band, ll); 
-
-    if(!(ll < 1)) {  
-      printf("This band is fully vetoed. My work here is done, exiting...\n"); 
-      exit(EXIT_SUCCESS); 
-    } 
-
-}
+}  

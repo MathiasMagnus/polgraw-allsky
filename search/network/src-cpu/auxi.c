@@ -1,6 +1,12 @@
-#ifndef __SETTINGS_H__
-#define __SETTINGS_H__
+// C behavioral defines
+//
+// MSVC: macro to include constants, such as M_PI (include before math.h)
+#define _USE_MATH_DEFINES
 
+// Polgraw includes
+#include <auxi.h>
+
+// Standard C includes
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -8,7 +14,10 @@
 #include <complex.h>
 #include <float.h>
 
-#include "auxi.h"
+// GCC: M_PI not being defined by C99 or C11, falls victim to -std=c11 instead of -std=gnu11
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
 
 
 // lin2ast described in Phys. Rev. D 82, 022005 (2010) (arXiv:1003.0844)
@@ -23,7 +32,7 @@ lin2ast (double be1, double be2, int pm, double sepsm, double cepsm,
 
 } /* lin2ast() */
 
-int ast2lin (FLOAT_TYPE alfa, FLOAT_TYPE delta, double epsm, double *be) {
+void ast2lin (real_t alfa, real_t delta, double epsm, double *be) {
 
   /* alfa - right ascension [rad]
      delta - declination [rad]
@@ -35,7 +44,7 @@ int ast2lin (FLOAT_TYPE alfa, FLOAT_TYPE delta, double epsm, double *be) {
     be[1] = cos(alfa)*cos(delta);
 
     //#mb this is not needed at the moment 
- 
+/* 
     double d1 = asin(be[0]*sin(epsm) 
             + sqrt(1. - be[0]*be[0] - be[1]*be[1])*cos(epsm)) - delta;
 
@@ -50,39 +59,64 @@ int ast2lin (FLOAT_TYPE alfa, FLOAT_TYPE delta, double epsm, double *be) {
         pm = 2;
 
     return pm; 
-} /* ast2lin */
+*/ 
+
+}
 
 inline void
-spline(complex double *y, int n, complex double *y2)
+spline(complex_t *y, int n, complex_t *y2)
 {
+#ifndef WIN32
   int i, k;
-  complex double invp, qn, un;
+  COMPLEX_TYPE invp, qn, un;
 
-  static complex double *u = NULL;
-  if (!u) u = (complex double *)malloc((n-1)*sizeof(complex double));
+  static COMPLEX_TYPE *u = NULL;
+  if (!u) u = (COMPLEX_TYPE *)malloc((n - 1) * sizeof(COMPLEX_TYPE));
   //  u = (complex double *) calloc (n-1, sizeof (complex double));
+
   y2[0] = u[0] = 0.;
 
-  for (i=1; i<n-1; ++i) {
-    //p = .5*y2[i-1]+2.;
-    //y2[i] = -.5/p;
-    //u[i] = y[i+1]-2.*y[i]+y[i-1];
-    //u[i] = (3.*u[i]-.5*u[i-1])/p;
-    invp = 2./(y2[i-1]+4.);
-    y2[i] = -.5*invp;
-    u[i] = y[i-1]-2.*y[i]+y[i+1];
-    u[i] = (-.5*u[i-1]+3.*u[i])*invp;
+  for (i = 1; i<n - 1; ++i) {
+      //p = .5*y2[i-1]+2.;
+      //y2[i] = -.5/p;
+      //u[i] = y[i+1]-2.*y[i]+y[i-1];
+      //u[i] = (3.*u[i]-.5*u[i-1])/p;
+      invp = 2. / (y2[i - 1] + 4.);
+      y2[i] = -.5*invp;
+      u[i] = y[i - 1] - 2.*y[i] + y[i + 1];
+      u[i] = (-.5*u[i - 1] + 3.*u[i])*invp;
   }
   qn = un = 0.;
-  y2[n-1] = (un-qn*u[n-2])/(qn*y2[n-2]+1.);
-  for (k=n-2; k>=0; --k)
-    y2[k] = y2[k]*y2[k+1]+u[k];
+  y2[n - 1] = (un - qn*u[n - 2]) / (qn*y2[n - 2] + 1.);
+  for (k = n - 2; k >= 0; --k)
+      y2[k] = y2[k] * y2[k + 1] + u[k];
   //free (u);
+#else
+    int i, k;
+    complex_t invp, qn, un;
+
+    static complex_t *u = NULL;
+    if (!u) u = (complex_t *)malloc((n - 1) * sizeof(complex_t));
+
+  y2[0] = u[0] = cbuild( 0., 0. );
+
+  for (i = 1; i<n - 1; ++i) {
+      invp = cdivrc(2., caddcr(y2[i-4], 4.));
+      y2[i] = cmulrc(-.5, invp);
+      u[i] = caddcc(caddcc(y[i - 1], cmulrc(-2., y[i])), y[i + 1]);
+      u[i] = cmulcc(caddcc(cmulrc(-.5, u[i - 1]) , cmulrc(3., u[i])), invp);
+  }
+  qn = un = cbuild(0., 0.);
+  y2[n - 1] = cdivcc(csubcc(un, cmulcc(qn, u[n - 2])), caddcr(cmulcc(qn,y2[n - 2]), 1.));
+  for (k = n - 2; k >= 0; --k)
+      y2[k] = caddcc(cmulcc(y2[k], y2[k + 1]), u[k]);
+#endif
 } /* spline() */
 
-inline complex double
-splint (complex double *ya, complex double *y2a, int n, double x)
+inline complex_t
+splint (complex_t *ya, complex_t *y2a, int n, double x)
 {
+#ifndef _WIN32
   int klo, khi;
   double b, a;
 
@@ -93,11 +127,23 @@ splint (complex double *ya, complex double *y2a, int n, double x)
   a = khi - x;
   b = x - klo;
   return a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])/6.0;
+#else
+  int klo, khi;
+  double b, a;
+
+  if (x<0 || x>n - 1)
+    return cbuild(0., 0.);
+  klo = (int)floor(x); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+  khi = klo + 1;
+  a = khi - x;
+  b = x - klo;
+  return caddcc(caddcc(cmulrc(a, ya[klo]), cmulrc(b, ya[khi])), cdivcr(caddcc(cmulrc(a*a*a-a, y2a[klo]), cmulrc(b*b*b-b, y2a[khi])), 6.0));
+#endif // _WIN32
 } /* splint() */
 
 void
-splintpad (complex double *ya, double *shftf, int N, int interpftpad,	\
-           complex double *out) {
+splintpad (complex_t *ya, real_t *shftf, int N, int interpftpad,	\
+    complex_t *out) {
   /* Cubic spline with "natural" boundary conditions.
      Input:
      ya[i] - value of the function being interpolated in x_i = i,
@@ -109,10 +155,10 @@ splintpad (complex double *ya, double *shftf, int N, int interpftpad,	\
      out[i] - value of the interpolating function
      at interpftpad*(i-shftf[i]).
   */
-  complex double *y2;
+    complex_t *y2;
   double x;
   int i;
-  y2 = (complex double *) malloc (interpftpad*N*sizeof (complex double)); //vector twice-size of N
+  y2 = (complex_t *) malloc (interpftpad*N*sizeof (complex_t)); //vector twice-size of N
   spline (ya, interpftpad*N, y2);
   for (i=0; i<N; ++i) {
     x = interpftpad*(i-shftf[i]);
@@ -195,19 +241,19 @@ gridr (double *M, int *spndr, int *nr, int *mr, double oms, double Smax) {
 
   for (i=0; i<16; i++) {
     if (floor(smx[4*i+1]) < spndr[0])
-      spndr[0] = floor(smx[4*i+1]);
+      spndr[0] = (int)floor(smx[4*i+1]); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
     if (ceil(smx[4*i+1]) > spndr[1])
-      spndr[1] = ceil(smx[4*i+1]);
+      spndr[1] = (int)ceil(smx[4*i+1]);
 
     if (floor(smx[4*i+2]) < nr[0])
-      nr[0] = floor(smx[4*i+2]);
+      nr[0] = (int)floor(smx[4*i+2]);
     if (ceil(smx[4*i+2]) > nr[1])
-      nr[1] = ceil(smx[4*i+2]);
+      nr[1] = (int)ceil(smx[4*i+2]);
 
     if (floor(smx[4*i+3]) < mr[0])
-      mr[0] = floor(smx[4*i+3]);
+      mr[0] = (int)floor(smx[4*i+3]);
     if (ceil(smx[4*i+3]) > mr[1])
-      mr[1] = ceil(smx[4*i+3]);
+      mr[1] = (int)ceil(smx[4*i+3]);
   }
 } /* gridr() */
 
@@ -239,7 +285,8 @@ double FStat (double *F, int nfft, int nav, int indx) {
   return pxout;
 } /* FStat() */
 
-int ludcmp (double *a, int n, int *indx, double *d) { 
+int
+ludcmp (double *a, int n, int *indx, double *d)
 /*	LU decomposition of a given real matrix a[0..n-1][0..n-1]
 	Input:
 	a		- an array containing elements of matrix a
@@ -250,7 +297,7 @@ int ludcmp (double *a, int n, int *indx, double *d) {
 	d		- +-1 depending on whether the number of rows
 	interchanged was even or odd, respectively
 */
-
+{
   int i, imax = -1, j, k;
   double big, dum, sum, temp;
   double *vv;
@@ -306,7 +353,8 @@ int ludcmp (double *a, int n, int *indx, double *d) {
   return 0;
 } /* ludcmp() */
 
-int lubksb (double *a, int n, int *indx, double *b) { 
+int
+lubksb (double *a, int n, int *indx, double *b)
 /* Solves the set of n linear equations A X=B.
    Input:
    a[0..n-1][0..n-1] - LU decomposition af a matrix A,
@@ -318,7 +366,7 @@ int lubksb (double *a, int n, int *indx, double *b) {
    Output:
    b[0..n-1]			- solution vector X
 */
-
+{
   int i, ii=-1, ip, j;
   double sum;
 
@@ -342,7 +390,8 @@ int lubksb (double *a, int n, int *indx, double *b) {
   return 0;
 } /* lubksb() */
 
-int invm (const double *a, int N, double *y) { 
+int
+invm (const double *a, int N, double *y)
      /* Inverse of a real matrix a[0..N-1][0..N-1].
 	Input:
 		a[0..N-1][0..N-1] - given matrix (saved on exit)
@@ -350,7 +399,7 @@ int invm (const double *a, int N, double *y) {
         Output:
 		y[0..N-1][0..N-1] - inverse of a
      */
-
+{
   double d, *col, *al;
   int i, j, *indx;
 
@@ -375,9 +424,10 @@ int invm (const double *a, int N, double *y) {
   return 0;
 } /* invm() */
 
-double det (const double *a, int N) { 
+double
+det (const double *a, int N)
      /* determinant of a real matrix a[0..N-1][0..N-1] */
-
+{
   double d, *al;
   int j, *indx;
 
@@ -393,7 +443,8 @@ double det (const double *a, int N) {
   return d;
 } /* det() */
 
-int compared2c(const void *a, const void *b) {
+int 
+compared2c(const void *a, const void *b) {
 
   double* da = (double*)a;
   double* db = (double*)b;
@@ -404,5 +455,42 @@ int compared2c(const void *a, const void *b) {
 
 }
 
+/// <summary>Dump real array to disk</summary>
+///
+void dumparr (const real_t* arr, const size_t length, const char* filename)
+{
+  FILE* fc = fopen(filename, "w");
+  if (fc == NULL) perror("Failed to open output file.");
 
-#endif
+  size_t i;
+  for (i = (size_t)0; i < length ; ++i)
+    fprintf(fc, "%lf\n", arr[i]);
+  
+  //size_t count = fwrite((void *)(arr), sizeof(real_t), length, fc);
+  //if (count < length) perror("Failed to write output file.");
+  
+  int close = fclose(fc);
+  if (close == EOF) perror("Failed to close output file.");
+
+  printf("Dumped %s\n", filename);
+}
+
+/// <summary>Dump complex array to disk</summary>
+///
+void dumpcarr (const complex_t* arr, const size_t length, const char* filename)
+{
+  FILE* fc = fopen(filename, "w");
+  if (fc == NULL) perror("Failed to open output file.");
+
+  size_t i;
+  for (i = (size_t)0; i < length ; ++i)
+    fprintf(fc, "%lf %lf\n", creal(arr[i]), cimag(arr[i]));
+  
+  //size_t count = fwrite((void *)(arr), sizeof(real_t), length, fc);
+  //if (count < length) perror("Failed to write output file.");
+  
+  int close = fclose(fc);
+  if (close == EOF) perror("Failed to close output file.");
+
+  printf("Dumped %s\n", filename);
+}

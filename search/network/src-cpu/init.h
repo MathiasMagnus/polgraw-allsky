@@ -1,7 +1,8 @@
 #ifndef __INIT_H__
 #define __INIT_H__
 
-#include "struct.h"
+// Polgraw includes
+#include <struct.h>
 
 void handle_opts(
 	Search_settings *sett,

@@ -1,12 +1,26 @@
 #ifndef __SETTINGS_H__
 #define __SETTINGS_H__
 
-#include <fftw3.h>
-#include "struct.h"
+// MSVC macro to include constants, such as M_PI (include before math.h)
+#define _USE_MATH_DEFINES
+// Macro that turn off GNU extension of using sincos function
+#define NOSINCOS
+
+// Polgraw includes
+#include <struct.h>
+
+// Posix includes
+#include <sys/stat.h>
+
+// ISO C includes
+#include <math.h>
 
 #define NPAR 5 		/* no. of trigger parameters */
 
-#define INT 1		/* simplest interpolation */
+// Commented out due to not being in actual use but conflicting with minwindef.h on Windows
+//
+//#define INT 1		// simplest interpolation //
+
 #define FFT 2		/* refined (fft) interpolation */
 
 #define NAV 4096    /* to define nmin and nmax on the edges; multiplied by B=0.5/dt */   
@@ -37,6 +51,11 @@
 //31557600.0          // year in seconds = 365.25 * 86400
 
 
+/// <summary>Create directory for disk output.</summary>
+///
+void setup_output(struct stat* buff,
+                  Command_line_opts* opts);
+
 void search_settings(
     Search_settings *sett);
 
@@ -60,7 +79,7 @@ int lineph (double, double *, double *, char *, char *, int);
 
 // Lines and excluded regions treatment
 void narrow_down_band(
-  Search_settings *sett, 
+  Search_settings* sett, 
   Command_line_opts *opts);  
 
 int read_lines(
@@ -69,15 +88,11 @@ int read_lines(
      Detector_settings *ifo);
 
 void lines_in_band(
-  Search_settings *sett, 
+  Search_settings* sett, 
   Command_line_opts *opts);  
 
 void check_if_band_is_fully_vetoed(
-  Search_settings *sett); 
-
-void fraction_of_band_vetoed(
-  Search_settings *sett, 
-  Command_line_opts *opts); 
+  Search_settings* sett); 
 
 // Coincidences 
 void read_trigger_files(

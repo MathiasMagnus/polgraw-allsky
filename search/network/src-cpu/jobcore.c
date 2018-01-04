@@ -1,15 +1,49 @@
-#define _GNU_SOURCE
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
+// C behavioral defines
+//
+// MSVC: macro to include constants, such as M_PI (include before math.h)
+#define _USE_MATH_DEFINES
+// ISO: request safe versions of functions
+#define __STDC_WANT_LIB_EXT1__ 1
+// GCC: hope this macro is not actually needed
+//#define _GNU_SOURCE
+
+// Polgraw includes
+#include <struct.h>
+#include <jobcore.h>
+#include <auxi.h>
+#include <settings.h>
+#include <timer.h>
+#include <floats.h>
+
+// GSL includes
+#include <gsl/gsl_vector.h>
+
+// FFTW
+#include <fftw3.h>
+
+// Posix includes
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
+#ifdef _WIN32
+#include <io.h>             // _chsize_s
+#include <direct.h>
+#include <dirent.h>
+#include <getopt.h>
+#else
+#include <unistd.h>         // ftruncate
+#include <dirent.h>
+#include <getopt.h>
+#endif // WIN32
+
+// Standard C includes
+#include <math.h>
+#include <stdio.h>          // fopen/fclose, fprintf
 #include <malloc.h>
-#include <gsl/gsl_vector.h>
 #include <complex.h>
-#include <fftw3.h>
+#include <string.h>         // memcpy_s
+#include <errno.h>          // errno_t
+#include <stdlib.h>         // EXIT_FAILURE
 
 /* JobCore file */
 #include "jobcore.h"
@@ -28,7 +62,7 @@
 #endif
 
 
-void save_array(complex double *arr, int N, const char* file) {
+void save_array(complex_t *arr, int N, const char* file) {
   int i;
   FILE *fc = fopen(file, "w");
   for (i=0; i<N; i++) {
@@ -59,14 +93,17 @@ void search(
 	    double *F) {
 
   // struct stat buffer;
-  struct flock lck;
+  //struct flock lck;
 
   int pm, mm, nn;       // hemisphere, sky positions 
   int sgnlc=0;          // number of candidates
   FLOAT_TYPE *sgnlv;    // array with candidates data
 
   char outname[512];
-  int fd, status;
+  int /*fd,*/ status;
+#ifdef _WIN32
+  int low_state;
+#endif // WIN32
   FILE *state;
 
 #ifdef YEPPP
@@ -83,14 +120,29 @@ void search(
 
   state = NULL;
   if(opts->checkp_flag) 
-    state = fopen (opts->qname, "w");
+#ifdef _WIN32
+  {
+      _sopen_s(&low_state, opts->qname,
+          _O_RDWR | _O_CREAT,   // Allowed operations
+          _SH_DENYNO,           // Allowed sharing
+          _S_IREAD | _S_IWRITE);// Permission settings
+
+      state = _fdopen(low_state, "w");
+  }
+#else
+      state = fopen(opts->qname, "w");
+#endif // WIN32
 
   /* Loop over hemispheres */ 
 
   for (pm=s_range->pst; pm<=s_range->pmr[1]; ++pm) {
 
     sprintf (outname, "%s/triggers_%03d_%04d%s_%d.bin", 
-	     opts->prefix, opts->ident, opts->band, opts->label, pm);
+	         opts->prefix,
+             opts->ident,
+             opts->band,
+             opts->label,
+             pm);
     
     /* Two main loops over sky positions */ 
     
@@ -98,7 +150,19 @@ void search(
       for (nn=s_range->nst; nn<=s_range->nr[1]; ++nn) {	
 	
         if(opts->checkp_flag) {
-          ftruncate(fileno(state), 0);  
+#ifdef _WIN32
+            if (_chsize(low_state, 0))
+            {
+                printf("Failed to resize file");
+                exit(EXIT_FAILURE);
+            }
+#else
+            if (ftruncate(fileno(state), 0))
+            {
+                printf("Failed to resize file");
+                exit(EXIT_FAILURE);
+            }
+#endif // WIN32
 	  fprintf(state, "%d %d %d %d %d\n", pm, mm, nn, s_range->sst, *FNum);
 	  fseek(state, 0, SEEK_SET);
 	}
@@ -122,25 +186,40 @@ void search(
 	// Get back to regular spin-down range
 	s_range->sst = s_range->spndr[0];
 
-	/* Add trigger parameters to a file */
-	// if enough signals found (no. of signals > half length of buffer)
-	if (sgnlc > sett->nfft) {
-	  if((fd = open (outname, 
-			 O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|
-			 S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
-	    perror(outname);
-	    return;
-	  }
-
-	  lck.l_type = F_WRLCK;
-	  lck.l_whence = 0;
-	  lck.l_start = 0L;
-	  lck.l_len = 0L;
-	  
-          if (fcntl (fd, F_SETLKW, &lck) < 0) perror ("fcntl()");
-          write(fd, (void *)(sgnlv), sgnlc*NPAR*sizeof(FLOAT_TYPE));
-          if (close(fd) < 0) perror ("close()");
-	  sgnlc=0;
+  // if any signals found (Fstat>Fc)
+  if (sgnlc)
+  {
+      FILE* fc = fopen(outname, "w");
+      if (fc == NULL) perror("Failed to open output file.");
+  
+      size_t count = fwrite((void *)(sgnlv), sizeof(FLOAT_TYPE), sgnlc*NPAR, fc);
+      if (count < sgnlc*NPAR) perror("Failed to write output file.");
+  
+      int close = fclose(fc);
+      if (close == EOF) perror("Failed to close output file.");
+  
+  } // if sgnlc
+  //free(sgnlv);
+  sgnlc=0;
+	///* Add trigger parameters to a file */
+	//// if enough signals found (no. of signals > half length of buffer)
+	//if (sgnlc > sett->nfft) {
+	//  if((fd = open (outname, 
+	//		 O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|
+	//		 S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
+	//    perror(outname);
+	//    return;
+	//  }
+//
+	//  //lck.l_type = F_WRLCK;
+	//  //lck.l_whence = 0;
+	//  //lck.l_start = 0L;
+	//  //lck.l_len = 0L;
+	//  
+  //        if (fcntl (fd, F_SETLKW, &lck) < 0) perror ("fcntl()");
+  //        write(fd, (void *)(sgnlv), sgnlc*NPAR*sizeof(FLOAT_TYPE));
+  //        if (close(fd) < 0) perror ("close()");
+	//  sgnlc=0;
 
 	} /* if sgnlc > sett-nfft */
       } // for nn
@@ -148,35 +227,36 @@ void search(
     } // for mm
     s_range->mst = s_range->mr[0]; 
 
-    // Write the leftover from the last iteration of the buffer 
-    if((fd = open(outname, 
-		  O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|
-		  S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
-      perror(outname);
-      return; 
-    }
-
-    lck.l_type = F_WRLCK;
-    lck.l_whence = 0;
-    lck.l_start = 0L;
-    lck.l_len = 0L;
-    
-    if (fcntl (fd, F_SETLKW, &lck) < 0) perror ("fcntl()");
-    write(fd, (void *)(sgnlv), sgnlc*NPAR*sizeof(FLOAT_TYPE));
-    if (close(fd) < 0) perror ("close()");
-    sgnlc=0; 
-
-  } // for pm
-  
-  //#mb state file has to be modified accordingly to the buffer
-  if(opts->checkp_flag) 
-    fclose(state); 
-
-  // Free triggers buffer
-  free(sgnlv);
+  //  // Write the leftover from the last iteration of the buffer 
+  //  if((fd = open(outname, 
+	//	  O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|
+	//	  S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
+  //    perror(outname);
+  //    return; 
+  //  }
+//
+  //  //lck.l_type = F_WRLCK;
+  //  //lck.l_whence = 0;
+  //  //lck.l_start = 0L;
+  //  //lck.l_len = 0L;
+  //  
+  //  if (fcntl (fd, F_SETLKW, &lck) < 0) perror ("fcntl()");
+  //  write(fd, (void *)(sgnlv), sgnlc*NPAR*sizeof(FLOAT_TYPE));
+  //  if (close(fd) < 0) perror ("close()");
+  //  sgnlc=0; 
+//
+  //} // for pm
+  //
+  ////#mb state file has to be modified accordingly to the buffer
+  //if(opts->checkp_flag) 
+  //  fclose(state); 
+//
+  //// Free triggers buffer
+  //free(sgnlv);
 
 #ifdef TIMERS
   tend = get_current_time(CLOCK_REALTIME);
+  // printf("tstart = %d . %d\ntend = %d . %d\n", tstart.tv_sec, tstart.tv_usec, tend.tv_sec, tend.tv_usec);
   double time_elapsed = get_time_difference(tstart, tend);
   printf("Time elapsed: %e s\n", time_elapsed);
 #endif
@@ -200,11 +280,20 @@ int job_core(int pm,                   // Hemisphere
 	     FLOAT_TYPE *sgnlv,        // Candidate array 
 	     int *FNum) {              // Candidate signal number
 
-  int i, j, n;
+  int i, j, n;//, m;
   int smin = s_range->sst, smax = s_range->spndr[1];
   double al1, al2, sinalt, cosalt, sindelt, cosdelt, sgnlt[NPAR], 
     nSource[3], het0, sgnl0, ft;
-  double _tmp1[sett->nifo][sett->N];
+  
+  
+  // VLA version
+  //double _tmp1[sett->nifo][sett->N];
+
+  // Non-VLA version
+  real_t** _tmp1;
+  _tmp1 = (real_t**)malloc(sett->nifo * sizeof(real_t*));
+  for (int x = 0; x < sett->nifo; ++x)
+      _tmp1[x] = (real_t*)malloc(sett->N * sizeof(real_t));
 
 #undef NORMTOMAX
 #ifdef NORMTOMAX
@@ -249,7 +338,7 @@ int job_core(int pm,                   // Hemisphere
 
   int ss;
   double shft1, phase, cp, sp;
-  complex double exph;
+  complex_t exph;
 
   // Change linear (grid) coordinates to real coordinates
   lin2ast(al1/sett->oms, al2/sett->oms, 
@@ -304,61 +393,90 @@ int job_core(int pm,                   // Hemisphere
       sincos(phase, &sp, &cp);
 #endif
 
+      // Matched filter
+#ifndef _WIN32
       exph = cp - I*sp;
-
-      // Matched filter 
       ifo[n].sig.xDatma[i] = ifo[n].sig.xDat[i]*ifo[n].sig.aa[i]*exph;
       ifo[n].sig.xDatmb[i] = ifo[n].sig.xDat[i]*ifo[n].sig.bb[i]*exph;
-  
+#else
+      exph = cbuild(cp, -sp);
+      ifo[n].sig.xDatma[i] = cmulrc(ifo[n].sig.xDat[i]*ifo[n].sig.aa[i], exph);
+      ifo[n].sig.xDatmb[i] = cmulrc(ifo[n].sig.xDat[i]*ifo[n].sig.bb[i], exph);
+#endif
     }
 
     /* Resampling using spline interpolation:
      * This will double the sampling rate 
      */ 
-  
+#ifndef _WIN32
     for(i=0; i < sett->N; ++i) {
       fftw_arr->xa[i] = ifo[n].sig.xDatma[i];
       fftw_arr->xb[i] = ifo[n].sig.xDatmb[i];
     }
+#else
+    memcpy(fftw_arr->xa, ifo[n].sig.xDatma, sett->N * sizeof(fftw_complex));
+    memcpy(fftw_arr->xb, ifo[n].sig.xDatmb, sett->N * sizeof(fftw_complex));
+#endif
  
     // Zero-padding (filling with 0s up to sett->nfft, 
     // the nearest power of 2)
     for (i=sett->N; i<sett->nfft; ++i) {
+#ifndef _WIN32
       fftw_arr->xa[i] = 0.;
       fftw_arr->xb[i] = 0.;
+#else
+      fftw_arr->xa[i] = cbuild(0., 0.);
+      fftw_arr->xb[i] = cbuild(0., 0.);
+#endif
     }
-
+#ifndef _WIN32
     fftw_execute_dft(plans->pl_int, fftw_arr->xa, fftw_arr->xa);  //forward fft (len nfft)
     fftw_execute_dft(plans->pl_int, fftw_arr->xb, fftw_arr->xb);  //forward fft (len nfft)
-
+#else
+    fftw_execute_dft(plans->pl_int, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));  //forward fft (len nfft)
+    fftw_execute_dft(plans->pl_int, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));  //forward fft (len nfft)
+#endif
     // move frequencies from second half of spectrum; 
     // and zero frequencies higher than nyquist
     // loop length: nfft - nyqst = nfft - nfft/2 - 1 = nfft/2 - 1
 
     for(i=nyqst + sett->Ninterp - sett->nfft, j=nyqst; i<sett->Ninterp; ++i, ++j) {
+#ifndef _WIN32
       fftw_arr->xa[i] = fftw_arr->xa[j];
-      // fftw_arr->xa[j] = 0.;
-    }
-    for(i=nyqst; i<nyqst + sett->Ninterp - sett->nfft; ++i) {
-      fftw_arr->xa[i] = 0.;
+      fftw_arr->xa[j] = 0.;
+#else
+      fftw_arr->xa[i] = fftw_arr->xa[j];
+      fftw_arr->xa[i] = cbuild(0., 0.);
+#endif 
     }
 
     for(i=nyqst + sett->Ninterp - sett->nfft, j=nyqst; i<sett->Ninterp; ++i, ++j) {
+#ifndef _WIN32
       fftw_arr->xb[i] = fftw_arr->xb[j];
-      // fftw_arr->xb[j] = 0.;
-    }
-    for(i=nyqst; i<nyqst + sett->Ninterp - sett->nfft; ++i) {
-      fftw_arr->xb[i] = 0.;
+      fftw_arr->xb[j] = 0.;
+#else
+      fftw_arr->xb[i] = fftw_arr->xb[j];
+      fftw_arr->xb[i] = cbuild(0., 0.);
+#endif 
     }
 
     // Backward fft (len Ninterp = nfft*interpftpad)
+#ifndef _WIN32
     fftw_execute_dft(plans->pl_inv, fftw_arr->xa, fftw_arr->xa);
     fftw_execute_dft(plans->pl_inv, fftw_arr->xb, fftw_arr->xb);
-
+#else
+    fftw_execute_dft(plans->pl_inv, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));
+    fftw_execute_dft(plans->pl_inv, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));
+#endif
     ft = (double)sett->interpftpad / sett->Ninterp; //scale FFT
     for (i=0; i < sett->Ninterp; ++i) {
+#ifndef _WIN32
       fftw_arr->xa[i] *= ft;
       fftw_arr->xb[i] *= ft;
+#else
+      fftw_arr->xa[i] = cmulrc(ft, fftw_arr->xa[i]);
+      fftw_arr->xb[i] = cmulrc(ft, fftw_arr->xb[i]);     
+#endif
     }
 
     //  struct timeval tstart = get_current_time(), tend;
@@ -384,13 +502,21 @@ int job_core(int pm,                   // Hemisphere
     }
 
     for(i=0; i<sett->N; ++i) {
+#ifndef _WIN32
       ifo[n].sig.xDatma[i] /= ifo[n].sig.sig2;
       ifo[n].sig.xDatmb[i] /= ifo[n].sig.sig2;
+#else
+      ifo[n].sig.xDatma[i] = cdivcr(ifo[n].sig.xDatma[i], ifo[n].sig.sig2);
+      ifo[n].sig.xDatmb[i] = cdivcr(ifo[n].sig.xDatmb[i], ifo[n].sig.sig2);
+#endif
     }
 
     aa += aatemp/ifo[n].sig.sig2; 
     bb += bbtemp/ifo[n].sig.sig2;   
   }
+
+  //  printf("maa=%f,  mbb=%f\n", aa, bb);
+  //  exit(0);
 
 #ifdef YEPPP
 #define VLEN 2048
@@ -423,19 +549,10 @@ int job_core(int pm,                   // Hemisphere
   // if yes, use smin = s_range->sst, smax = s_range->spndr[1]  
   if(!strcmp(opts->addsig, "") && !strcmp(opts->range, "")) {
 
-      // Spindown range defined using Smin and Smax (settings.c)  
-      smin = trunc((sett->Smin - nn*sett->M[9] - mm*sett->M[13])/sett->M[5]);
-      smax = trunc(-(nn*sett->M[9] + mm*sett->M[13] + sett->Smax)/sett->M[5]);
-
-      // swapping smin and smax in case when grid matrix  
-      // values are defined with opposite signs than ''usual''
-      if(smin > smax) { 
-    
-        smin = smin + smax ;
-        smax = smin - smax ; 
-        smin = smin - smax ; 
-
-      }
+      // Spindown range defined using Smin and Smax (settings.c)
+      // (int) cast silences warning
+      smin = (int)trunc((sett->Smin - nn*sett->M[9] - mm*sett->M[13])/sett->M[5]);
+      smax = (int)trunc(-(nn*sett->M[9] + mm*sett->M[13] + sett->Smax)/sett->M[5]);
   } 
 
   printf ("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
@@ -538,9 +655,15 @@ int job_core(int pm,                   // Hemisphere
       phase = het1*i + sgnlt[1]*_tmp1[0][i];
       cp = cos(phase);
       sp = sin(phase);
+#ifndef _WIN32
       exph = cp - I*sp;
       fftw_arr->xa[i] = ifo[0].sig.xDatma[i]*exph; ///ifo[0].sig.sig2;
       fftw_arr->xb[i] = ifo[0].sig.xDatmb[i]*exph; ///ifo[0].sig.sig2;
+#else
+      exph = cbuild(cp, -sp);
+      fftw_arr->xa[i] = cmulcc(ifo[0].sig.xDatma[i],exph); ///ifo[0].sig.sig2;
+      fftw_arr->xb[i] = cmulcc(ifo[0].sig.xDatmb[i],exph); ///ifo[0].sig.sig2;
+#endif
     }
 #endif
     
@@ -614,9 +737,15 @@ int job_core(int pm,                   // Hemisphere
 	phase = het1*i + sgnlt[1]*_tmp1[n][i];
 	cp = cos(phase);
 	sp = sin(phase);
+#ifndef _WIN32
 	exph = cp - I*sp;
 	fftw_arr->xa[i] += ifo[n].sig.xDatma[i]*exph; //*sig2inv;
 	fftw_arr->xb[i] += ifo[n].sig.xDatmb[i]*exph; //*sig2inv;
+#else
+  exph = cbuild(cp , -sp);
+	fftw_arr->xa[i] = caddcc(fftw_arr->xa[i], cmulcc(ifo[n].sig.xDatma[i],exph)); //*sig2inv;
+	fftw_arr->xb[i] = caddcc(fftw_arr->xb[i], cmulcc(ifo[n].sig.xDatmb[i],exph)); //*sig2inv;
+#endif
       }
 #endif
       
@@ -624,10 +753,19 @@ int job_core(int pm,                   // Hemisphere
 
       // Zero-padding 
     for(i = sett->fftpad*sett->nfft-1; i != sett->N-1; --i)
-      fftw_arr->xa[i] = fftw_arr->xb[i] = 0.; 
+#ifndef _WIN32
+      fftw_arr->xa[i] = fftw_arr->xb[i] = 0.;
+
+      fftw_execute_dft(plans->plan, fftw_arr->xa, fftw_arr->xa);
+      fftw_execute_dft(plans->plan, fftw_arr->xb, fftw_arr->xb);
+#else
+      fftw_arr->xa[i] = fftw_arr->xb[i] = cbuild(0., 0.);
+
+      fftw_execute_dft(plans->plan, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));
+      fftw_execute_dft(plans->plan, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));
+#endif
     
-    fftw_execute_dft(plans->plan, fftw_arr->xa, fftw_arr->xa);
-    fftw_execute_dft(plans->plan, fftw_arr->xb, fftw_arr->xb);
+    
     
     (*FNum)++;
     

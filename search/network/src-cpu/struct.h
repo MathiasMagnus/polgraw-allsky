@@ -1,13 +1,16 @@
 #ifndef __STRUCT_H__
 #define __STRUCT_H__
 
+// Polgraw includes
+#include <floats.h>     // COMPLEX_FLOAT
+
+// FFTW
 #include <fftw3.h>
-#include <complex.h>
 
 #define MAX_DETECTORS 8        // Maximum number of detectors in network 
 #define DETNAME_LENGTH 2       // Detector name length (H1, L1, V1...)
 #define XDATNAME_LENGTH 512    // Maximum length of input file name xdat*bin 
-#define INICANDSIZE 10485760       // 1048576? Initial size for array candidates storage; 
+#define INICANDSIZE 1024       // 1048576? Initial size for array candidates storage; 
                                // realloc called if needed (in coincidences)  
 
 #define MAXL 2048              // Max number of known lines for a detector  
@@ -18,11 +21,11 @@ typedef struct _comm_line_opts {
   int white_flag, 		// white noise flag
       s0_flag,			// no spin-down flag
       checkp_flag,		// checkpointing flag
-      veto_flag,                // veto lines flag 
+      veto_flag,        // veto lines flag 
       help_flag;
   
   int fftinterp;
-  int ident, band, hemi, nod;
+  int ident, band, hemi;
   double trl;
   double fpo_val, narrowdown;
   
@@ -50,15 +53,18 @@ typedef struct _signals {
          sig2; 	  // variance of signal
 
   int Nzeros;
-  complex double *xDatma, *xDatmb;
+  complex_t *xDatma, *xDatmb;
 
 } Signals;
 
 
 //fftw arrays
 typedef struct _fftw_arrays {
-
+#ifndef _WIN32
   fftw_complex *xa, *xb;
+#else
+  complex_t *xa, *xb;
+#endif
   int arr_len;
   
 } FFTW_arrays;
@@ -199,7 +205,7 @@ typedef struct _triggers {
   int frameinfo[256][3];    // Info about candidates in frames: 
                             // - [0] frame number, [1] initial number 
                             // of candidates, [2] number of candidates
-                            // after sorting (unique)
+                            // after sorting    
 
   int frcount, goodcands; 
 

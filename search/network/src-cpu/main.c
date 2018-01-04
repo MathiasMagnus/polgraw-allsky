@@ -1,24 +1,62 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <math.h>
-#include <complex.h>
+// C behavioral defines
+//
+// ISO: request safe versions of functions
+#define __STDC_WANT_LIB_EXT1__ 1
+
+// Polgraw includes
+#include <floats.h>
+#include <auxi.h>
+#include <settings.h>
+#include <struct.h>
+#include <jobcore.h>
+#include <init.h>
+
+// FFTW
 #include <fftw3.h>
-#include <string.h>
-#include <errno.h>
+
+// Posix includes
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <getopt.h>
-#include <gsl/gsl_linalg.h>
-#include <time.h>
+#ifdef _WIN32
+#include <direct.h>
 #include <dirent.h>
+#include <getopt.h>
+#else
+#include <unistd.h>
+#include <dirent.h>
+#include <getopt.h>
+#endif // WIN32
 
-#include "auxi.h"
-#include "settings.h"
-#include "struct.h"
-#include "jobcore.h"
-#include "init.h"
+// Standard C includes
+#include <stdio.h>      // fopen_s
+#include <stdlib.h>
+#include <math.h>
+#include <complex.h>
+#include <string.h>
+#include <errno.h>
+#include <time.h>
+
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <math.h>
+//#include <complex.h>
+//#include <fftw3.h>
+//#include <string.h>
+//#include <errno.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
+//#include <fcntl.h>
+//#include <getopt.h>
+//#include <gsl/gsl_linalg.h>
+//#include <time.h>
+//#include <dirent.h>
+
+//#include "settings.h"
+//#include "auxi.h"
+//#include "struct.h"
+//#include "jobcore.h"
+//#include "init.h"
 
 #ifndef CODEVER
 #define CODEVER unknown
@@ -31,6 +69,11 @@
 
 #ifndef DTAPREFIX
 #define DTAPREFIX .
+#endif
+
+// GCC: M_PI not being defined by C99 or C11, falls victim to -std=c11 instead of -std=gnu11
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
 #endif
 
 
@@ -55,19 +98,8 @@ int main (int argc, char* argv[]) {
   // Output data handling
   struct stat buffer;
 
-  if (stat(opts.prefix, &buffer) == -1) {
-    if (errno == ENOENT) {
-      // Output directory apparently does not exist, try to create one
-      if(mkdir(opts.prefix, S_IRWXU | S_IRGRP | S_IXGRP 
-          | S_IROTH	| S_IXOTH) == -1) {
-	      perror (opts.prefix);
-	      return 1;
-      }
-    } else { // can't access output directory
-      perror (opts.prefix);
-      return 1;
-    }
-  }
+  // Setup output buffer
+  setup_output(&buffer, &opts);
  
   // Grid data 
   read_grid(&sett, &opts);	
@@ -106,10 +138,9 @@ int main (int argc, char* argv[]) {
     for(k=0; k<sett.numlines_band; k++) 
       printf("%f %f\n", sett.lines[k][0], sett.lines[k][1]);
 
-    fraction_of_band_vetoed(&sett, &opts); 
+    check_if_band_is_fully_vetoed(&sett); 
 
-  } else 
-    printf("Veto fraction for band %04d: %f\n", opts.band, 0.);  
+  } 
 
   // Amplitude modulation functions for each detector  
   for(i=0; i<sett.nifo; i++)   

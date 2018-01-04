@@ -1,7 +1,11 @@
 #ifndef __AUXI_H__
 #define __AUXI_H__
 
+// Polgraw includes
+#include <floats.h>
+
 #include <complex.h>
+#include <stddef.h>
 
 #define sqr(x) ((x)*(x))
 #define TOSTRA(x) #x
@@ -11,25 +15,17 @@
 #define NINTERP 3			 /* degree of the interpolation polynomial */
 							 /* Do not change this value!!! */
 #define NAVFSTAT 4096
-#define round(x) floor((x)+0.5)
+//#define round(x) floor((x)+0.5)
 
-// Define COMP_FLOAT this to change the double/single precision of triggers 
-//
-// #define COMP_FLOAT
-#ifdef COMP_FLOAT // if single-precision
-    #define FLOAT_TYPE float
-#else             // if double-precision
-    #define FLOAT_TYPE double
-#endif
 
 void lin2ast(double be1, double be2, int pm, double sepsm, double cepsm,	\
          double *sinal, double *cosal, double *sindel, double *cosdel);
 
-int ast2lin(FLOAT_TYPE alfa, FLOAT_TYPE delta, double epsm, double *be); 
+void ast2lin(real_t alfa, real_t delta, double epsm, double *be);
  
-void spline(complex double *, int, complex double *);
-complex double splint (complex double *, complex double *, int, double);
-void splintpad (complex double *, double *, int, int, complex double*);
+void spline(complex_t *, int, complex_t *);
+complex_t splint (complex_t *, complex_t *, int, double);
+void splintpad (complex_t *, real_t *, int, int, complex_t*);
 double var (double *, int);
 
 void gridr (double *, int *, int *, int *, double, double);
@@ -43,6 +39,14 @@ int invm (const double *, int, double *);
 double det (const double *, int);
 
 // for qsorting the lines 
-int compared2c (const void *, const void *);  
+int compared2c (const void *, const void *);
+
+/// <summary>Dump real array to disk</summary>
+///
+void dumparr (const real_t* arr, const size_t length, const char* filename);
+
+/// <summary>Dump complex array to disk</summary>
+///
+void dumpcarr (const complex_t* arr, const size_t length, const char* filename);
 
 #endif

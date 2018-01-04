@@ -540,7 +540,7 @@ int main (int argc, char *argv[]) {
     double x;
     char filename[512];
     sprintf (filename, "%s/DetSSB%s.bin", dtaprefix, ident);
-    if ((data = fopen (filename, "r")) != NULL) {
+    if ((data = fopen (filename, "rb")) != NULL) {
       for (i=0; i<3*(sett.N)+1; i++)
         fread ((void *)(&x), sizeof (double), 1, data);
 

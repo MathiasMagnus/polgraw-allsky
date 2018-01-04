@@ -63,7 +63,8 @@ target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${VERBOSE}>:VERBOSE>
   if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
 
     # Add implementations of complex operations
-    target_sources(${Target_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/floats.c)
+    target_sources(${Target_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/floats.h
+                                          ${CMAKE_CURRENT_SOURCE_DIR}/floats.c)
     
     # Link it to our executable
     target_link_libraries (${Target_NAME} getopt Ws2_32)

@@ -1,24 +1,71 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <math.h>
-#include <complex.h>
-#include <fftw3.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <getopt.h>
+// C behavioral defines
+//
+// MSVC: macro to include constants, such as M_PI (include before math.h)
+#define _USE_MATH_DEFINES
+
+// Polgraw includes
+#include <init.h>       // all function declarations
+#include <struct.h>     // Search_settings, Command_line_opts, OpenCL_handles, ...
+#include <settings.h>
+#include <auxi.h>
+
+// GSL includes
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_permutation.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_eigen.h>
-#include <time.h>
 
-#include "init.h"
-#include "struct.h"
-#include "settings.h"
-#include "auxi.h"
+// FFTW
+#include <fftw3.h>
+
+// Posix includes
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <dirent.h>
+#include <getopt.h>
+#include <Winsock2.h> // gethostname
+#else
+#include <unistd.h>
+#include <dirent.h>
+#include <getopt.h>
+#endif // WIN32
+
+// Standard C includes
+#include <stdio.h>
+#include <stdlib.h>     // EXIT_FAILURE
+#include <math.h>
+#include <complex.h>
+#include <string.h>
+#include <errno.h>
+#include <time.h>
+#include <limits.h>     // UINT_MAX
+
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <unistd.h>
+//#include <math.h>
+//#include <complex.h>
+//#include <fftw3.h>
+//#include <string.h>
+//#include <errno.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
+//#include <fcntl.h>
+//#include <getopt.h>
+//#include <gsl/gsl_linalg.h>
+//#include <gsl/gsl_math.h>
+//#include <gsl/gsl_eigen.h>
+//#include <time.h>
+//
+//#include "init.h"
+//#include "struct.h"
+//#include "settings.h"
+//#include "auxi.h"
 
 
 
@@ -56,9 +103,6 @@ void handle_opts( Search_settings *sett,
   // Default value of the narrow-down parameter 
   opts->narrowdown=0.5; 
 
-  // Initial value of the number of days is set to 0
-  sett->nod = 0; 
-
   opts->help_flag=0;
   opts->white_flag=0;
   opts->s0_flag=0;
@@ -93,7 +137,7 @@ void handle_opts( Search_settings *sett,
       {"getrange", required_argument, 0, 'g'},
       // change directory parameter
       {"cwd", required_argument, 0, 'c'},
-      // threshold for the F-statistic
+      // interpolation method
       {"threshold", required_argument, 0, 't'},
       // hemisphere
       {"hemisphere", required_argument, 0, 'h'},
@@ -101,8 +145,6 @@ void handle_opts( Search_settings *sett,
       {"fpo", required_argument, 0, 'p'},
       // add signal parameters
       {"addsig", required_argument, 0, 'x'},
-      // number of days in the time-domain segment 
-      {"nod", required_argument, 0, 'y'},
       // which detectors to use
       {"usedet", required_argument, 0, 'u'}, 
       // data sampling time 
@@ -117,22 +159,21 @@ void handle_opts( Search_settings *sett,
       printf("polgraw-allsky periodic GWs: search for candidate signals with the F-statistic\n");
       printf("Usage: ./search -[switch1] <value1> -[switch2] <value2> ...\n") ;
       printf("Switches are:\n\n");
-      printf("-data         Data directory (default is .)\n");
-      printf("-output       Output directory (default is ./candidates)\n");
-      printf("-ident        Frame number\n");
-      printf("-band         Band number\n");
-      printf("-label        Custom label for the input and output files\n");
-      printf("-range        Use file with grid range or pulsar position\n");
-      printf("-getrange     Write grid ranges & save fft wisdom & exit (ignore -r)\n");
-      printf("-cwd          Change to directory <dir>\n");
-      printf("-threshold    Threshold for the F-statistic (default is 20)\n");
-      printf("-hemisphere   Hemisphere (default is 0 - does both)\n");
-      printf("-fpo          Reference band frequency fpo value\n");
-      printf("-dt           Data sampling time dt (default value: 0.5)\n");
-      printf("-usedet       Use only detectors from string (default is use all available)\n");
-      printf("-addsig       Add signal with parameters from <file>\n");
-      printf("-nod          Number of days\n");
-      printf("-narrowdown   Narrow-down the frequency band (range [0, 0.5] +- around center)\n\n");
+      printf("-d, -data         Data directory (default is .)\n");
+      printf("-o, -output       Output directory (default is ./candidates)\n");
+      printf("-i, -ident        Frame number\n");
+      printf("-b, -band         Band number\n");
+      printf("-l, -label        Custom label for the input and output files\n");
+      printf("-r, -range        Use file with grid range or pulsar position\n");
+      printf("-g, -getrange     Write grid ranges & save fft wisdom & exit (ignore -r)\n");
+      printf("-c, -cwd          Change to directory <dir>\n");
+      printf("-t, -threshold    Threshold for the F-statistic (default is 20)\n");
+      printf("-h, -hemisphere   Hemisphere (default is 0 - does both)\n");
+      printf("-p, -fpo          Reference band frequency fpo value\n");
+      printf("-s, -dt           data sampling time dt (default value: 0.5)\n");
+      printf("-u, -usedet       Use only detectors from string (default is use all available)\n");
+      printf("-x, -addsig       Add signal with parameters from <file>\n");
+      printf("-n, -narrowdown   Narrow-down the frequency band (range [0, 0.5] +- around center)\n\n");
 
 
       printf("Also:\n\n");
@@ -146,20 +187,20 @@ void handle_opts( Search_settings *sett,
     }
 
     int option_index = 0;
-    int c = getopt_long_only(argc, argv, "i:b:o:d:l:r:g:c:t:h:p:x:y:s:u:n:", 
+    int c = getopt_long_only(argc, argv, "i:b:o:d:l:r:g:c:t:h:p:x:s:u:n:", 
 			     long_options, &option_index);
     if (c == -1)
       break;
 
     switch (c) {
     case 'i':
-      opts->ident = atoi (optarg);
+      opts->ident = atoi(optarg);
       break;
     case 't':
       opts->trl = atof(optarg);
       break;
     case 'h':
-      opts->hemi = atof(optarg);
+      opts->hemi = (int)atof(optarg); // WARNING: Why atof when assigning to int?
       break;
     case 'b':
       opts->band = atoi(optarg);
@@ -190,9 +231,6 @@ void handle_opts( Search_settings *sett,
     case 'x':
       strcpy(opts->addsig, optarg);
       break;
-    case 'y':
-      sett->nod = atoi(optarg);
-      break;
     case 's':
       sett->dt = atof(optarg);
       break;
@@ -202,20 +240,13 @@ void handle_opts( Search_settings *sett,
     case 'n':
       opts->narrowdown = atof(optarg);
       break;
+
     case '?':
       break;
     default:
       break ;
     } /* switch c */
   } /* while 1 */
-
-  // Check if sett->nod was set up, if not, exit
-  if(!(sett->nod)) { 
-    printf("Number of days not set... Exiting\n"); 
-    exit(EXIT_FAILURE); 
-  } 
-
-  printf("Number of days is %d\n", sett->nod); 
 
   // Putting the parameter in triggers' frequency range [0, pi] 
   opts->narrowdown *= M_PI; 
@@ -272,11 +303,16 @@ void handle_opts( Search_settings *sett,
     printf ("Adding signal from '%s'\n", opts->addsig);
   if (opts->wd) {
     printf ("Changing working directory to %s\n", opts->wd);
-    if (chdir(opts->wd)) { perror (opts->wd); abort (); }
+#ifdef _WIN32
+    if (_chdir(opts->wd)) { perror(opts->wd); abort(); }
+#else
+    if (chdir(opts->wd)) { perror(opts->wd); abort(); }
+#endif
   }
 
   if(opts->veto_flag) 
     printf("Known lines will be vetoed (reading from files in the data directory)\n");
+
 
 } // end of command line options handling 
 
@@ -303,10 +339,9 @@ void read_grid(
     sprintf (filename, "%s/%03d/grid.bin", opts->dtaprefix, opts->ident);
 
 
-  if ((data=fopen (filename, "r")) != NULL) {
+  if ((data=fopen (filename, "rb")) != NULL) {
     printf("Using grid file from %s\n", filename);
     fread ((void *)&sett->fftpad, sizeof (int), 1, data);
-
     printf("Using fftpad from the grid file: %d\n", sett->fftpad); 
 	
     // M: vector of 16 components consisting of 4 rows
@@ -330,7 +365,7 @@ void init_arrays(
 		 double** F) {
 
   int i; 
-  size_t status; 
+  size_t status;
   // Allocates and initializes to zero the data, detector ephemeris
   // and the F-statistic arrays
 
@@ -346,7 +381,7 @@ void init_arrays(
     // in settings.c, while looking for the detector 
     // subdirectories
     
-    if((data = fopen(ifo[i].xdatname, "r")) != NULL) {
+    if((data = fopen(ifo[i].xdatname, "rb")) != NULL) {
       status = fread((void *)(ifo[i].sig.xDat), 
 		     sizeof(double), sett->N, data);
       fclose (data);
@@ -381,7 +416,7 @@ void init_arrays(
     sprintf (filename, "%s/%03d/%s/DetSSB.bin", 
         opts->dtaprefix, opts->ident, ifo[i].name);
 
-    if((data = fopen(filename, "r")) != NULL) {
+    if((data = fopen(filename, "rb")) != NULL) {
       // Detector position w.r.t Solar System Baricenter
       // for every datapoint
       status = fread((void *)(ifo[i].sig.DetSSB), 
@@ -414,9 +449,9 @@ void init_arrays(
     sett->cepsm = ifo[i].sig.cepsm; 
 
     ifo[i].sig.xDatma = 
-      (complex double *) calloc(sett->N, sizeof(complex double));
+      (complex_t *) calloc(sett->N, sizeof(complex_t));
     ifo[i].sig.xDatmb = 
-      (complex double *) calloc(sett->N, sizeof(complex double));
+      (complex_t *) calloc(sett->N, sizeof(complex_t));
 
     ifo[i].sig.aa = (double *) calloc(sett->N, sizeof(double));
     ifo[i].sig.bb = (double *) calloc(sett->N, sizeof(double));
@@ -466,41 +501,24 @@ void add_signal(
 		Search_range *s_range) {
 
   int i, j, n, gsize, reffr; 
-  double snr=0, sum = 0., h0=0, cof, d1; 
-  double sigma_noise = 1.0;
-  double be[2];
-  double sinaadd, cosaadd, sindadd, cosdadd, phaseadd, shiftadd; 
-  double nSource[3], sgnlo[8], sgnlol[4];
- 
-  char amporsnr[3];  
- 
+  double h0, cof; 
+  double sinaadd, cosaadd, sindadd, cosdadd, phaseadd, shiftadd, signadd; 
+  double nSource[3], sgnlo[10], sgnlol[4];
+  
   FILE *data;
   
   // Signal parameters are read
-  if ((data=fopen (opts->addsig, "r")) != NULL) {
+  if ((data=fopen (opts->addsig, "rb")) != NULL) {
 	
-    // Fscanning for the GW amplitude h0 or signal-to-noise,  
-    // the grid size and the reference frame 
-    // (for which the signal freq. is not spun-down/up)
-
-    fscanf (data, "%s", amporsnr);    
-
-    if(!strcmp(amporsnr, "amp")) { 
-      fscanf (data, "%le %d %d", &h0, &gsize, &reffr); 
-      printf("add_signal(): GW amplitude h0 is %le\n", h0); 
-    } else if(!strcmp(amporsnr, "snr")) { 
-      fscanf (data, "%le %d %d", &snr, &gsize, &reffr); 
-      printf("add_signal(): GW (network) signal-to-noise ratio is %le\n", snr); 
-    } else { 
-      printf("Problem with the signal file. Exiting...\n"); 
-      exit(0); 
-    } 
+    // Fscanning for the GW amplitude, grid size, hemisphere 
+    // and the reference frame (for which the signal freq. is not spun-down/up)
+    fscanf (data, "%le %d %d %d", &h0, &gsize, s_range->pmr, &reffr);    
 
     // Fscanning signal parameters: f, fdot, delta, alpha (sgnlo[0], ..., sgnlo[3])
     // four amplitudes sgnlo[4], ..., sgnlo[7] 
     // (see sigen.c and Phys. Rev. D 82, 022005 2010, Eqs. 2.13a-d) 
-
-    for(i=0; i<8; i++)
+    // be1, be2 (sgnlo[8], sgnlo[9] to translate the sky position into grid position)  
+    for(i=0; i<10; i++)
       fscanf(data, "%le",i+sgnlo); 
     
     fclose (data);
@@ -512,6 +530,7 @@ void add_signal(
   // Search-specific parametrization of freq. 
   // for the software injections
   // sgnlo[0]: frequency, sgnlo[1]: frequency. derivative  
+  //#mb For VSR1 reffr=67
  
   sgnlo[0] += -2.*sgnlo[1]*(sett->N)*(reffr - opts->ident); 
  
@@ -523,17 +542,13 @@ void add_signal(
   
   for(i=0; i<2; i++) sgnlol[i] = sgnlo[i]; 
   
-  // Calculate the hemisphere and be vector 
-  s_range->pmr[0] = ast2lin(sgnlo[3], sgnlo[2], C_EPSMA, be);
-
-  sgnlol[2] = be[0]*cof;  
-  sgnlol[3] = be[1]*cof; 
-
+  sgnlol[2] = sgnlo[8]*cof; 
+  sgnlol[3] = sgnlo[9]*cof;  
  		 	
   // solving a linear system in order to translate 
   // sky position, frequency and spindown (sgnlo parameters) 
   // into the position in the grid
-
+  
   double *MM ; 
   MM = (double *) calloc (16, sizeof (double));
   for(i=0; i<16; i++) MM[i] = sett->M[i] ;
@@ -549,9 +564,10 @@ void add_signal(
   gsl_linalg_LU_decomp (&m.matrix, p, &s);
   gsl_linalg_LU_solve (&m.matrix, p, &b.vector, x);
   
-  s_range->spndr[0] = round(gsl_vector_get(x,1)); 
-  s_range->nr[0] 	= round(gsl_vector_get(x,2));
-  s_range->mr[0] 	= round(gsl_vector_get(x,3));
+  // cast silences warning
+  s_range->spndr[0] = (int)round(gsl_vector_get(x,1)); 
+  s_range->nr[0] 	= (int)round(gsl_vector_get(x,2));
+  s_range->mr[0] 	= (int)round(gsl_vector_get(x,3));
   
   gsl_permutation_free (p);
   gsl_vector_free (x);
@@ -566,8 +582,8 @@ void add_signal(
   s_range->mr[0] -= gsize;
   s_range->pmr[1] = s_range->pmr[0]; 
   
-  printf("add_signal(): following grid range is used (spndr, nr, mr, pmr pairs)\n");
-  printf("%d %d %d %d %d %d %d %d\n", \
+  printf("add_signal() - the following grid range is used\n");
+  printf("(spndr, nr, mr, pmr pairs): %d %d %d %d %d %d %d %d\n", \
    s_range->spndr[0], s_range->spndr[1], s_range->nr[0], s_range->nr[1],
    s_range->mr[0], s_range->mr[1], s_range->pmr[0], s_range->pmr[1]);
 
@@ -581,13 +597,7 @@ void add_signal(
   double phaseshift = sgnlo[0]*sett->N*(reffr - opts->ident)   
     + sgnlo[1]*pow(sett->N*(reffr - opts->ident), 2); 
 
-
-  // Allocate arrays for added signal, for each detector 
-  double **signadd = malloc((sett->nifo)*sizeof(double *));
-  for(n=0; n<sett->nifo; n++)
-    signadd[n] = malloc((sett->N)*sizeof(double));
-
-  // Loop for each detector - sum calculations
+  // Loop for each detector 
   for(n=0; n<sett->nifo; n++) {
     
     modvir(sinaadd, cosaadd, sindadd, cosdadd,
@@ -597,6 +607,7 @@ void add_signal(
     nSource[1] = sinaadd*cosdadd;
     nSource[2] = sindadd;
 					
+    // adding signal to data (point by point)  								
     for (i=0; i<sett->N; i++) {
       
       shiftadd = 0.; 					 
@@ -609,46 +620,26 @@ void add_signal(
         - phaseshift; 
 
       // The whole signal with 4 amplitudes and modulations 
-      signadd[n][i] = sgnlo[4]*(ifo[n].sig.aa[i])*cos(phaseadd) 
-                    + sgnlo[6]*(ifo[n].sig.aa[i])*sin(phaseadd) 
-                    + sgnlo[5]*(ifo[n].sig.bb[i])*cos(phaseadd) 
-                    + sgnlo[7]*(ifo[n].sig.bb[i])*sin(phaseadd);
+      signadd = sgnlo[4]*(ifo[n].sig.aa[i])*cos(phaseadd) 
+        + sgnlo[6]*(ifo[n].sig.aa[i])*sin(phaseadd) 
+        + sgnlo[5]*(ifo[n].sig.bb[i])*cos(phaseadd) 
+        + sgnlo[7]*(ifo[n].sig.bb[i])*sin(phaseadd);
 
-      // Sum over signals
-      sum += pow(signadd[n][i], 2.);
+      //#mb test printout 
+      //printf("%d %le\n", i + sett->N*(opts->ident-1), phaseadd); 
+
     
-    } // data loop
-   
-  } // detector loop
-
-
-  // Signal amplitude h0 from the snr 
-  // (currently only makes sense for Gaussian noise with fixed sigma)
-  if(snr)
-    h0 = (snr*sigma_noise)/(sqrt(sum));
-
-  // Loop for each detector - adding signal to data (point by point)  								
-  for(n=0; n<sett->nifo; n++) {
-    for (i=0; i<sett->N; i++) {
-
       // Adding the signal to the data vector 
       if(ifo[n].sig.xDat[i]) { 
-        ifo[n].sig.xDat[i] += h0*signadd[n][i];
-
-      } 
-
-    } // data loop
-
-  } // detector loop
-
-  // printf("snr=%le h0=%le\n", snr, h0);
-
-  // Free auxiliary 2d array 
-  for(n=0; n<sett->nifo; n++) 
-    free(signadd[n]);
-  free(signadd);
- 
-} // add_signal()
+        ifo[n].sig.xDat[i] += h0*signadd;
+	      // thsnr += pow(signadd, 2.);
+      }
+	 
+    }
+    
+  }
+  
+} 
 
 
 /* Search range */ 
@@ -674,7 +665,7 @@ void set_search_range(
   FILE *data;
   if (strlen (opts->range)) {
 
-    if ((data=fopen (opts->range, "r")) != NULL) {
+    if ((data=fopen (opts->range, "rb")) != NULL) {
 
       int aqq = fscanf(data, "%d %d %d %d %d %d %d %d",
 		       s_range->spndr, 1+s_range->spndr, 
@@ -684,13 +675,16 @@ void set_search_range(
       
       /*
       //#mb commented-out for now - useful for tests 
+
       // the case when range file does not contain 8 integers
       // describing the grid ranges, but other values:
       // the pulsar position, frequency, and spindowns.
       if(range_status!=8) {
+
       rewind(data);
       range_status = fscanf (data, "%le %le %le %le %le %le %d",
       &pepoch, &alpha, &delta, &f0, &f1, &f2, &gsize);
+
       // GPS time of the first sample
       double gps1;
       sprintf (filename, "%s/%03d/starting_date", dtaprefix, ident);
@@ -701,44 +695,61 @@ void set_search_range(
       perror (filename);
       return 1;
       }
+
       // Conversion of mjd to gps time
       double pepoch_gps = (pepoch - 44244)*86400 - 51.184;
       //			 gps1 = (gps1 - 44244)*86400 - 51.184;
+
       // Interpolation of ephemeris parameters to the starting time
       double *sgnlo;
       sgnlo = (double *) calloc (4, sizeof (double));
+
       double *be;
       be = (double *) calloc (2, sizeof (double));
+
       // ast2lin (auxi.c) returns the hemisphere number
       // and the vector be (used for sky position in linear coords.)
       pmr[0] = ast2lin(alpha, delta, epsm, be);
+
       sgnlo[0] = f0 + f1*(gps1 - pepoch_gps) + f2*pow(gps1 - pepoch_gps, 2)/2.;
       sgnlo[0] = 2*M_PI*2*sgnlo[0]*dt - oms;
+
       sgnlo[1] = f1 + f2*(gps1 - pepoch_gps);
       sgnlo[1] = M_PI*2*sgnlo[1]*dt*dt;
+
       sgnlo[2] = be[0]*(oms + sgnlo[0]);
       sgnlo[3] = be[1]*(oms + sgnlo[0]);
+
       // solving a linear system in order to translate
       // sky position, frequency and spindown (sgnlo parameters)
       // into the position in the grid
+
       gsl_vector *x = gsl_vector_alloc (4);
       int s;
+
       gsl_matrix_view m = gsl_matrix_view_array (M, 4, 4);
       gsl_matrix_transpose (&m.matrix) ;
       gsl_vector_view b = gsl_vector_view_array (sgnlo, 4);
       gsl_permutation *p = gsl_permutation_alloc (4);
+
       gsl_linalg_LU_decomp (&m.matrix, p, &s);
       gsl_linalg_LU_solve (&m.matrix, p, &b.vector, x);
+
       spndr[0] = round(gsl_vector_get(x, 1));
       nr[0]		= round(gsl_vector_get(x, 2));
       mr[0]		= round(gsl_vector_get(x, 3));
+
       gsl_permutation_free (p);
       gsl_vector_free (x);
       free (be);
       free (sgnlo);
+
+
       // Warnings and infos
       if(hemi)
+
       printf("Warning: -h switch hemisphere choice (%d) may be altered\nby the choice of -r grid range...\n", hemi);
+
       // Define the grid range in which the signal will be looked for
       spndr[1] = spndr[0] + gsize ;
       spndr[0] -= gsize;
@@ -747,6 +758,7 @@ void set_search_range(
       mr[1] = mr[0] + gsize ;
       mr[0] -= gsize;
       pmr[1] = pmr[0];
+
       }
       */
 
@@ -824,10 +836,13 @@ void plan_fftw(
    * of the fft_plans are performed below 
    * (see http://www.fftw.org/fftw3_doc/Wisdom.html)
    */ 
-
+#ifndef _WIN32
   gethostname(hostname, 512);
   sprintf (wfilename, "wisdom-%s.dat", hostname);
-  if((wisdom = fopen (wfilename, "r")) != NULL) {
+#else
+  sprintf (wfilename, "wisdom-%s.dat", "mumbo-jumbo");
+#endif
+  if((wisdom = fopen (wfilename, "rb")) != NULL) {
     fftw_import_wisdom_from_file(wisdom);
     fclose (wisdom);
   }
@@ -845,14 +860,21 @@ void plan_fftw(
 
   // Change FFTW_MEASURE to FFTW_PATIENT for more optimized plan
   // (takes more time to generate the wisdom file)
+#ifndef _WIN32
   plans->plan = fftw_plan_dft_1d(sett->nfftf, fftw_arr->xa, fftw_arr->xa, FFTW_FORWARD, FFTW_MEASURE);
 	                             
   plans->pl_int = fftw_plan_dft_1d(sett->nfft, fftw_arr->xa, fftw_arr->xa, FFTW_FORWARD, FFTW_MEASURE);
 	                             
   plans->pl_inv = fftw_plan_dft_1d(sett->Ninterp, fftw_arr->xa, fftw_arr->xa, FFTW_BACKWARD, FFTW_MEASURE);
+#else
+  plans->plan = fftw_plan_dft_1d(sett->nfftf, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa), FFTW_FORWARD, FFTW_MEASURE);
 	                             
+  plans->pl_int = fftw_plan_dft_1d(sett->nfft, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa), FFTW_FORWARD, FFTW_MEASURE);
+	                             
+  plans->pl_inv = fftw_plan_dft_1d(sett->Ninterp, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa), FFTW_BACKWARD, FFTW_MEASURE);
+#endif                 
   // Generates a wisdom FFT file if there is none
-  if((wisdom = fopen(wfilename, "r")) == NULL) {
+  if((wisdom = fopen(wfilename, "rb")) == NULL) {
     wisdom = fopen(wfilename, "w");
     fftw_export_wisdom_to_file(wisdom);
   }
@@ -882,7 +904,7 @@ void read_checkpoints(
 	            opts->ident, opts->band, opts->label);
 
     FILE *state;
-    if((state = fopen(opts->qname, "r")) != NULL) {
+    if((state = fopen(opts->qname, "rb")) != NULL) {
 
       // Scan the state file to get last recorded parameters
       if((fscanf(state, "%d %d %d %d %d", &s_range->pst, &s_range->mst,
@@ -952,11 +974,11 @@ void cleanup(
   free(sett->M);
 	
   fftw_destroy_plan(plans->plan);
-  fftw_destroy_plan(plans->plan2);
+  //fftw_destroy_plan(plans->plan2);
   fftw_destroy_plan(plans->pl_int);
-  fftw_destroy_plan(plans->pl_int2);
+  //fftw_destroy_plan(plans->pl_int2);
   fftw_destroy_plan(plans->pl_inv);
-  fftw_destroy_plan(plans->pl_inv2);
+  //fftw_destroy_plan(plans->pl_inv2);
 
   fftw_forget_wisdom();
   fftw_cleanup();
@@ -979,9 +1001,6 @@ void handle_opts_coinc(
 	
   strcpy (opts->prefix, TOSTR(PREFIX));
   strcpy (opts->dtaprefix, TOSTR(DTAPREFIX));
-
-  // Initial value of the number of days is set to 0
-  sett->nod = 0;
 
   // Default initial value of the data sampling time 
   sett->dt = 0.5;
@@ -1033,8 +1052,6 @@ void handle_opts_coinc(
       {"narrowdown", required_argument, 0, 'n'},
       // Signal-to-noise threshold cutoff  
       {"snrcutoff", required_argument, 0, 'c'},
-      // number of days in the time-domain segment 
-      {"nod", required_argument, 0, 'y'},
       {0, 0, 0, 0}
     };
 
@@ -1054,7 +1071,6 @@ void handle_opts_coinc(
       printf("-refloc       Location of the reference grid.bin and starting_date files\n");
       printf("-mincoin      Minimal number of coincidences recorded\n");
       printf("-narrowdown   Narrow-down the frequency band (range [0, 0.5] +- around center)\n");
-      printf("-nod          Number of days\n");
       printf("-snrcutoff    Signal-to-noise threshold cutoff (default value: 6)\n\n");
 
       printf("Also:\n\n");
@@ -1064,7 +1080,7 @@ void handle_opts_coinc(
     }
 
     int option_index = 0;
-    int c = getopt_long_only (argc, argv, "p:o:d:s:z:r:t:e:g:m:n:c:y:", long_options, &option_index);
+    int c = (int)getopt_long_only(argc, argv, "p:o:d:s:z:r:t:e:g:m:n:c:", long_options, &option_index); // cast silences warning
     if (c == -1)
       break;
 
@@ -1105,9 +1121,6 @@ void handle_opts_coinc(
     case 'c':
       opts->snrcutoff = atof(optarg);
       break;
-    case 'y':
-      sett->nod = atoi(optarg);
-      break;
     case '?':
       break;
     default:
@@ -1118,14 +1131,7 @@ void handle_opts_coinc(
   // Putting the parameter in triggers' frequency range [0, pi] 
   opts->narrowdown *= M_PI; 
 
-  // Check if sett->nod was set up, if not, exit
-  if(!(sett->nod)) { 
-    printf("Number of days not set... Exiting\n"); 
-    exit(EXIT_FAILURE); 
-  } 
-
-  printf("Number of days is %d\n", sett->nod); 
-
+  printf("#mb add info at the beginning...\n"); 
   printf("The SNR threshold cutoff is %.12f, ", opts->snrcutoff); 
   printf("corresponding to F-statistic value of %.12f\n", 
     pow(opts->snrcutoff, 2)/2. + 2); 
@@ -1149,7 +1155,7 @@ void manage_grid_matrix(
   char filename[512];
   sprintf (filename, "%s/grid.bin", opts->refloc);
 
-  if ((data=fopen (filename, "r")) != NULL) {
+  if ((data=fopen (filename, "rb")) != NULL) {
 
     printf("Reading the reference grid.bin at %s\n", opts->refloc);
 
@@ -1222,12 +1228,15 @@ void manage_grid_matrix(
     {1.5497867603229576e-005, 1.9167007413107127e-006, 1.0599051611325639e-008, -5.0379548388381567e-008}, 
     {2.4410008440913992e-005, 3.2886518554938671e-006, -5.7338464150027107e-008, -9.3126913365595100e-009},
   };
+
   { int i,j; 
   for(i=0; i<4; i++) 
     for(j=0; j<4; j++) 
       sett->vedva[i][j]  = _tmp[i][j]; 
   }
+
   printf("\n"); 
+
   { int i, j; 
   for(i=0; i<4; i++) { 
     for(j=0; j<4; j++) {
@@ -1235,6 +1244,7 @@ void manage_grid_matrix(
       }
       printf("\n"); 
   } 
+
  } 
 */ 
 
@@ -1242,3 +1252,5 @@ void manage_grid_matrix(
   gsl_matrix_free (evec);
 
 } // end of manage grid matrix  
+
+

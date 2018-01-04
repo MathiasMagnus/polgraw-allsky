@@ -1,8 +1,9 @@
 #ifndef __JOBCORE_H__
 #define __JOBCORE_H__
 
-#include "auxi.h"
-#include "struct.h"
+// Polgraw includes
+#include <struct.h>     // Search_settings, Command_line_opts, Search_range, FFT_plans, FFT_arrays, Aux_arrays
+#include <floats.h>     // FLOAT_TYPE, HOST_COMPLEX_TYPE
 
 void search(
 	    Search_settings *sett,
