@@ -1,7 +1,7 @@
 #ifndef __KERNELS_HCL__
 #define __KERNELS_HCL__
 
-#include <floats.hcl>
+#include <floats.h.cl>
 
 /// <summar>Amplitude modulation function coefficients</summary>
 ///

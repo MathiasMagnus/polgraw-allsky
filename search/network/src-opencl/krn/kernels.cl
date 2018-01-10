@@ -1,6 +1,6 @@
 // Polgraw includes
-#include <floats.hcl>       // real_t, complex_t
-#include <kernels.hcl>      // function declarations
+#include <floats.h.cl>       // real_t, complex_t
+#include <kernels.h.cl>      // function declarations
 
 //#pragma OPENCL EXTENSION cl_amd_printf : enable
 
