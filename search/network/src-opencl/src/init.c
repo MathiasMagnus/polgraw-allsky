@@ -1229,8 +1229,8 @@ void cleanup(Detector_settings* ifo,
     free(sett->M);
 
     clfftDestroyPlan(&plans->plan);
-    clfftDestroyPlan(&plans->pl_int);
-    clfftDestroyPlan(&plans->pl_inv);
+    //clfftDestroyPlan(&plans->pl_int);
+    //clfftDestroyPlan(&plans->pl_inv);
 
     clfftTeardown();
 
