@@ -351,9 +351,9 @@ real_t* job_core(int pm,                        // hemisphere
                              cl_handles);
 
         // Backward fft (len Ninterp = nfft*interpftpad)
-        clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+        clfftEnqueueTransform(plans->plan /*plans->pl_inv*/, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
-        clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+        clfftEnqueueTransform(plans->plan /*plans->pl_inv*/, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
 
         clWaitForEvents(2, fft_exec);
