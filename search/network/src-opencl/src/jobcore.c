@@ -66,6 +66,52 @@ void save_array_double(double *arr, int N, const char* file) {
   fclose(fc);
 }
 
+/// <summary>Prints the first 'n' values of a host side real array.</summary>
+///
+void print_real_array(real_t* arr, size_t count, const char* msg)
+{
+#ifdef _WIN32
+    int count = printf_s("%s:\n\n", msg);
+    size_t i;
+    for (i = 0 ; i < count ; ++i)
+    {
+        count = printf_s("\t%f\n", arr[i]);
+    }
+    count = printf_s("\n");
+#else
+    printf("%s:\n\n", msg);
+    size_t i;
+    for (i = 0 ; i < count ; ++i)
+    {
+        printf("\t%f\n", arr[i]);
+    }
+    printf("\n");
+#endif
+}
+
+/// <summary>Prints the first 'n' values of a host side complex array.</summary>
+///
+void print_complex_array(complex_t* arr, size_t count, const char* msg)
+{
+#ifdef _WIN32
+    int count = printf_s("%s:\n\n", msg);
+    size_t i;
+    for (i = 0 ; i < count ; ++i)
+    {
+        count = printf_s("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
+    }
+    count = printf_s("\n");
+#else
+    printf("%s:\n\n", msg);
+    size_t i;
+    for (i = 0 ; i < count ; ++i)
+    {
+        printf("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
+    }
+    printf("\n");
+#endif
+}
+
 
 /// <summary>Main searching function.</summary>
 /// <remarks>This function loops over hemispheres, sky positions and spin-downs.</remarks>
@@ -706,6 +752,31 @@ void modvir_gpu(real_t sinal,
     clWaitForEvents(1, &exec);
 
     clReleaseEvent(exec);
+
+    real_t* aa_temp = (real_t*)malloc(Np * sizeof(real_t));
+    real_t* bb_temp = (real_t*)malloc(Np * sizeof(real_t));
+
+    cl_event maps[2];
+    real_t* temp_aa = (real_t*)clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                                                  ifoi->sig.aa_d,
+                                                  TRUE,
+                                                  CL_MAP_READ,
+                                                  0, Np * sizeof(real_t),
+                                                  0, NULL,
+                                                  &maps[0],
+                                                  &CL_err);
+    real_t* temp_bb = (real_t*)clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                                                  ifoi->sig.bb_d,
+                                                  TRUE,
+                                                  CL_MAP_READ,
+                                                  0, Np * sizeof(real_t),
+                                                  0, NULL,
+                                                  &maps[1],
+                                                  &CL_err);
+
+    clWaitForEvents(2, maps);
+    clReleaseEvent(maps[0]);
+    clReleaseEvent(maps[1]);
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>

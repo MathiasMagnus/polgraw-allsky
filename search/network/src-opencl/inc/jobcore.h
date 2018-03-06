@@ -164,6 +164,13 @@ void FStat_gpu_simple(cl_mem F_d,
 ///
 void save_array(HOST_COMPLEX_TYPE *arr, int N, const char* file);
 
+/// <summary>Prints the first 'n' values of a host side real array.</summary>
+///
+void print_real_array(real_t* arr, size_t count, const char* msg);
+
+/// <summary>Prints the first 'n' values of a host side complex array.</summary>
+///
+void print_complex_array(complex_t* arr, size_t count, const char* msg);
 
 double FStat (double *, int, int, int);
 void FStat_gpu(FLOAT_TYPE *F_d, int N, int nav, FLOAT_TYPE *mu_d, FLOAT_TYPE *mu_t_d);
