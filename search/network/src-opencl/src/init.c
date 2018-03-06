@@ -731,13 +731,6 @@ void init_arrays(Detector_settings* ifo,
     {
         ifo[i].sig.xDat = (real_t*)calloc(sett->N, sizeof(real_t));
 
-        ifo[i].sig.xDat_d = clCreateBuffer(cl_handles->ctx,
-                                           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                           sett->N * sizeof(real_t),
-                                           ifo[i].sig.xDat,
-                                           &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
-
         // Input time-domain data handling
         // 
         // The file name ifo[i].xdatname is constructed 
@@ -756,6 +749,13 @@ void init_arrays(Detector_settings* ifo,
             perror(ifo[i].xdatname);
             exit(EXIT_FAILURE);
         }
+
+        ifo[i].sig.xDat_d = clCreateBuffer(cl_handles->ctx,
+                                           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                           sett->N * sizeof(real_t),
+                                           ifo[i].sig.xDat,
+                                           &CL_err);
+        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
 
         int j, Nzeros = 0;
         // Checking for null values in the data
