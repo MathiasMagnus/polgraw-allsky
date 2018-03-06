@@ -172,6 +172,14 @@ void print_real_array(real_t* arr, size_t count, const char* msg);
 ///
 void print_complex_array(complex_t* arr, size_t count, const char* msg);
 
+/// <summary>Prints the first 'n' values of a device side real array.</summary>
+///
+void print_real_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg);
+
+/// <summary>Prints the first 'n' values of a device side complex array.</summary>
+///
+void print_complex_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg);
+
 double FStat (double *, int, int, int);
 void FStat_gpu(FLOAT_TYPE *F_d, int N, int nav, FLOAT_TYPE *mu_d, FLOAT_TYPE *mu_t_d);
 

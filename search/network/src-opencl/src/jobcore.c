@@ -71,13 +71,13 @@ void save_array_double(double *arr, int N, const char* file) {
 void print_real_array(real_t* arr, size_t count, const char* msg)
 {
 #ifdef _WIN32
-    int count = printf_s("%s:\n\n", msg);
+    int bytes = printf_s("%s:\n\n", msg);
     size_t i;
     for (i = 0 ; i < count ; ++i)
     {
-        count = printf_s("\t%f\n", arr[i]);
+        bytes = printf_s("\t%f\n", arr[i]);
     }
-    count = printf_s("\n");
+    bytes = printf_s("\n");
 #else
     printf("%s:\n\n", msg);
     size_t i;
@@ -87,6 +87,7 @@ void print_real_array(real_t* arr, size_t count, const char* msg)
     }
     printf("\n");
 #endif
+    fflush(NULL);
 }
 
 /// <summary>Prints the first 'n' values of a host side complex array.</summary>
@@ -94,13 +95,13 @@ void print_real_array(real_t* arr, size_t count, const char* msg)
 void print_complex_array(complex_t* arr, size_t count, const char* msg)
 {
 #ifdef _WIN32
-    int count = printf_s("%s:\n\n", msg);
+    int bytes = printf_s("%s:\n\n", msg);
     size_t i;
     for (i = 0 ; i < count ; ++i)
     {
-        count = printf_s("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
+        bytes = printf_s("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
     }
-    count = printf_s("\n");
+    bytes = printf_s("\n");
 #else
     printf("%s:\n\n", msg);
     size_t i;
@@ -110,6 +111,65 @@ void print_complex_array(complex_t* arr, size_t count, const char* msg)
     }
     printf("\n");
 #endif
+    fflush(NULL);
+}
+
+/// <summary>Prints the first 'n' values of a device side real array.</summary>
+///
+void print_real_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg)
+{
+    cl_int CL_err;
+    cl_event map, unmap;
+
+    real_t* temp = (real_t*)clEnqueueMapBuffer(queue,
+                                               buf,
+                                               TRUE,
+                                               CL_MAP_READ,
+                                               0, count * sizeof(real_t),
+                                               0, NULL,
+                                               &map,
+                                               &CL_err);
+    checkErr(CL_err, "clEnqueueMapBufffer");
+
+    CL_err = clWaitForEvents(1, &map);
+    checkErr(CL_err, "clWaitForEvents");
+
+    print_real_array(temp, count, msg);
+
+    CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
+    checkErr(CL_err, "clEnqueueUnmapMemObject");
+
+    clReleaseEvent(map);
+    clReleaseEvent(unmap);
+}
+
+/// <summary>Prints the first 'n' values of a device side complex array.</summary>
+///
+void print_complex_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg)
+{
+    cl_int CL_err;
+    cl_event map, unmap;
+
+    complex_t* temp = (complex_t*)clEnqueueMapBuffer(queue,
+                                                     buf,
+                                                     TRUE,
+                                                     CL_MAP_READ,
+                                                     0, count * sizeof(complex_t),
+                                                     0, NULL,
+                                                     &map,
+                                                     &CL_err);
+    checkErr(CL_err, "clEnqueueMapBufffer");
+
+    CL_err = clWaitForEvents(1, &map);
+    checkErr(CL_err, "clWaitForEvents");
+
+    print_complex_array(temp, count, msg);
+
+    CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
+    checkErr(CL_err, "clEnqueueUnmapMemObject");
+
+    clReleaseEvent(map);
+    clReleaseEvent(unmap);
 }
 
 
@@ -751,32 +811,15 @@ void modvir_gpu(real_t sinal,
 
     clWaitForEvents(1, &exec);
 
+    printf_s("\t\tmodvir_gpu\n\n");
+    fflush(NULL);
+
+    print_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, 5, "aux->sinmodf_d");
+    print_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, 5, "aux->cosmodf_d");
+    print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.aa_d, 5, "ifoi->sig.aa_d");
+    print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.bb_d, 5, "ifoi->sig.bb_d");
+
     clReleaseEvent(exec);
-
-    real_t* aa_temp = (real_t*)malloc(Np * sizeof(real_t));
-    real_t* bb_temp = (real_t*)malloc(Np * sizeof(real_t));
-
-    cl_event maps[2];
-    real_t* temp_aa = (real_t*)clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                                  ifoi->sig.aa_d,
-                                                  TRUE,
-                                                  CL_MAP_READ,
-                                                  0, Np * sizeof(real_t),
-                                                  0, NULL,
-                                                  &maps[0],
-                                                  &CL_err);
-    real_t* temp_bb = (real_t*)clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                                  ifoi->sig.bb_d,
-                                                  TRUE,
-                                                  CL_MAP_READ,
-                                                  0, Np * sizeof(real_t),
-                                                  0, NULL,
-                                                  &maps[1],
-                                                  &CL_err);
-
-    clWaitForEvents(2, maps);
-    clReleaseEvent(maps[0]);
-    clReleaseEvent(maps[1]);
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>
@@ -828,6 +871,19 @@ void tshift_pmod_gpu(real_t shft1,
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TShiftPMod], 1, NULL, &size_nfft, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);
+
+    printf_s("\t\ttshift_pmod_gpu\n\n");
+    fflush(NULL);
+
+    print_real_buffer(cl_handles->exec_queues[0], xDat_d, 5, "xDat_d");
+    print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
+    print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
+    print_real_buffer(cl_handles->exec_queues[0], shft_d, 5, "shft_d");
+    print_real_buffer(cl_handles->exec_queues[0], shftf_d, 5, "shftf_d");
+    print_real_buffer(cl_handles->exec_queues[0], tshift_d, 5, "tshift_d");
+    print_real_buffer(cl_handles->exec_queues[0], aa_d, 5, "aa_d");
+    print_real_buffer(cl_handles->exec_queues[0], bb_d, 5, "bb_d");
+    print_real_buffer(cl_handles->exec_queues[0], DetSSB_d, 5, "DetSSB_d");
 
     clReleaseEvent(exec);
 }
