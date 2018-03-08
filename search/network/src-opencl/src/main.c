@@ -112,7 +112,7 @@ int main (int argc, char* argv[])
     }
 
     // Cleanup & memory free 
-    cleanup(&ifo, &sett, &opts, &s_range, &cl_handles, &blas_handles,
+    cleanup(ifo, &sett, &opts, &s_range, &cl_handles, &blas_handles,
             &fft_plans, &fft_arr, &aux_arr, F_d);
 
     return 0;//EXIT_SUCCESS;
