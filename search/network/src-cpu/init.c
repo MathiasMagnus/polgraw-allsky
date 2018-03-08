@@ -826,7 +826,7 @@ void plan_fftw(
 	FFTW_arrays *fftw_arr, 
 	Aux_arrays *aux_arr) {
 
-  char hostname[512], wfilename[512];
+  char /*hostname[512],*/ wfilename[512];
   FILE *wisdom;
 
   /* Imports a "wisdom file" containing information 
