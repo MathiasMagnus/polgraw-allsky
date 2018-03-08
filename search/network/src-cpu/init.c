@@ -1089,7 +1089,7 @@ void handle_opts_coinc(
       sett->fpo = atof(optarg);
       break;
     case 's': // Cell shifts 
-      opts->shift = atof(optarg);
+      opts->shift = atoi(optarg); // Why was this atof?
       break;
     case 'z': // Cell scaling   
       opts->scale = atoi(optarg);
