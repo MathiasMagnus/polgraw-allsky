@@ -38,6 +38,7 @@
 #define M_PI_2 (3.14159265358979323846/2)
 #endif
 
+
 /// <summary>Create directory for disk output.</summary>
 ///
 void setup_output(struct stat* buff,
@@ -152,7 +153,8 @@ void search_settings(
 
 void detectors_settings(
   Search_settings* sett, 
-  Command_line_opts *opts) {
+  Command_line_opts *opts,
+  Detector_settings *ifo_) {
 
   int i=0; 
 
@@ -168,7 +170,7 @@ void detectors_settings(
 
   dp = opendir (dirname);
   if (dp != NULL) {
-    while ((ep = readdir (dp))) { 
+    while ((ep = readdir (dp)) != NULL) { 
 
       // Subdirectory names checkup: 
       // check if it's a dir
@@ -233,56 +235,56 @@ void detectors_settings(
     // Virgo detector
     if(!strcmp("V1", detnames[i])) {
 
-      strncpy(ifo[i].xdatname, xnames[i], strlen(xnames[i]));
-      strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH);
+      strncpy(ifo_[i].xdatname, xnames[i], strlen(xnames[i]));
+      strncpy(ifo_[i].name, detnames[i], DETNAME_LENGTH);
 
       // Geographical latitude phi in radians
-      ifo[i].ephi = (43.+37./60.+53.0880/3600.)/RAD_TO_DEG;
+      ifo_[i].ephi = (43.+37./60.+53.0880/3600.)/RAD_TO_DEG;
       // Geographical longitude in radians
-      ifo[i].elam = (10.+30./60.+16.1885/3600.)/RAD_TO_DEG;
+      ifo_[i].elam = (10.+30./60.+16.1885/3600.)/RAD_TO_DEG;
       // Height h above the Earth ellipsoid in meters
-      ifo[i].eheight = 53.238;
+      ifo_[i].eheight = 53.238;
       // Orientation of the detector gamma
-      ifo[i].egam = (135. - (19.0+25./60.0+57.96/3600.))/RAD_TO_DEG;
+      ifo_[i].egam = (135. - (19.0+25./60.0+57.96/3600.))/RAD_TO_DEG;
 
       printf("Using %s IFO as detector #%d... %s as input time series data\n", 
-        ifo[i].name, i, ifo[i].xdatname);
+        ifo_[i].name, i, ifo_[i].xdatname);
 
     // Hanford H1 detector
     } else if(!strcmp("H1", detnames[i])) {
 
-      strncpy(ifo[i].xdatname, xnames[i], strlen(xnames[i]));
-      strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH);
+      strncpy(ifo_[i].xdatname, xnames[i], strlen(xnames[i]));
+      strncpy(ifo_[i].name, detnames[i], DETNAME_LENGTH);
 
       // Geographical latitude phi in radians
-      ifo[i].ephi = (46+(27+18.528/60.)/60.)/RAD_TO_DEG;
+      ifo_[i].ephi = (46+(27+18.528/60.)/60.)/RAD_TO_DEG;
       // Geographical longitude in radians
-      ifo[i].elam = -(119+(24+27.5657/60.)/60.)/RAD_TO_DEG;
+      ifo_[i].elam = -(119+(24+27.5657/60.)/60.)/RAD_TO_DEG;
       // Height h above the Earth ellipsoid in meters
-      ifo[i].eheight = 142.554;
+      ifo_[i].eheight = 142.554;
       // Orientation of the detector gamma
-      ifo[i].egam = 170.9994/RAD_TO_DEG;
+      ifo_[i].egam = 170.9994/RAD_TO_DEG;
 
       printf("Using %s IFO as detector #%d... %s as input time series data\n", 
-        ifo[i].name, i, ifo[i].xdatname);
+        ifo_[i].name, i, ifo_[i].xdatname);
 
     // Livingston L1 detector
     } else if(!strcmp("L1", detnames[i])) {
 
-      strncpy(ifo[i].xdatname, xnames[i], strlen(xnames[i]));
-      strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH);
+      strncpy(ifo_[i].xdatname, xnames[i], strlen(xnames[i]));
+      strncpy(ifo_[i].name, detnames[i], DETNAME_LENGTH);
 
       // Geographical latitude phi in radians
-      ifo[i].ephi = (30+(33+46.4196/60.)/60.)/RAD_TO_DEG;
+      ifo_[i].ephi = (30+(33+46.4196/60.)/60.)/RAD_TO_DEG;
       // Geographical longitude in radians
-      ifo[i].elam = -(90+(46+27.2654/60.)/60.)/RAD_TO_DEG;
+      ifo_[i].elam = -(90+(46+27.2654/60.)/60.)/RAD_TO_DEG;
       // Height h above the Earth ellipsoid in meters
-      ifo[i].eheight = -6.574;
+      ifo_[i].eheight = -6.574;
       // Orientation of the detector gamma
-      ifo[i].egam = 242.7165/RAD_TO_DEG;
+      ifo_[i].egam = 242.7165/RAD_TO_DEG;
 
       printf("Using %s IFO as detector #%d... %s as input time series data\n", 
-        ifo[i].name, i, ifo[i].xdatname);
+        ifo_[i].name, i, ifo_[i].xdatname);
 
     } else {
 
@@ -310,7 +312,7 @@ void detectors_settings(
    * of the Virgo detector
    */ 
 
-void rogcvir(Detector_settings *ifo) {
+void rogcvir(Detector_settings *ifo_) {
 
   /* In the notation of Phys. Rev. D 58, 063001 (1998):
    * ephi = lambda (geographical latitude phi in radians)
@@ -321,15 +323,15 @@ void rogcvir(Detector_settings *ifo) {
 
   //printf("Calculating the amplitude modulation functions for %s...\n", ifo->name); 
 
-  ifo->amod.c1 = .25*sin(2.*ifo->egam)*(1+sqr(sin(ifo->ephi)));
-  ifo->amod.c2 = -.5*cos(2.*ifo->egam)*sin(ifo->ephi);
-  ifo->amod.c3 = .5*sin(2.*ifo->egam)*sin(2.*ifo->ephi);
-  ifo->amod.c4 = -cos(2.*ifo->egam)*cos(ifo->ephi);
-  ifo->amod.c5 = .75*sin(2.*ifo->egam)*sqr(cos(ifo->ephi));
-  ifo->amod.c6 = cos(2.*ifo->egam)*sin(ifo->ephi);
-  ifo->amod.c7 = .5*sin(2.*ifo->egam)*(1.+sqr(sin(ifo->ephi)));
-  ifo->amod.c8 = cos(2.*ifo->egam)*cos(ifo->ephi);
-  ifo->amod.c9 = .5*sin(2.*ifo->egam)*sin(2.*ifo->ephi);
+  ifo_->amod.c1 = .25*sin(2.*ifo_->egam)*(1+sqr(sin(ifo_->ephi)));
+  ifo_->amod.c2 = -.5*cos(2.*ifo_->egam)*sin(ifo_->ephi);
+  ifo_->amod.c3 = .5*sin(2.*ifo_->egam)*sin(2.*ifo_->ephi);
+  ifo_->amod.c4 = -cos(2.*ifo_->egam)*cos(ifo_->ephi);
+  ifo_->amod.c5 = .75*sin(2.*ifo_->egam)*sqr(cos(ifo_->ephi));
+  ifo_->amod.c6 = cos(2.*ifo_->egam)*sin(ifo_->ephi);
+  ifo_->amod.c7 = .5*sin(2.*ifo_->egam)*(1.+sqr(sin(ifo_->ephi)));
+  ifo_->amod.c8 = cos(2.*ifo_->egam)*cos(ifo_->ephi);
+  ifo_->amod.c9 = .5*sin(2.*ifo_->egam)*sin(2.*ifo_->ephi);
 
 
 } // rogcvir
@@ -344,24 +346,24 @@ void modvir(
   double sindel, 
   double cosdel,
   int Np,
-  Detector_settings *ifo, 
+  Detector_settings *ifo_, 
   Aux_arrays *aux) {
 
   int t;
   double cosalfr, sinalfr, c2d, c2sd, c, s, c2s, cs;
 
-  double c1 = ifo->amod.c1,
-         c2 = ifo->amod.c2,
-         c3 = ifo->amod.c3,
-         c4 = ifo->amod.c4,
-         c5 = ifo->amod.c5,
-         c6 = ifo->amod.c6,
-         c7 = ifo->amod.c7,
-         c8 = ifo->amod.c8,
-         c9 = ifo->amod.c9;
+  double c1 = ifo_->amod.c1,
+         c2 = ifo_->amod.c2,
+         c3 = ifo_->amod.c3,
+         c4 = ifo_->amod.c4,
+         c5 = ifo_->amod.c5,
+         c6 = ifo_->amod.c6,
+         c7 = ifo_->amod.c7,
+         c8 = ifo_->amod.c8,
+         c9 = ifo_->amod.c9;
 
-  cosalfr = cosal*(ifo->sig.cphir) + sinal*(ifo->sig.sphir);
-  sinalfr = sinal*(ifo->sig.cphir) - cosal*(ifo->sig.sphir);
+  cosalfr = cosal*(ifo_->sig.cphir) + sinal*(ifo_->sig.sphir);
+  sinalfr = sinal*(ifo_->sig.cphir) - cosal*(ifo_->sig.sphir);
   c2d = sqr(cosdel);
   c2sd = sindel*cosdel;
 
@@ -374,20 +376,31 @@ void modvir(
     cs = c*s;
 
     // modulation factors aa and bb  
-    ifo->sig.aa[t] = c1*(2.-c2d)*c2s + c2*(2.-c2d)*2.*cs +
+    ifo_->sig.aa[t] = c1*(2.-c2d)*c2s + c2*(2.-c2d)*2.*cs +
            c3*c2sd*c + c4*c2sd*s - c1*(2.-c2d) + c5*c2d;
 
-    ifo->sig.bb[t] = c6*sindel*c2s + c7*sindel*2.*cs + 
+    ifo_->sig.bb[t] = c6*sindel*c2s + c7*sindel*2.*cs + 
            c8*cosdel*c + c9*cosdel*s - c6*sindel;
 
-  } 
+  }
+#ifdef _WIN32
+  //printf_s("\t\tmodvir\n\n");
+#else
+  //printf("\t\tmodvir\n\n");
+#endif
+  //fflush(NULL);
+
+  //save_real_array(aux->sinmodf, 86164, "aux_sinmodf.dat");
+  //save_real_array(aux->cosmodf, 86164, "aux_cosmodf.dat");
+  //save_real_array(ifo_->sig.aa, 86164, "ifo_sig.aa.dat");
+  //save_real_array(ifo_->sig.bb, 86164, "ifo_sig.bb.dat");
 
 } // modvir
 
 int read_lines(
     Search_settings *sett, 
     Command_line_opts *opts, 
-    Detector_settings *ifo) { 
+    Detector_settings *ifo_) { 
 
     int i=0, lnum/*, alllines*/, j; 
     double l[MAXL][7]; 
@@ -395,7 +408,7 @@ int read_lines(
     FILE *data; 
   
     sprintf(linefile, "%s/O1LinesToBeCleaned_%s_v1.txt", 
-        opts->dtaprefix, ifo->name);
+        opts->dtaprefix, ifo_->name);
 
     // Reading line data from the input file (data)   
     // Columns are: 
@@ -427,7 +440,7 @@ int read_lines(
 
     } else {  
         printf("No known lines file %s for %s IFO found. Continuing without.\n", 
-            linefile, ifo->name);
+            linefile, ifo_->name);
         return 0; 
     } 
 
@@ -450,7 +463,7 @@ int read_lines(
     for(i=0; i<sett->N-1; i++) { 
 
       for(j=0; j<3; j++)  
-        dE[i*3+j] = fabs(ifo->sig.DetSSB[(i+1)*3+j] - ifo->sig.DetSSB[i*3+j]); 
+        dE[i*3+j] = fabs(ifo_->sig.DetSSB[(i+1)*3+j] - ifo_->sig.DetSSB[i*3+j]); 
 
     } 
 
@@ -475,7 +488,7 @@ int read_lines(
     for(i=0; i<sett->N-1; i++) { 
 
       for(j=0; j<3; j++)  
-        dtE[i*3+j] = fabs(ifo->sig.DetSSB[(i+1)*3+j]*(i+1) - ifo->sig.DetSSB[i*3+j]*i)*sett->dt; 
+        dtE[i*3+j] = fabs(ifo_->sig.DetSSB[(i+1)*3+j]*(i+1) - ifo_->sig.DetSSB[i*3+j]*i)*sett->dt; 
 
     } 
 
@@ -523,17 +536,17 @@ int read_lines(
         // Singlet
         case 0: 
 /*            printf("Singlet\n");    
-            ifo->lines[j][0] = l[i][0] - l[i][5]; 
-            ifo->lines[j][1] = l[i][0] + l[i][6];
+            ifo_->lines[j][0] = l[i][0] - l[i][5]; 
+            ifo_->lines[j][1] = l[i][0] + l[i][6];
 */
 
             // Line width from the resampling broadening 
             Dfmaxmax = 2.*fdotMax*(sett->N*sett->dt + sqrt(normdtEmax)) + l[i][0]*sqrt(normdEmax);
 
             // The original width of a line is replaced with Dfmaxmax
-            ifo->lines[j][0] = l[i][0] - Dfmaxmax; 
-            ifo->lines[j][1] = l[i][0] + Dfmaxmax;
-//          printf("%f %f\n", ifo->lines[j][0], ifo->lines[j][1]);
+            ifo_->lines[j][0] = l[i][0] - Dfmaxmax; 
+            ifo_->lines[j][1] = l[i][0] + Dfmaxmax;
+//          printf("%f %f\n", ifo_->lines[j][0], ifo_->lines[j][1]);
             j++;
             break; 
 
@@ -542,8 +555,8 @@ int read_lines(
         case 1:                  
 //            printf("Fixed width\n"); 
             for(k=indf; k<=indl; k++) { 
-/*              ifo->lines[j][0] = l[i][2] + k*l[i][0] - l[i][5];
-                ifo->lines[j][1] = l[i][2] + k*l[i][0] + l[i][6];
+/*              ifo_->lines[j][0] = l[i][2] + k*l[i][0] - l[i][5];
+                ifo_->lines[j][1] = l[i][2] + k*l[i][0] + l[i][6];
 */
 
                 // Line width from the resampling broadening 
@@ -553,9 +566,9 @@ int read_lines(
                   + linefreq*sqrt(normdEmax);
 
                 // The original width of a line is replaced with Dfmaxmax
-                ifo->lines[j][0] = linefreq - Dfmaxmax;
-                ifo->lines[j][1] = linefreq + Dfmaxmax;
-//              printf("%f %f\n", ifo->lines[j][0], ifo->lines[j][1]);
+                ifo_->lines[j][0] = linefreq - Dfmaxmax;
+                ifo_->lines[j][1] = linefreq + Dfmaxmax;
+//              printf("%f %f\n", ifo_->lines[j][0], ifo_->lines[j][1]);
                 j++; 
             } 
             break; 
@@ -565,8 +578,8 @@ int read_lines(
         case 2: 
 //            printf("Scalling-width\n"); 
             for(k=indf; k<=indl; k++) { 
-/*              ifo->lines[j][0] = l[i][2] + k*l[i][0] - k*l[i][5];
-                ifo->lines[j][1] = l[i][2] + k*l[i][0] + k*l[i][6];
+/*              ifo_->lines[j][0] = l[i][2] + k*l[i][0] - k*l[i][5];
+                ifo_->lines[j][1] = l[i][2] + k*l[i][0] + k*l[i][6];
 */
 
                 // Line width from the resampling broadening 
@@ -575,9 +588,9 @@ int read_lines(
                 Dfmaxmax = 2.*fdotMax*(sett->N*sett->dt + sqrt(normdtEmax)) 
                   + linefreq*sqrt(normdEmax);
 
-                ifo->lines[j][0] = linefreq - k*Dfmaxmax;
-                ifo->lines[j][1] = linefreq + k*Dfmaxmax;
-//              printf("%f %f\n", ifo->lines[j][0], ifo->lines[j][1]);
+                ifo_->lines[j][0] = linefreq - k*Dfmaxmax;
+                ifo_->lines[j][1] = linefreq + k*Dfmaxmax;
+//              printf("%f %f\n", ifo_->lines[j][0], ifo_->lines[j][1]);
                 j++; 
             }
             break; 
@@ -585,8 +598,8 @@ int read_lines(
 
     }
 
-    ifo->numlines = j; 
-    printf("Number of known lines in %s: %d\n", ifo->name, ifo->numlines); 
+    ifo_->numlines = j; 
+    printf("Number of known lines in %s: %d\n", ifo_->name, ifo_->numlines); 
 
 return 0; 
 
@@ -611,7 +624,8 @@ void narrow_down_band(
 
 void lines_in_band(
     Search_settings* sett,
-    Command_line_opts *opts) {
+    Command_line_opts *opts,
+	Detector_settings *ifo_) {
 
     int i, j, k=0; 
     double bs, be;        // Band start and end  
@@ -626,12 +640,12 @@ void lines_in_band(
     for(i=0; i<sett->nifo; i++) { 
 
       printf("Looking for known lines for %s between %f and %f...\n", 
-        ifo[i].name, bs, be); 
+        ifo_[i].name, bs, be); 
 
-      for(j=0; j<ifo[i].numlines; j++) {
+      for(j=0; j<ifo_[i].numlines; j++) {
 
-        double l = ifo[i].lines[j][0]; 
-        double r = ifo[i].lines[j][1];
+        double l = ifo_[i].lines[j][0]; 
+        double r = ifo_[i].lines[j][1];
 
         if(!(r < bs || l > be)) { 
 
@@ -644,7 +658,7 @@ void lines_in_band(
            sett->lines[k][0] = (ll-bs)/(sett->B)*M_PI;  
            sett->lines[k][1] = (lr-bs)/(sett->B)*M_PI;
 
-           printf("%s: %f %f %f %f\n", ifo[i].name, ll, lr, sett->lines[k][0], sett->lines[k][1]);
+           printf("%s: %f %f %f %f\n", ifo_[i].name, ll, lr, sett->lines[k][0], sett->lines[k][1]);
            k++; 
 
         }      

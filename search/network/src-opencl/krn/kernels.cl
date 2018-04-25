@@ -73,8 +73,8 @@ __kernel void tshift_pmod_kern(real_t shft1,
         xb_d[i].x = xDat_d[i] * bb_d[i] * c;
         xb_d[i].y = xDat_d[i] * bb_d[i] * s;
 
-        //calculate time positions for spline interpolation
-        tshift_d[i] = interpftpad * (i - shftf_d[i]);
+        //calculate time positions for spline interpolation (recalculate instead of MEM_FENCE)
+        tshift_d[i] = interpftpad * (i - /*shftf_d[i]*/(S - shft1));
     }
     else if (i < nfft)
     {

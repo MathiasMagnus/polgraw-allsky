@@ -41,12 +41,24 @@ double det (const double *, int);
 // for qsorting the lines 
 int compared2c (const void *, const void *);
 
-/// <summary>Dump real array to disk</summary>
+/// <summary>Prints the largest absolute value of a host side complex array.</summary>
 ///
-void dumparr (const real_t* arr, const size_t length, const char* filename);
+void print_complex_min_max(complex_t* arr, size_t N, const char* msg);
 
-/// <summary>Dump complex array to disk</summary>
+/// <summary>Prints the first 'n' values of a host side real array.</summary>
 ///
-void dumpcarr (const complex_t* arr, const size_t length, const char* filename);
+void print_real_array(real_t* arr, size_t count, const char* msg);
+
+/// <summary>Prints the first 'n' values of a host side complex array.</summary>
+///
+void print_complex_array(complex_t* arr, size_t count, const char* msg);
+
+/// <summary>Saves values of a host side real array to disk.</summary>
+///
+void save_real_array(real_t* arr, size_t count, const char* filename);
+
+/// <summary>Saves values of a host side complex array to disk.</summary>
+///
+void save_complex_array(complex_t* arr, size_t count, const char* filename);
 
 #endif

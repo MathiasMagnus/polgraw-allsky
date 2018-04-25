@@ -70,7 +70,11 @@ target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${VERBOSE}>:VERBOSE>
     target_link_libraries (${Target_NAME} getopt Ws2_32)
     target_include_directories (${Target_NAME} PUBLIC ${POSIX_INCLUDE_DIR})
     
+    # Silence all Secure CRT warnings (remove later)
     target_compile_definitions (${Target_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)
+
+    # Highest sensible warning level and ISO conformance
+    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
   endif (CMAKE_C_COMPILER_ID MATCHES "MSVC")
 
@@ -82,6 +86,11 @@ target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${VERBOSE}>:VERBOSE>
 
       # Add libm to have math functions of CRT
       target_link_libraries(${Target_NAME} m)
+
+      # Highest sensible warning level and ISO conformance
+      target_compile_options(${Target_NAME} PRIVATE "-Wall"
+                                                    "-Wextra"
+                                                    "-pedantic")
   
     endif (CMAKE_C_COMPILER_ID MATCHES "GNU")
 

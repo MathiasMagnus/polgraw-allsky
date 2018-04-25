@@ -61,24 +61,7 @@
 //#include <yepCore.h>
 #endif
 
-
-void save_array(complex_t *arr, int N, const char* file) {
-  int i;
-  FILE *fc = fopen(file, "w");
-  for (i=0; i<N; i++) {
-    fprintf(fc, "%d %e + i %e\n", i, creal(arr[i]), cimag(arr[i]));
-  }
-  fclose(fc);
-}
-
-void save_array_double(double *arr, int N, const char* file) {
-  int i;
-  FILE *fc = fopen(file, "w");
-  for (i=0; i<N; i++) {
-    fprintf(fc, "%d %e\n", i, arr[i]);
-  }
-  fclose(fc);
-}
+//#include <float.h> // DBL_MAX
 
 
 // Main searching function (loops inside)
@@ -382,6 +365,9 @@ int job_core(int pm,                   // Hemisphere
       ifo[n].sig.shftf[i] = ifo[n].sig.shft[i] - shft1;
       _tmp1[n][i] = aux->t2[i] + (double)(2*i)*ifo[n].sig.shft[i];
     }
+
+	//save_real_array(ifo[n].sig.shft, sett->N, "shft.dat");
+	//save_real_array(ifo[n].sig.shftf, sett->N, "shftf.dat");
     
     for(i=0; i<sett->N; ++i) {
       // Phase modulation 
@@ -417,6 +403,18 @@ int job_core(int pm,                   // Hemisphere
     memcpy(fftw_arr->xa, ifo[n].sig.xDatma, sett->N * sizeof(fftw_complex));
     memcpy(fftw_arr->xb, ifo[n].sig.xDatmb, sett->N * sizeof(fftw_complex));
 #endif
+#ifdef _WIN32
+    //printf_s("\t\ttshift_pmod_gpu\n\n");
+    //fflush(NULL);
+#else
+    //printf("\t\ttshift_pmod_gpu\n\n");
+    //fflush(NULL);
+#endif
+
+    //save_real_array(ifo[n].sig.xDat, 5, "xDat");
+    //save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "xa.dat");
+    //save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "xb.dat");
+    //save_real_array(ifo[n].sig.DetSSB, 3 * sett->N, "DetSSB.dat");
  
     // Zero-padding (filling with 0s up to sett->nfft, 
     // the nearest power of 2)
@@ -429,6 +427,9 @@ int job_core(int pm,                   // Hemisphere
       fftw_arr->xb[i] = cbuild(0., 0.);
 #endif
     }
+    //save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "xa_time.dat");
+    //save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "xb_time.dat");
+
 #ifndef _WIN32
     fftw_execute_dft(plans->pl_int, fftw_arr->xa, fftw_arr->xa);  //forward fft (len nfft)
     fftw_execute_dft(plans->pl_int, fftw_arr->xb, fftw_arr->xb);  //forward fft (len nfft)
@@ -436,6 +437,9 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->pl_int, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));  //forward fft (len nfft)
     fftw_execute_dft(plans->pl_int, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));  //forward fft (len nfft)
 #endif
+	//save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "xa_fourier.dat");
+	//save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "xb_fourier.dat");
+
     // move frequencies from second half of spectrum; 
     // and zero frequencies higher than nyquist
     // loop length: nfft - nyqst = nfft - nfft/2 - 1 = nfft/2 - 1
@@ -446,7 +450,7 @@ int job_core(int pm,                   // Hemisphere
       fftw_arr->xa[j] = 0.;
 #else
       fftw_arr->xa[i] = fftw_arr->xa[j];
-      fftw_arr->xa[i] = cbuild(0., 0.);
+      fftw_arr->xa[j] = cbuild(0., 0.);
 #endif 
     }
 
@@ -456,9 +460,12 @@ int job_core(int pm,                   // Hemisphere
       fftw_arr->xb[j] = 0.;
 #else
       fftw_arr->xb[i] = fftw_arr->xb[j];
-      fftw_arr->xb[i] = cbuild(0., 0.);
+      fftw_arr->xb[j] = cbuild(0., 0.);
 #endif 
     }
+
+	//save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "xa_fourier_resampled.dat");
+	//save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "xb_fourier_resampled.dat");
 
     // Backward fft (len Ninterp = nfft*interpftpad)
 #ifndef _WIN32
@@ -468,6 +475,10 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->pl_inv, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));
     fftw_execute_dft(plans->pl_inv, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));
 #endif
+
+	//save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "xa_time_resampled.dat");
+	//save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "xb_time_resampled.dat");
+
     ft = (double)sett->interpftpad / sett->Ninterp; //scale FFT
     for (i=0; i < sett->Ninterp; ++i) {
 #ifndef _WIN32
@@ -478,6 +489,10 @@ int job_core(int pm,                   // Hemisphere
       fftw_arr->xb[i] = cmulrc(ft, fftw_arr->xb[i]);     
 #endif
     }
+
+    //save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "xa_time_rescaled.dat");
+    //save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "xb_time_rescaled.dat");
+	//exit(0);
 
     //  struct timeval tstart = get_current_time(), tend;
 

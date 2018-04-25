@@ -5,6 +5,14 @@
 #include <struct.h>     // Search_settings, Command_line_opts, Search_range, FFT_plans, FFT_arrays, Aux_arrays
 #include <floats.h>     // FLOAT_TYPE, HOST_COMPLEX_TYPE
 
+/// <summary>Prints the first 'n' values of a host side real array.</summary>
+///
+void print_real_array(real_t* arr, size_t count, const char* msg);
+
+/// <summary>Prints the first 'n' values of a host side complex array.</summary>
+///
+void print_complex_array(complex_t* arr, size_t count, const char* msg);
+
 void search(
 	    Search_settings *sett,
 	    Command_line_opts *opts,

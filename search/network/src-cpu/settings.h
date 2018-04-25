@@ -61,7 +61,8 @@ void search_settings(
 
 void detectors_settings(
     Search_settings *sett, 
-    Command_line_opts *opts);
+    Command_line_opts *opts,
+	Detector_settings *ifo_);
 
 void rogcvir(
     Detector_settings *ifo); 
@@ -89,7 +90,8 @@ int read_lines(
 
 void lines_in_band(
   Search_settings* sett, 
-  Command_line_opts *opts);  
+  Command_line_opts *opts,
+  Detector_settings *ifo_);
 
 void check_if_band_is_fully_vetoed(
   Search_settings* sett); 

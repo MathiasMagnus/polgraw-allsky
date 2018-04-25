@@ -46,131 +46,7 @@
 #include <string.h>         // memcpy_s
 #include <errno.h>          // errno_t
 #include <stdlib.h>         // EXIT_FAILURE
-
-
-void save_array(HOST_COMPLEX_TYPE *arr, int N, const char* file)
-{
-    int i;
-    FILE *fc = fopen(file, "w");
-    for (i=0; i<N; i++)
-        fprintf(fc, "%d %e + i %e\n", i, creal(arr[i]), cimag(arr[i]));
-    fclose(fc);
-}
-
-void save_array_double(double *arr, int N, const char* file) {
-  int i;
-  FILE *fc = fopen(file, "w");
-  for (i=0; i<N; i++) {
-    fprintf(fc, "%d %e\n", i, arr[i]);
-  }
-  fclose(fc);
-}
-
-/// <summary>Prints the first 'n' values of a host side real array.</summary>
-///
-void print_real_array(real_t* arr, size_t count, const char* msg)
-{
-#ifdef _WIN32
-    int bytes = printf_s("%s:\n\n", msg);
-    size_t i;
-    for (i = 0 ; i < count ; ++i)
-    {
-        bytes = printf_s("\t%f\n", arr[i]);
-    }
-    bytes = printf_s("\n");
-#else
-    printf("%s:\n\n", msg);
-    size_t i;
-    for (i = 0 ; i < count ; ++i)
-    {
-        printf("\t%f\n", arr[i]);
-    }
-    printf("\n");
-#endif
-    fflush(NULL);
-}
-
-/// <summary>Prints the first 'n' values of a host side complex array.</summary>
-///
-void print_complex_array(complex_t* arr, size_t count, const char* msg)
-{
-#ifdef _WIN32
-    int bytes = printf_s("%s:\n\n", msg);
-    size_t i;
-    for (i = 0 ; i < count ; ++i)
-    {
-        bytes = printf_s("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
-    }
-    bytes = printf_s("\n");
-#else
-    printf("%s:\n\n", msg);
-    size_t i;
-    for (i = 0 ; i < count ; ++i)
-    {
-        printf("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
-    }
-    printf("\n");
-#endif
-    fflush(NULL);
-}
-
-/// <summary>Prints the first 'n' values of a device side real array.</summary>
-///
-void print_real_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg)
-{
-    cl_int CL_err;
-    cl_event map, unmap;
-
-    real_t* temp = (real_t*)clEnqueueMapBuffer(queue,
-                                               buf,
-                                               TRUE,
-                                               CL_MAP_READ,
-                                               0, count * sizeof(real_t),
-                                               0, NULL,
-                                               &map,
-                                               &CL_err);
-    checkErr(CL_err, "clEnqueueMapBufffer");
-
-    CL_err = clWaitForEvents(1, &map);
-    checkErr(CL_err, "clWaitForEvents");
-
-    print_real_array(temp, count, msg);
-
-    CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
-    checkErr(CL_err, "clEnqueueUnmapMemObject");
-
-    clReleaseEvent(map);
-    clReleaseEvent(unmap);
-}
-
-/// <summary>Prints the first 'n' values of a device side complex array.</summary>
-///
-void print_complex_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg)
-{
-    cl_int CL_err;
-    cl_event map, unmap;
-
-    complex_t* temp = (complex_t*)clEnqueueMapBuffer(queue,
-                                                     buf,
-                                                     TRUE,
-                                                     CL_MAP_READ,
-                                                     0, count * sizeof(complex_t),
-                                                     0, NULL,
-                                                     &map,
-                                                     &CL_err);
-    checkErr(CL_err, "clEnqueueMapBufffer");
-
-    CL_err = clWaitForEvents(1, &map);
-    checkErr(CL_err, "clWaitForEvents");
-
-    print_complex_array(temp, count, msg);
-
-    CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
-    checkErr(CL_err, "clEnqueueUnmapMemObject");
-
-    clReleaseEvent(map);
-    clReleaseEvent(unmap);
-}
+#include <stdbool.h>        // TRUE
 
 
 /// <summary>Main searching function.</summary>
@@ -442,12 +318,24 @@ real_t* job_core(int pm,                        // hemisphere
 
         clfftStatus CLFFT_status = CLFFT_SUCCESS;
         cl_event fft_exec[2];
-        CLFFT_status = clfftEnqueueTransform(plans->plan /*pl_int*/, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+        CLFFT_status = clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
-        CLFFT_status = clfftEnqueueTransform(plans->plan /*pl_int*/, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+        CLFFT_status = clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
 
         clWaitForEvents(2, fft_exec);
+#ifdef _WIN32
+        //printf_s("\t\tFFT\n\n");
+#else
+        //printf("\t\tFFT\n\n");
+#endif
+        //fflush(NULL);
+
+        //print_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, 10, "xa_d");
+        //print_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, 10, "xb_d");
+
+        //save_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, "clfft_xa.txt");
+        //save_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, "clfft_xb.txt");
 
         resample_postfft_gpu(fft_arr->xa_d,
                              fft_arr->xb_d,
@@ -457,9 +345,9 @@ real_t* job_core(int pm,                        // hemisphere
                              cl_handles);
 
         // Backward fft (len Ninterp = nfft*interpftpad)
-        clfftEnqueueTransform(plans->plan /*plans->pl_inv*/, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+        clfftEnqueueTransform(plans->plan, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
-        clfftEnqueueTransform(plans->plan /*plans->pl_inv*/, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+        clfftEnqueueTransform(plans->plan, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
 
         clWaitForEvents(2, fft_exec);
@@ -810,14 +698,17 @@ void modvir_gpu(real_t sinal,
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Modvir], 1, NULL, &size_Np, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);
+#ifdef _WIN32
+    //printf_s("\t\tmodvir_gpu\n\n");
+#else
+    //printf("\t\tmodvir_gpu\n\n");
+#endif
+    //fflush(NULL);
 
-    printf_s("\t\tmodvir_gpu\n\n");
-    fflush(NULL);
-
-    print_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, 5, "aux->sinmodf_d");
-    print_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, 5, "aux->cosmodf_d");
-    print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.aa_d, 5, "ifoi->sig.aa_d");
-    print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.bb_d, 5, "ifoi->sig.bb_d");
+    //print_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, 5, "aux->sinmodf_d");
+    //print_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, 5, "aux->cosmodf_d");
+    //print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.aa_d, 5, "ifoi->sig.aa_d");
+    //print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.bb_d, 5, "ifoi->sig.bb_d");
 
     clReleaseEvent(exec);
 }
@@ -871,19 +762,22 @@ void tshift_pmod_gpu(real_t shft1,
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TShiftPMod], 1, NULL, &size_nfft, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);
+#ifdef _WIN32
+    //printf_s("\t\ttshift_pmod_gpu\n\n");
+#else
+    //printf("\t\ttshift_pmod_gpu\n\n");
+#endif
+    //fflush(NULL);
 
-    printf_s("\t\ttshift_pmod_gpu\n\n");
-    fflush(NULL);
-
-    print_real_buffer(cl_handles->exec_queues[0], xDat_d, 5, "xDat_d");
-    print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
-    print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
-    print_real_buffer(cl_handles->exec_queues[0], shft_d, 5, "shft_d");
-    print_real_buffer(cl_handles->exec_queues[0], shftf_d, 5, "shftf_d");
-    print_real_buffer(cl_handles->exec_queues[0], tshift_d, 5, "tshift_d");
-    print_real_buffer(cl_handles->exec_queues[0], aa_d, 5, "aa_d");
-    print_real_buffer(cl_handles->exec_queues[0], bb_d, 5, "bb_d");
-    print_real_buffer(cl_handles->exec_queues[0], DetSSB_d, 5, "DetSSB_d");
+    //print_real_buffer(cl_handles->exec_queues[0], xDat_d, 5, "xDat_d");
+    //print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
+    //print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
+    //print_real_buffer(cl_handles->exec_queues[0], shft_d, 5, "shft_d");
+    //print_real_buffer(cl_handles->exec_queues[0], shftf_d, 5, "shftf_d");
+    //print_real_buffer(cl_handles->exec_queues[0], tshift_d, 5, "tshift_d");
+    //print_real_buffer(cl_handles->exec_queues[0], aa_d, 5, "aa_d");
+    //print_real_buffer(cl_handles->exec_queues[0], bb_d, 5, "bb_d");
+    //print_real_buffer(cl_handles->exec_queues[0], DetSSB_d, 5, "DetSSB_d");
 
     clReleaseEvent(exec);
 }
@@ -911,6 +805,15 @@ void resample_postfft_gpu(cl_mem xa_d,
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ResamplePostFFT], 1, NULL, &size_Ninterp, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);
+#ifdef _WIN32
+    //printf_s("\t\tresample_postfft_gpu\n\n");
+    //fflush(NULL);
+#else
+    //printf("\t\tresample_postfft_gpu\n\n");
+    //fflush(NULL);
+#endif
+    //print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
+    //print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
 
     clReleaseEvent(exec);
 }
@@ -935,6 +838,16 @@ void blas_scale(cl_mem xa_d,
 #endif // COMP_FLOAT
 
     clWaitForEvents(2, blas_exec);
+#ifdef _WIN32
+    //printf_s("\t\tblas_scale\n\n");
+    //fflush(NULL);
+#else
+    //printf("\t\tblas_scale\n\n");
+    //fflush(NULL);
+#endif
+
+    //print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
+    //print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
 
     for (size_t i = 0; i < 2; ++i) clReleaseEvent(blas_exec[i]);
 }

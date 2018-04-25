@@ -12,7 +12,7 @@
 #include <stdarg.h>
 #include <math.h>
 #include <complex.h>
-#include <float.h>
+#include <float.h>		// DBL_MAX
 
 // GCC: M_PI not being defined by C99 or C11, falls victim to -std=c11 instead of -std=gnu11
 #ifndef M_PI
@@ -455,42 +455,97 @@ compared2c(const void *a, const void *b) {
 
 }
 
-/// <summary>Dump real array to disk</summary>
+/// <summary>Prints the largest absolute value of a host side complex array.</summary>
 ///
-void dumparr (const real_t* arr, const size_t length, const char* filename)
+void print_complex_min_max(complex_t* arr, size_t N, const char* msg)
 {
-  FILE* fc = fopen(filename, "w");
-  if (fc == NULL) perror("Failed to open output file.");
-
-  size_t i;
-  for (i = (size_t)0; i < length ; ++i)
-    fprintf(fc, "%lf\n", arr[i]);
-  
-  //size_t count = fwrite((void *)(arr), sizeof(real_t), length, fc);
-  //if (count < length) perror("Failed to write output file.");
-  
-  int close = fclose(fc);
-  if (close == EOF) perror("Failed to close output file.");
-
-  printf("Dumped %s\n", filename);
+	size_t i;
+	real_t min = DBL_MAX,
+		max = 0;
+	for (i = 0; i<N; ++i)
+	{
+		if (cabs(arr[i]) < min) min = cabs(arr[i]);
+		if (cabs(arr[i]) > max) max = cabs(arr[i]);
+	}
+	printf("%s\tMin: %f\nMax: %f\n", msg, min, max);
 }
 
-/// <summary>Dump complex array to disk</summary>
+/// <summary>Prints the first 'n' values of a host side real array.</summary>
 ///
-void dumpcarr (const complex_t* arr, const size_t length, const char* filename)
+void print_real_array(real_t* arr, size_t count, const char* msg)
 {
-  FILE* fc = fopen(filename, "w");
-  if (fc == NULL) perror("Failed to open output file.");
+#ifdef _WIN32
+	int bytes = printf_s("%s:\n\n", msg);
+	size_t i;
+	for (i = 0; i < count; ++i)
+	{
+		bytes = printf_s("\t%f\n", arr[i]);
+	}
+	bytes = printf_s("\n");
+#else
+	printf("%s:\n\n", msg);
+	size_t i;
+	for (i = 0; i < count; ++i)
+	{
+		printf("\t%f\n", arr[i]);
+	}
+	printf("\n");
+#endif
+	fflush(NULL);
+}
 
-  size_t i;
-  for (i = (size_t)0; i < length ; ++i)
-    fprintf(fc, "%lf %lf\n", creal(arr[i]), cimag(arr[i]));
-  
-  //size_t count = fwrite((void *)(arr), sizeof(real_t), length, fc);
-  //if (count < length) perror("Failed to write output file.");
-  
-  int close = fclose(fc);
-  if (close == EOF) perror("Failed to close output file.");
+/// <summary>Prints the first 'n' values of a host side complex array.</summary>
+///
+void print_complex_array(complex_t* arr, size_t count, const char* msg)
+{
+#ifdef _WIN32
+	int bytes = printf_s("%s:\n\n", msg);
+	size_t i;
+	for (i = 0; i < count; ++i)
+	{
+		bytes = printf_s("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
+	}
+	bytes = printf_s("\n");
+#else
+	printf("%s:\n\n", msg);
+	size_t i;
+	for (i = 0; i < count; ++i)
+	{
+		printf("\t{%f,%f}\n", creal(arr[i]), cimag(arr[i]));
+	}
+	printf("\n");
+#endif
+	fflush(NULL);
+}
 
-  printf("Dumped %s\n", filename);
+/// <summary>Saves values of a host side real array to disk.</summary>
+///
+void save_real_array(real_t* arr, size_t count, const char* filename)
+{
+	FILE* fc = fopen(filename, "w");
+	if (fc == NULL) perror("Failed to open output file.");
+
+	size_t i;
+	for (i = (size_t)0; i < count; ++i)
+		//fprintf(fc, "%lf\n", arr[i]);
+		fprintf(fc, "%zu %e\n", i, arr[i]);
+
+	int close = fclose(fc);
+	if (close == EOF) perror("Failed to close output file.");
+}
+
+/// <summary>Saves values of a host side complex array to disk.</summary>
+///
+void save_complex_array(complex_t* arr, size_t count, const char* filename)
+{
+	FILE* fc = fopen(filename, "w");
+	if (fc == NULL) perror("Failed to open output file.");
+
+	size_t i;
+	for (i = (size_t)0; i < count; ++i)
+		//fprintf(fc, "%lf %lf\n", creal(arr[i]), cimag(arr[i]));
+		fprintf(fc, "%zu %e + i %e\n", i, creal(arr[i]), cimag(arr[i]));
+
+	int close = fclose(fc);
+	if (close == EOF) perror("Failed to close output file.");
 }

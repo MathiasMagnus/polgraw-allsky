@@ -108,7 +108,7 @@ int main (int argc, char* argv[]) {
   search_settings(&sett); 
 
   // Detector network settings
-  detectors_settings(&sett, &opts); 
+  detectors_settings(&sett, &opts, ifo);
 
   // Array initialization and reading the ephemerids 
   init_arrays(&sett, &opts, &aux_arr, &F);
@@ -126,7 +126,7 @@ int main (int argc, char* argv[]) {
     }
 
     // Vetoing known lines in band 
-    lines_in_band(&sett, &opts); 
+    lines_in_band(&sett, &opts, ifo); 
   } 
 
   // If excluded parts of band, list them

@@ -666,8 +666,8 @@ void set_search_range(
   if (strlen (opts->range)) {
 
     if ((data=fopen (opts->range, "rb")) != NULL) {
-
-      int aqq = fscanf(data, "%d %d %d %d %d %d %d %d",
+      // warning C4189: 'aqq': local variable is initialized but not referenced
+      /*int aqq = */fscanf(data, "%d %d %d %d %d %d %d %d",
 		       s_range->spndr, 1+s_range->spndr, 
 		       s_range->nr, 1+s_range->nr, 
 		       s_range->mr, 1+s_range->mr,
@@ -784,16 +784,16 @@ void set_search_range(
 
     if (strlen(opts->getrange)) {
 
-      FILE *data;
-      if ((data=fopen (opts->getrange, "w")) != NULL) {
-	fprintf(data, "%d %d\n%d %d\n%d %d\n%d %d\n",
+      FILE *dataa;
+      if ((dataa=fopen (opts->getrange, "w")) != NULL) {
+	fprintf(dataa, "%d %d\n%d %d\n%d %d\n%d %d\n",
 		s_range->spndr[0], s_range->spndr[1],
 		s_range->nr[0], s_range->nr[1],
 		s_range->mr[0], s_range->mr[1],
 		s_range->pmr[0], s_range->pmr[1] );
 	
 	printf("Wrote input data grid ranges to %s\n", opts->getrange);
-	fclose (data);
+	fclose (dataa);
 	//	exit(EXIT_SUCCESS);
 	
       } else {
@@ -825,8 +825,9 @@ void plan_fftw(
 	FFTW_plans *plans, 
 	FFTW_arrays *fftw_arr, 
 	Aux_arrays *aux_arr) {
-
-  char /*hostname[512],*/ wfilename[512];
+  
+  (void*)opts; (void*)aux_arr; // warning C4100: 'name': unreferenced formal parameter
+  char hostname[512], wfilename[512];
   FILE *wisdom;
 
   /* Imports a "wisdom file" containing information 
@@ -840,7 +841,17 @@ void plan_fftw(
   gethostname(hostname, 512);
   sprintf (wfilename, "wisdom-%s.dat", hostname);
 #else
-  sprintf (wfilename, "wisdom-%s.dat", "mumbo-jumbo");
+  size_t len;
+  errno_t err = getenv_s(&len, hostname, 512, "COMPUTERNAME");
+  if(err || (len == 0u))
+  {
+#ifdef _WIN32
+    printf_s("Error retrieving hostname.\n");
+#else
+    printf("Error retrieving hostname.\n");
+#endif
+  }
+  sprintf (wfilename, "wisdom-%s.dat", hostname);
 #endif
   if((wisdom = fopen (wfilename, "rb")) != NULL) {
     fftw_import_wisdom_from_file(wisdom);
@@ -878,6 +889,9 @@ void plan_fftw(
     wisdom = fopen(wfilename, "w");
     fftw_export_wisdom_to_file(wisdom);
   }
+
+  // Zero out both xa and xb
+  memset(fftw_arr->xa, 0, 2 * fftw_arr->arr_len * sizeof(fftw_complex));
 
   fclose (wisdom);
 
@@ -951,6 +965,7 @@ void cleanup(
 	Aux_arrays *aux,
 	double *F) {
 
+  (void*)opts; (void*)s_range;
   int i; 
 
   for(i=0; i<sett->nifo; i++) {
