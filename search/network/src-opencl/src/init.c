@@ -1118,7 +1118,7 @@ void plan_fft(Search_settings* sett,
     checkErrFFT(CLFFT_status, "clffftSetup");
 
     clfftDim dim = CLFFT_1D;
-    size_t size_arr_len = (size_t)fft_arr->arr_len;
+    size_t size_arr_len = (size_t)sett->nfft;
     CLFFT_status = clfftCreateDefaultPlan(&plans->plan, cl_handles->ctx, dim, &size_arr_len);
     checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
