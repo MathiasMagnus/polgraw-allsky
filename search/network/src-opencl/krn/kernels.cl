@@ -92,25 +92,20 @@ __kernel void resample_postfft(__global complex_t *xa_d,
 {
     size_t idx = get_global_id(0);
 
-    // move frequencies from second half of spectrum; loop length: nfft - nyqst =
-    // = nfft - nfft/2 - 1 = nfft/2 - 1
-    if (idx < nfft / 2 - 1)
-    {
-        int i = nyqst + Ninterp - nfft + idx;
-        int j = nyqst + idx;
-        xa_d[i].x = xa_d[j].x;
-        xa_d[i].y = xa_d[j].y;
-        xb_d[i].x = xb_d[j].x;
-        xb_d[i].y = xb_d[j].y;
-    }
+	int i = nyqst + Ninterp - nfft + idx;
+    int j = nyqst + idx;
 
-    // zero frequencies higher than nyquist, length: Ninterp - nfft
-    // loop length: Ninterp - nfft ~ nfft
-    if (idx < Ninterp - nfft)
-    {
-        xa_d[nyqst + idx].x = xa_d[nyqst + idx].y = 0.;
-        xb_d[nyqst + idx].x = xb_d[nyqst + idx].y = 0.;
-    }
+    xa_d[i].x = xa_d[j].x;
+    xa_d[i].y = xa_d[j].y;
+    xb_d[i].x = xb_d[j].x;
+    xb_d[i].y = xb_d[j].y;
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	xa_d[j].x = 0;
+	xa_d[j].y = 0;
+	xb_d[j].x = 0;
+	xb_d[j].y = 0;
 }
 
 /// <summary>Computes sin and cos values and stores them in an array.</summary>

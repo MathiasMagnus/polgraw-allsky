@@ -800,14 +800,14 @@ void resample_postfft_gpu(cl_mem xa_d,
 
     clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 0, sizeof(cl_mem), &xa_d);
     clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 1, sizeof(cl_mem), &xb_d);
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 2, sizeof(real_t), &nfft);
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 3, sizeof(real_t), &Ninterp);
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 4, sizeof(real_t), &nyqst);
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 2, sizeof(cl_int), &nfft);
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 3, sizeof(cl_int), &Ninterp);
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 4, sizeof(cl_int), &nyqst);
 
     cl_event exec;
-    size_t size_Ninterp = (size_t)Ninterp; // Helper variable to make pointer types match. Cast to silence warning
+    size_t resample_length = (size_t)Ninterp - (nyqst + nfft); // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ResamplePostFFT], 1, NULL, &size_Ninterp, NULL, 0, NULL, &exec);
+    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);
 #ifdef _WIN32
@@ -818,8 +818,8 @@ void resample_postfft_gpu(cl_mem xa_d,
     //fflush(NULL);
 #endif
 
-    save_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "cl_xa_fourier_resampled.dat");
-    save_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "cl_xb_fourier_resampled.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xa_d, Ninterp, "cl_xa_fourier_resampled.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xb_d, Ninterp, "cl_xb_fourier_resampled.dat");
 
     clReleaseEvent(exec);
 }
