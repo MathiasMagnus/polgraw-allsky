@@ -1118,23 +1118,46 @@ void plan_fft(Search_settings* sett,
     checkErrFFT(CLFFT_status, "clffftSetup");
 
     clfftDim dim = CLFFT_1D;
-    size_t size_arr_len = (size_t)sett->nfft;
-    CLFFT_status = clfftCreateDefaultPlan(&plans->plan, cl_handles->ctx, dim, &size_arr_len);
+	size_t nfft_size = (size_t)sett->nfft,
+		   Ninterp_size = (size_t)sett->Ninterp;
+
+	// Interpolation FFT
+    CLFFT_status = clfftCreateDefaultPlan(&plans->pl_int, cl_handles->ctx, dim, &nfft_size);
     checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
-    CLFFT_status = clfftSetPlanPrecision(plans->plan, CLFFT_TRANSFORM_PRECISION);
+    CLFFT_status = clfftSetPlanPrecision(plans->pl_int, CLFFT_TRANSFORM_PRECISION);
     checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
-    CLFFT_status = clfftSetLayout(plans->plan, CLFFT_TRANSFORM_LAYOUT, CLFFT_TRANSFORM_LAYOUT);
+    CLFFT_status = clfftSetLayout(plans->pl_int, CLFFT_TRANSFORM_LAYOUT, CLFFT_TRANSFORM_LAYOUT);
     checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
-    CLFFT_status = clfftSetResultLocation(plans->plan, CLFFT_INPLACE);
+    CLFFT_status = clfftSetResultLocation(plans->pl_int, CLFFT_INPLACE);
     checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
-    CLFFT_status = clfftBakePlan(plans->plan,
+    CLFFT_status = clfftBakePlan(plans->pl_int,
                            1u,//cl_handles->dev_count,
                            cl_handles->exec_queues,
                            NULL,
                            NULL);
-    checkErrFFT(CLFFT_status, "clfftBakePlan()");
+    checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
+
+	// Inverse FFT
+	CLFFT_status = clfftCreateDefaultPlan(&plans->pl_inv, cl_handles->ctx, dim, &Ninterp_size);
+	checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
+
+	CLFFT_status = clfftSetPlanPrecision(plans->pl_inv, CLFFT_TRANSFORM_PRECISION);
+	checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
+	CLFFT_status = clfftSetLayout(plans->pl_inv, CLFFT_TRANSFORM_LAYOUT, CLFFT_TRANSFORM_LAYOUT);
+	checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
+	CLFFT_status = clfftSetResultLocation(plans->pl_inv, CLFFT_INPLACE);
+	checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
+	CLFFT_status = clfftSetPlanScale(plans->pl_inv, CLFFT_BACKWARD, (double)sett->interpftpad / sett->Ninterp);
+	checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
+
+	CLFFT_status = clfftBakePlan(plans->pl_inv,
+		                         1u,//cl_handles->dev_count,
+		                         cl_handles->exec_queues,
+		                         NULL,
+		                         NULL);
+	checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
 
 } // plan_fft
 
