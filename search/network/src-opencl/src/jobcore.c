@@ -315,7 +315,7 @@ real_t* job_core(int pm,                        // hemisphere
                         ifo[n].sig.aa_d, ifo[n].sig.bb_d,
                         ifo[n].sig.DetSSB_d,
                         sett->oms, sett->N, sett->nfft, sett->interpftpad, cl_handles);
-
+		
         clfftStatus CLFFT_status = CLFFT_SUCCESS;
         cl_event fft_exec[2];
         CLFFT_status = clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
@@ -334,8 +334,8 @@ real_t* job_core(int pm,                        // hemisphere
         //print_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, 10, "xa_d");
         //print_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, 10, "xb_d");
 
-        //save_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, "clfft_xa.txt");
-        //save_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, "clfft_xb.txt");
+        save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, "cl_xa_fourier.dat");
+        save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, "cl_xb_fourier.dat");
 
         resample_postfft_gpu(fft_arr->xa_d,
                              fft_arr->xb_d,
@@ -353,14 +353,19 @@ real_t* job_core(int pm,                        // hemisphere
         clWaitForEvents(2, fft_exec);
         for (size_t i = 0; i < 2; ++i) clReleaseEvent(fft_exec[i]);
 
+		save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, "cl_xa_time_resampled.dat");
+		save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, "cl_xb_time_resampled.dat");
+
+		exit(0);
+
         //scale fft with cublas
-        ft = (double)sett->interpftpad / sett->Ninterp;
-        blas_scale(fft_arr->xa_d,
-                   fft_arr->xb_d,
-                   sett->Ninterp,
-                   ft,
-                   cl_handles,
-                   blas_handles);
+        //ft = (double)sett->interpftpad / sett->Ninterp;
+        //blas_scale(fft_arr->xa_d,
+        //           fft_arr->xb_d,
+        //           sett->Ninterp,
+        //           ft,
+        //           cl_handles,
+        //           blas_handles);
 
         // Spline interpolation to xDatma, xDatmb arrays
         gpu_interp(fft_arr->xa_d,       //input data
@@ -705,10 +710,10 @@ void modvir_gpu(real_t sinal,
 #endif
     //fflush(NULL);
 
-    //print_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, 5, "aux->sinmodf_d");
-    //print_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, 5, "aux->cosmodf_d");
-    //print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.aa_d, 5, "ifoi->sig.aa_d");
-    //print_real_buffer(cl_handles->exec_queues[0], ifoi->sig.bb_d, 5, "ifoi->sig.bb_d");
+    save_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, 86164, "cl_aux_sinmodf.dat");
+    save_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, 86164, "cl_aux_cosmodf.dat");
+    save_real_buffer(cl_handles->exec_queues[0], ifoi->sig.aa_d, 86164, "cl_ifo_sig_aa.dat");
+    save_real_buffer(cl_handles->exec_queues[0], ifoi->sig.bb_d, 86164, "cl_ifo_sig_bb.dat");
 
     clReleaseEvent(exec);
 }
@@ -770,10 +775,10 @@ void tshift_pmod_gpu(real_t shft1,
     //fflush(NULL);
 
     //print_real_buffer(cl_handles->exec_queues[0], xDat_d, 5, "xDat_d");
-    //print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
-    //print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
-    //print_real_buffer(cl_handles->exec_queues[0], shft_d, 5, "shft_d");
-    //print_real_buffer(cl_handles->exec_queues[0], shftf_d, 5, "shftf_d");
+    save_complex_buffer(cl_handles->exec_queues[0], xa_d, 2*nfft, "cl_xa_time.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xb_d, 2*nfft, "cl_xb_time.dat");
+    save_real_buffer(cl_handles->exec_queues[0], shft_d, N, "cl_ifo_sig_shft.dat");
+    save_real_buffer(cl_handles->exec_queues[0], shftf_d, N, "cl_ifo_sig_shftf.dat");
     //print_real_buffer(cl_handles->exec_queues[0], tshift_d, 5, "tshift_d");
     //print_real_buffer(cl_handles->exec_queues[0], aa_d, 5, "aa_d");
     //print_real_buffer(cl_handles->exec_queues[0], bb_d, 5, "bb_d");
@@ -812,8 +817,9 @@ void resample_postfft_gpu(cl_mem xa_d,
     //printf("\t\tresample_postfft_gpu\n\n");
     //fflush(NULL);
 #endif
-    //print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
-    //print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
+
+    save_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "cl_xa_fourier_resampled.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "cl_xb_fourier_resampled.dat");
 
     clReleaseEvent(exec);
 }
