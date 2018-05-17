@@ -138,7 +138,7 @@ if (BUILD_TESTING)
 	string (REPLACE "cl_" "c_" Ref_Data_File ${Data_File})
 
 	add_test (NAME ${Test_Name}
-	          COMMAND ${CMAKE_CURRENT_BINARY_DIR}/validation ${Data_File} ${Ref_Data_File})
+	          COMMAND validation ${Data_File} ${Ref_Data_File})
 
   endforeach (Data_File IN LISTS CL_Data_Files)
 		
