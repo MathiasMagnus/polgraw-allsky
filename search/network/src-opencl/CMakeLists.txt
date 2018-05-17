@@ -88,15 +88,58 @@ set_target_properties (${Target_NAME} PROPERTIES FOLDER "GPU")
 #########################
 
 # Add unit test
-if (BUILD_TESTS)
+if (BUILD_TESTING)
 
-  add_test(NAME ${Target_NAME}
-           COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${Target_NAME}
-                   -data ${PROJECT_SOURCE_DIR}/../../testdata/test-data-network-injection
-                   -ident 205
-                   -label J0322+0441
-                   -band 000
-                   -fpo 1391.3
-                   -r ${PROJECT_SOURCE_DIR}/../../testdata/range-J0322+0441.txt)
+  set (CL_Data_Files ${CMAKE_CURRENT_BINARY_DIR}/cl_aux_cosmodf.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_aux_sinmodf.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_aa.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_bb.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_shft.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_shftf.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_time.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_time.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_fourier.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_fourier.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_fourier_resampled.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_fourier_resampled.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_time_resampled.dat
+                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_time_resampled.dat)
+
+  add_custom_command (COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${Target_NAME}
+                      ARGS -data ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu
+					       -output .
+                           -ident 001
+                           -band 0666
+						   -dt 2
+						   --nocheckpoint
+						   -range testdata/test-gpu-cpu/range.dat
+                           -usedet H1L1
+						   -device gpu
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                      OUTPUT ${CL_Data_Files}
+					  DEPENDS ${Target_NAME})
+					  #MAIN_DEPENDENCY ${Target_NAME})
+
+  add_custom_target (validtion-cl
+                     DEPENDS ${CL_Data_Files}
+					 COMMENT "Generating OpenCL datasets to validate.")
+
+  add_executable (validation src/validation.cpp)
+
+  set_target_properties (validation PROPERTIES CXX_STANDARD 14
+                                               CXX_STANDARD_REQUIRED ON
+                                               CXX_EXTENSIONS OFF)
+
+  foreach (Data_File IN LISTS CL_Data_Files)
+
+    get_filename_component (File_Name ${Data_File} NAME)
+	string (REPLACE "cl_" "" Test_Name ${File_Name})
+
+	string (REPLACE "cl_" "c_" Ref_Data_File ${Data_File})
+
+	add_test (NAME ${Test_Name}
+	          COMMAND ${CMAKE_CURRENT_BINARY_DIR}/validation ${Data_File} ${Ref_Data_File})
+
+  endforeach (Data_File IN LISTS CL_Data_Files)
 		
-endif (BUILD_TESTS)
+endif (BUILD_TESTING)

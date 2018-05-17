@@ -23,7 +23,7 @@ option (BUILD_C "Build native C search suite" ON)
 option (BUILD_OPENMP "Build OpenMP accelerated search suite" OFF)
 option (BUILD_OPENCL "Build OpenCL accelerated search suite" ON)
 option (BUILD_CUDA "Build CUDA accelerated search suite" OFF)
-option (BUILD_TESTS "Build unit tests" OFF)
+option (BUILD_TESTING "Build unit tests" OFF)
 option (VERBOSE "Verbose output of search suite" OFF)
 
 #
@@ -81,9 +81,10 @@ option (VERBOSE "Verbose output of search suite" OFF)
 #########################
 
 # Enable testing
-if (BUILD_TESTS)	
-  include(CTest)
-endif (BUILD_TESTS)
+if (BUILD_TESTING)	
+  include (CTest)
+  enable_language (CXX)
+endif (BUILD_TESTING)
 	
 #########################
 #                       #
