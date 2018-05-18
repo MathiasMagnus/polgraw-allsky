@@ -90,20 +90,20 @@ set_target_properties (${Target_NAME} PROPERTIES FOLDER "GPU")
 # Add unit test
 if (BUILD_TESTING)
 
-  set (CL_Data_Files ${CMAKE_CURRENT_BINARY_DIR}/cl_aux_cosmodf.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_aux_sinmodf.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_aa.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_bb.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_shft.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_ifo_sig_shftf.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_time.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_time.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_fourier.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_fourier.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_fourier_resampled.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_fourier_resampled.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xa_time_resampled.dat
-                     ${CMAKE_CURRENT_BINARY_DIR}/cl_xb_time_resampled.dat)
+  set (CL_Data_Files ${PROJECT_BINARY_DIR}/bin/Debug/cl_aux_cosmodf.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_aux_sinmodf.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_aa.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_bb.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_shft.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_shftf.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_time.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_time.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_fourier.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_fourier.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_fourier_resampled.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_fourier_resampled.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_time_resampled.dat
+                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_time_resampled.dat)
 
   add_custom_command (COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${Target_NAME}
                       ARGS -data ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu
@@ -136,6 +136,8 @@ if (BUILD_TESTING)
 	string (REPLACE "cl_" "" Test_Name ${File_Name})
 
 	string (REPLACE "cl_" "c_" Ref_Data_File ${Data_File})
+
+	message (STATUS "Data_File: ${Data_File}")
 
 	add_test (NAME ${Test_Name}
 	          COMMAND validation ${Data_File} ${Ref_Data_File})

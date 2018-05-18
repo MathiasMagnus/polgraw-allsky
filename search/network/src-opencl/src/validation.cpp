@@ -24,6 +24,9 @@ int main(int argc, char* argv[])
 	std::ifstream ocl_stream{ ocl_path, std::ios::in },
 		          ref_stream{ ref_path, std::ios::in };
 
+	if (!ocl_stream.is_open() || !ref_stream.is_open())
+		return -1;
+
 	std::vector<complex> ocl_vec(std::istream_iterator<complex>{ ocl_stream },
 		                         std::istream_iterator<complex>{}),
 		                 ref_vec(std::istream_iterator<complex>{ ref_stream },

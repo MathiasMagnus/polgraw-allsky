@@ -390,10 +390,10 @@ void modvir(
 #endif
   //fflush(NULL);
 
-  save_real_array(aux->sinmodf, 86164, "c_aux_sinmodf.dat");
-  save_real_array(aux->cosmodf, 86164, "c_aux_cosmodf.dat");
-  save_real_array(ifo_->sig.aa, 86164, "c_ifo_sig_aa.dat");
-  save_real_array(ifo_->sig.bb, 86164, "c_ifo_sig_bb.dat");
+  save_real_array(aux->sinmodf, Np, "c_aux_sinmodf.dat");
+  save_real_array(aux->cosmodf, Np, "c_aux_cosmodf.dat");
+  save_real_array(ifo_->sig.aa, Np, "c_ifo_sig_aa.dat");
+  save_real_array(ifo_->sig.bb, Np, "c_ifo_sig_bb.dat");
 
 } // modvir
 
