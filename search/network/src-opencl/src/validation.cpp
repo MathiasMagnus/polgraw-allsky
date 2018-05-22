@@ -14,8 +14,8 @@ int main(int argc, char* argv[])
 	// Params
 	using real = double;
 	using complex = std::complex<real>;
-	real exponent = 4,		// sensitivity to deviations
-		 threshold = 1e-6;	// allowed point-wise diff, relative to integral
+	real exponent = 4,      // sensitivity to deviations
+		 threshold = 1e-9;  // max allowed relative deviation of integrals
 
 	// Test
 	std::string ocl_path{ argv[1] },
@@ -32,10 +32,10 @@ int main(int argc, char* argv[])
 		                 ref_vec(std::istream_iterator<complex>{ ref_stream },
 						         std::istream_iterator<complex>{});
 
-	double one_per_rectangle_integral =
-		(real)1 / std::accumulate(ref_vec.cbegin(), ref_vec.cend(),
-		                          (real)0,
-		                          [](const real& acc, const complex& val) { return acc + std::abs(val); });
+	double ref_integral = // simple rectangle integral of the complex magnitudes
+		std::accumulate(ref_vec.cbegin(), ref_vec.cend(),
+		                (real)0,
+		                [](const real& acc, const complex& val) { return acc + std::abs(val); });
 
 	std::vector<real> deviations;
 
@@ -45,11 +45,13 @@ int main(int argc, char* argv[])
 		           [](const complex& ocl_val, const complex& ref_val)
 	{
 		return std::pow(std::abs(std::abs(ocl_val) - std::abs(ref_val)),
-			            4);
+			            (real)4); // diff^4 is very sensitive to point-wise differences
 	});
 
-	bool passed = std::all_of(deviations.cbegin(), deviations.cend(),
-		                      [=](const real& val) { return val * one_per_rectangle_integral < threshold; });
+    double diff_integral = std::accumulate(deviations.cbegin(), deviations.cend(),
+                                           (real)0);
+
+    bool passed = diff_integral / ref_integral < threshold;
 
 	if (passed)
 		return 0;

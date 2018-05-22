@@ -1149,7 +1149,7 @@ void plan_fft(Search_settings* sett,
 	checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
 	CLFFT_status = clfftSetResultLocation(plans->pl_inv, CLFFT_INPLACE);
 	checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
-	CLFFT_status = clfftSetPlanScale(plans->pl_inv, CLFFT_BACKWARD, (double)sett->interpftpad / sett->Ninterp);
+	CLFFT_status = clfftSetPlanScale(plans->pl_inv, CLFFT_BACKWARD, (cl_float)sett->interpftpad / sett->Ninterp);
 	checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
 	CLFFT_status = clfftBakePlan(plans->pl_inv,

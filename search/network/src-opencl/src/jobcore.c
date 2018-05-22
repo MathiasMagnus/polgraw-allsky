@@ -772,10 +772,10 @@ void tshift_pmod_gpu(real_t shft1,
     //fflush(NULL);
 
     //print_real_buffer(cl_handles->exec_queues[0], xDat_d, 5, "xDat_d");
-    //save_complex_buffer(cl_handles->exec_queues[0], xa_d, 2*nfft, "cl_xa_time.dat");
-    //save_complex_buffer(cl_handles->exec_queues[0], xb_d, 2*nfft, "cl_xb_time.dat");
-    //save_real_buffer(cl_handles->exec_queues[0], shft_d, N, "cl_ifo_sig_shft.dat");
-    //save_real_buffer(cl_handles->exec_queues[0], shftf_d, N, "cl_ifo_sig_shftf.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xa_d, 2*nfft, "cl_xa_time.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xb_d, 2*nfft, "cl_xb_time.dat");
+    save_real_buffer(cl_handles->exec_queues[0], shft_d, N, "cl_ifo_sig_shft.dat");
+    save_real_buffer(cl_handles->exec_queues[0], shftf_d, N, "cl_ifo_sig_shftf.dat");
 
     clReleaseEvent(exec);
 }
@@ -811,8 +811,8 @@ void resample_postfft_gpu(cl_mem xa_d,
     //fflush(NULL);
 #endif
 
-    //save_complex_buffer(cl_handles->exec_queues[0], xa_d, Ninterp, "cl_xa_fourier_resampled.dat");
-    //save_complex_buffer(cl_handles->exec_queues[0], xb_d, Ninterp, "cl_xb_fourier_resampled.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xa_d, Ninterp, "cl_xa_fourier_resampled.dat");
+    save_complex_buffer(cl_handles->exec_queues[0], xb_d, Ninterp, "cl_xb_fourier_resampled.dat");
 
     clReleaseEvent(exec);
 }
