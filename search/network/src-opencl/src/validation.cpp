@@ -32,11 +32,13 @@ int main(int argc, char* argv[])
                          ref_vec(std::istream_iterator<complex>{ ref_stream },
                                  std::istream_iterator<complex>{});
 
-    double ref_integral = // simple rectangle integral of the complex magnitudes
+    // simple rectangle integral of the complex magnitudes
+    real ref_integral =
         std::accumulate(ref_vec.cbegin(), ref_vec.cend(),
                         (real)0,
                         [](const real& acc, const complex& val) { return acc + std::abs(val); });
 
+    // Discrete function of absolute difference between ref and ocl values
     std::vector<real> deviations;
 
     std::transform(ocl_vec.cbegin(), ocl_vec.cend(),
@@ -44,13 +46,13 @@ int main(int argc, char* argv[])
                    std::back_inserter(deviations),
                    [](const complex& ocl_val, const complex& ref_val)
     {
-        return std::pow(std::abs(std::abs(ocl_val) - std::abs(ref_val)),
-                        (real)4); // diff^4 is very sensitive to point-wise differences
+        return std::abs(ocl_val - ref_val);
     });
 
-    double diff_integral = std::accumulate(deviations.cbegin(), deviations.cend(),
-                                           (real)0);
+    real diff_integral = std::accumulate(deviations.cbegin(), deviations.cend(),
+                                         (real)0);
 
+    // Pass if difference relative to reference is less than threshold
     bool passed = diff_integral / ref_integral < threshold;
 
     if (passed)
