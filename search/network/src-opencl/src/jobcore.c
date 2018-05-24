@@ -353,9 +353,7 @@ real_t* job_core(int pm,                        // hemisphere
 		save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, "cl_xa_time_resampled.dat");
 		save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, "cl_xb_time_resampled.dat");
 
-		exit(0);
-
-        //scale fft with cublas
+        //scale fft with cublas (not needed, clFFT already scales)
         //ft = (double)sett->interpftpad / sett->Ninterp;
         //blas_scale(fft_arr->xa_d,
         //           fft_arr->xb_d,
@@ -386,6 +384,11 @@ real_t* job_core(int pm,                        // hemisphere
                    aux->udiag_d,        //upper diagonal
                    aux->B_d,            //coefficient matrix
                    cl_handles);
+
+        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, "cl_ifo_sig_xDatma.dat");
+        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, "cl_ifo_sig_xDatmb.dat");
+
+        exit(0);
 
         ft = 1. / ifo[n].sig.sig2;
 

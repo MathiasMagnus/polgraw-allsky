@@ -490,8 +490,6 @@ int job_core(int pm,                   // Hemisphere
 	save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "c_xa_time_resampled.dat");
 	save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "c_xb_time_resampled.dat");
 
-	exit(0);
-
     //  struct timeval tstart = get_current_time(), tend;
 
     // Spline interpolation to xDatma, xDatmb arrays
@@ -499,6 +497,11 @@ int job_core(int pm,                   // Hemisphere
 	      sett->interpftpad, ifo[n].sig.xDatma);   
     splintpad(fftw_arr->xb, ifo[n].sig.shftf, sett->N, 
 	      sett->interpftpad, ifo[n].sig.xDatmb);
+
+    save_complex_array(ifo[n].sig.xDatma, sett->N, "c_ifo_sig_xDatma.dat");
+    save_complex_array(ifo[n].sig.xDatmb, sett->N, "c_ifo_sig_xDatmb.dat");
+
+    exit(0);
 
   } // end of detector loop 
 
