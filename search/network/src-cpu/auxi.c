@@ -101,7 +101,7 @@ spline(complex_t *y, int n, complex_t *y2)
   y2[0] = u[0] = cbuild( 0., 0. );
 
   for (i = 1; i<n - 1; ++i) {
-      invp = cdivrc(2., caddcr(y2[i-4], 4.));
+      invp = cdivrc(2., caddcr(y2[i-1], 4.));
       y2[i] = cmulrc(-.5, invp);
       u[i] = caddcc(caddcc(y[i - 1], cmulrc(-2., y[i])), y[i + 1]);
       u[i] = cmulcc(caddcc(cmulrc(-.5, u[i - 1]) , cmulrc(3., u[i])), invp);
