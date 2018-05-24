@@ -19,6 +19,7 @@ void init_spline_matrices(OpenCL_handles* cl_handles,
                           cl_int N);
 
 /// <summary>Spline interpolation to xDatma, xDatmb arrays.</summary>
+/// <note>Algorithm taken from Wikipedia: https://en.wikipedia.org/w/index.php?title=Spline_interpolation&oldid=816067429 </note>
 ///
 void gpu_interp(cl_mem cu_y,                // buffer of complex_t
                 cl_int N,
