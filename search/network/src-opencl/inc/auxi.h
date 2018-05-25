@@ -23,6 +23,10 @@
 void lin2ast(real_t be1, real_t be2, int pm, real_t sepsm, real_t cepsm,
 	         real_t *sinal, real_t *cosal, real_t *sindel, real_t *cosdel);
 
+void spline(complex_t *, int, complex_t *);
+complex_t splint(complex_t *, complex_t *, int, double);
+void splintpad(complex_t *, real_t *, int, int, complex_t*);
+
 /// <summary>Returns the variance (square of the standard deviation) of a given vector <c>x</c> of length <c>n</c></summary>
 ///
 double var (double *, int);

@@ -363,28 +363,109 @@ real_t* job_core(int pm,                        // hemisphere
         //           blas_handles);
 
         // Spline interpolation to xDatma, xDatmb arrays
-        gpu_interp(fft_arr->xa_d,       //input data
-                   sett->Ninterp,       //input data length
-                   aux->tshift_d,       //output time domain
-                   ifo[n].sig.xDatma_d, //output values
-                   sett->N,             //output data length
-                   aux->diag_d,         //diagonal
-                   aux->ldiag_d,        //lower diagonal
-                   aux->udiag_d,        //upper diagonal
-                   aux->B_d,            //coefficient matrix
-                   cl_handles);
+        //gpu_interp(fft_arr->xa_d,       //input data
+        //           sett->Ninterp,       //input data length
+        //           aux->tshift_d,       //output time domain
+        //           ifo[n].sig.xDatma_d, //output values
+        //           sett->N,             //output data length
+        //           aux->diag_d,         //diagonal
+        //           aux->ldiag_d,        //lower diagonal
+        //           aux->udiag_d,        //upper diagonal
+        //           aux->B_d,            //coefficient matrix
+        //           cl_handles);
+        //
+        //gpu_interp(fft_arr->xb_d,       //input data
+        //           sett->Ninterp,       //input data length
+        //           aux->tshift_d,       //output time domain
+        //           ifo[n].sig.xDatmb_d, //output values
+        //           sett->N,             //output data length
+        //           aux->diag_d,         //diagonal
+        //           aux->ldiag_d,        //lower diagonal
+        //           aux->udiag_d,        //upper diagonal
+        //           aux->B_d,            //coefficient matrix
+        //           cl_handles);
 
-        gpu_interp(fft_arr->xb_d,       //input data
-                   sett->Ninterp,       //input data length
-                   aux->tshift_d,       //output time domain
-                   ifo[n].sig.xDatmb_d, //output values
-                   sett->N,             //output data length
-                   aux->diag_d,         //diagonal
-                   aux->ldiag_d,        //lower diagonal
-                   aux->udiag_d,        //upper diagonal
-                   aux->B_d,            //coefficient matrix
-                   cl_handles);
+        // Spline interpolation to xDatma, xDatmb arrays
+        {
+            cl_int CL_err;
+            void *xa_d, *xb_d, *shftf, *xDatma, *xDatmb;
 
+            xa_d = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                                      fft_arr->xa_d,
+                                      CL_TRUE,
+                                      CL_MAP_READ,
+                                      0,
+                                      fft_arr->arr_len * sizeof(complex_t),
+                                      0,
+                                      NULL,
+                                      NULL,
+                                      &CL_err);
+            checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xa_d)");
+
+            xb_d = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                                      fft_arr->xb_d,
+                                      CL_TRUE,
+                                      CL_MAP_READ,
+                                      0,
+                                      fft_arr->arr_len * sizeof(complex_t),
+                                      0,
+                                      NULL,
+                                      NULL,
+                                      &CL_err);
+            checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xb_d)");
+
+            shftf = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                                       ifo[n].sig.shftf_d,
+                                       CL_TRUE,
+                                       CL_MAP_READ,
+                                       0,
+                                       sett->N * sizeof(real_t),
+                                       0,
+                                       NULL,
+                                       NULL,
+                                       &CL_err);
+            checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.shftf_d)");
+
+            xDatma = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                                        ifo[n].sig.xDatma_d,
+                                        CL_TRUE,
+                                        CL_MAP_WRITE,
+                                        0,
+                                        sett->N * sizeof(complex_devt),
+                                        0,
+                                        NULL,
+                                        NULL,
+                                        &CL_err);
+            checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatma_d)");
+
+            xDatmb = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                                        ifo[n].sig.xDatmb_d,
+                                        CL_TRUE,
+                                        CL_MAP_WRITE,
+                                        0,
+                                        sett->N * sizeof(complex_devt),
+                                        0,
+                                        NULL,
+                                        NULL,
+                                        &CL_err);
+            checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatmb_d)");
+
+            splintpad(xa_d, shftf, sett->N, sett->interpftpad, xDatma);
+            splintpad(xb_d, shftf, sett->N, sett->interpftpad, xDatmb);
+
+            cl_event unmaps[5];
+            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], fft_arr->xa_d, xa_d, 0, NULL, &unmaps[0]); checkErr(CL_err, "clEnqueueUnMapMemObject(fft_arr->xa_d)");
+            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], fft_arr->xb_d, xb_d, 0, NULL, &unmaps[1]); checkErr(CL_err, "clEnqueueUnMapMemObject(fft_arr->xb_d)");
+            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], ifo[n].sig.shftf_d, shftf, 0, NULL, &unmaps[2]); checkErr(CL_err, "clEnqueueUnMapMemObject(ifo[n].sig.shftf_d)");
+            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, xDatma, 0, NULL, &unmaps[3]); checkErr(CL_err, "clEnqueueUnMapMemObject(ifo[n].sig.xDatma_d, xDatma)");
+            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, xDatmb, 0, NULL, &unmaps[4]); checkErr(CL_err, "clEnqueueUnMapMemObject(ifo[n].sig.xDatma_d, xDatmb)");
+            CL_err = clWaitForEvents(5, unmaps);
+            checkErr(CL_err, "clWaitForEvents(5, unmaps)");
+
+            int j;
+            for (j = 0; j < 5; ++j)
+                clReleaseEvent(unmaps[j]);
+        }
         save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, "cl_ifo_sig_xDatma.dat");
         save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, "cl_ifo_sig_xDatmb.dat");
 

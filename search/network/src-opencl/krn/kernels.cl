@@ -135,8 +135,10 @@ __kernel void computeB(__global complex_t* y,
 
     if (idx < N - 1)
     {
-        B[idx].x = 6 * (y[idx + 2].x - 2 * y[idx + 1].x + y[idx].x);
-        B[idx].y = 6 * (y[idx + 2].y - 2 * y[idx + 1].y + y[idx].y);
+        //B[idx].x = 6 * (y[idx + 2].x - 2 * y[idx + 1].x + y[idx].x);
+        //B[idx].y = 6 * (y[idx + 2].y - 2 * y[idx + 1].y + y[idx].y);
+
+		B[idx] = 6 * (y[idx + 2] - 2 * y[idx + 1] + y[idx]);
     }
 }
 
@@ -151,9 +153,15 @@ __kernel void tridiagMul(__global real_t* dl,
     size_t gid = get_global_id(0);
     size_t gsi = get_global_size(0);
 
-    y[gid] = (gid == 0 ? (real_t)0 : x[gid - 1]) +
-             x[gid] +
-             (gid == gsi - 1 ? (real_t)0 : x[gid + 1]);
+	// Select 3 contributing values from x
+	complex_t x1 = (gid == 0 ? (real_t)0 : x[gid - 1]),
+	          x2 = x[gid],
+			  x3 = (gid == gsi - 1 ? (real_t)0 : x[gid + 1]);
+
+
+    y[gid] = dl[gid] * x1 +
+              d[gid] * x2 +
+             du[gid] * x3;
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>

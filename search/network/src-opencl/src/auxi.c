@@ -31,6 +31,110 @@ void lin2ast(real_t be1, real_t be2, int pm, real_t sepsm, real_t cepsm,
 } // lin2ast
 
 
+inline void
+spline(complex_t *y, int n, complex_t *y2)
+{
+#ifndef WIN32
+    int i, k;
+    COMPLEX_TYPE invp, qn, un;
+
+    static COMPLEX_TYPE *u = NULL;
+    if (!u) u = (COMPLEX_TYPE *)malloc((n - 1) * sizeof(COMPLEX_TYPE));
+    //  u = (complex double *) calloc (n-1, sizeof (complex double));
+
+    y2[0] = u[0] = 0.;
+
+    for (i = 1; i<n - 1; ++i) {
+        //p = .5*y2[i-1]+2.;
+        //y2[i] = -.5/p;
+        //u[i] = y[i+1]-2.*y[i]+y[i-1];
+        //u[i] = (3.*u[i]-.5*u[i-1])/p;
+        invp = 2. / (y2[i - 1] + 4.);
+        y2[i] = -.5*invp;
+        u[i] = y[i - 1] - 2.*y[i] + y[i + 1];
+        u[i] = (-.5*u[i - 1] + 3.*u[i])*invp;
+    }
+    qn = un = 0.;
+    y2[n - 1] = (un - qn * u[n - 2]) / (qn*y2[n - 2] + 1.);
+    for (k = n - 2; k >= 0; --k)
+        y2[k] = y2[k] * y2[k + 1] + u[k];
+    //free (u);
+#else
+    int i, k;
+    complex_t invp, qn, un;
+
+    static complex_t *u = NULL;
+    if (!u) u = (complex_t *)malloc((n - 1) * sizeof(complex_t));
+
+    y2[0] = u[0] = cbuild(0., 0.);
+
+    for (i = 1; i<n - 1; ++i) {
+        invp = cdivrc(2., caddcr(y2[i - 1], 4.));
+        y2[i] = cmulrc(-.5, invp);
+        u[i] = caddcc(caddcc(y[i - 1], cmulrc(-2., y[i])), y[i + 1]);
+        u[i] = cmulcc(caddcc(cmulrc(-.5, u[i - 1]), cmulrc(3., u[i])), invp);
+    }
+    qn = un = cbuild(0., 0.);
+    y2[n - 1] = cdivcc(csubcc(un, cmulcc(qn, u[n - 2])), caddcr(cmulcc(qn, y2[n - 2]), 1.));
+    for (k = n - 2; k >= 0; --k)
+        y2[k] = caddcc(cmulcc(y2[k], y2[k + 1]), u[k]);
+#endif
+} /* spline() */
+
+inline complex_t
+splint(complex_t *ya, complex_t *y2a, int n, double x)
+{
+#ifndef _WIN32
+    int klo, khi;
+    double b, a;
+
+    if (x<0 || x>n - 1)
+        return 0.;
+    klo = floor(x);
+    khi = klo + 1;
+    a = khi - x;
+    b = x - klo;
+    return a * ya[klo] + b * ya[khi] + ((a*a*a - a)*y2a[klo] + (b*b*b - b)*y2a[khi]) / 6.0;
+#else
+    int klo, khi;
+    double b, a;
+
+    if (x<0 || x>n - 1)
+        return cbuild(0., 0.);
+    klo = (int)floor(x); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+    khi = klo + 1;
+    a = khi - x;
+    b = x - klo;
+    return caddcc(caddcc(cmulrc(a, ya[klo]), cmulrc(b, ya[khi])), cdivcr(caddcc(cmulrc(a*a*a - a, y2a[klo]), cmulrc(b*b*b - b, y2a[khi])), 6.0));
+#endif // _WIN32
+} /* splint() */
+
+void
+splintpad(complex_t *ya, real_t *shftf, int N, int interpftpad, \
+    complex_t *out) {
+    /* Cubic spline with "natural" boundary conditions.
+    Input:
+    ya[i] - value of the function being interpolated in x_i = i,
+    for i = 0 .. (interpftpad*N-1)	(changed on exit);
+    Interpolating spline will be calculated at the points
+    interpftpad*(i-shftf[i]), for i = 0 .. (N-1);
+    N - number of output data points.
+    Output:
+    out[i] - value of the interpolating function
+    at interpftpad*(i-shftf[i]).
+    */
+    complex_t *y2;
+    double x;
+    int i;
+    y2 = (complex_t *)malloc(interpftpad*N * sizeof(complex_t)); //vector twice-size of N
+    spline(ya, interpftpad*N, y2);
+    for (i = 0; i<N; ++i) {
+        x = interpftpad * (i - shftf[i]);
+        out[i] = splint(ya, y2, interpftpad*N, x);
+    } /* for i */
+    free(y2);
+} /* splintpad */
+
 /// <summary>Returns the variance (square of the standard deviation) of a given vector <c>x</c> of length <c>n</c></summary>
 ///
 double var (double *x, int n)

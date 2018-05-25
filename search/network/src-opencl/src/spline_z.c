@@ -119,19 +119,14 @@ void gpu_interp(cl_mem cu_y,                // buffer of complex_t
                    cu_B,
                    N + 1,
                    cl_handles); // TODO almost certainly wrong indexing of cu_B + use persistent tmp buffer
-
-
-    // here, vector cu_z=cu_B is computed
-    // time to interpolate
-
-
-  interpolate_gpu(cu_new_x,
-                  cu_new_y,
-                  cu_B,
-                  cu_y,
-                  N,
-                  new_N,
-                  cl_handles);
+    
+    interpolate_gpu(cu_new_x,
+                    cu_new_y,
+                    cu_B,
+                    cu_y,
+                    N,
+                    new_N,
+                    cl_handles);
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>
@@ -148,8 +143,10 @@ void computeB_gpu(cl_mem y,
     clSetKernelArg(cl_handles->kernels[ComputeB], 2, sizeof(cl_int), &N);
 
     cl_event exec;
-    size_t size_N = (size_t)N; // Helper variable to make pointer types match. Cast to silence warning
-
+    size_t size_N = (size_t)(N - 1); // Helper variable to make pointer types match. Cast to silence warning
+                                     // Subtract 
+    
+    // TODO: introduce offsets to preserve leading and trailing zeroes
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ComputeB], 1, NULL, &size_N, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);

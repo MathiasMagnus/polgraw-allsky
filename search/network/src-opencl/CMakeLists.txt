@@ -23,6 +23,7 @@ set (HDRS inc/auxi.h
 
 set (SRCS src/main.c
           src/auxi.c
+		  src/floats.c
           src/settings.c
           #src/timer.c
           src/init.c
