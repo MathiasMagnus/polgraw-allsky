@@ -24,7 +24,7 @@ option (BUILD_OPENMP "Build OpenMP accelerated search suite" OFF)
 option (BUILD_OPENCL "Build OpenCL accelerated search suite" ON)
 option (BUILD_CUDA "Build CUDA accelerated search suite" OFF)
 option (BUILD_TESTING "Build unit tests" OFF)
-option (VERBOSE "Verbose output of search suite" OFF)
+option (PG_VERBOSE "Verbose output of search suite" OFF)
 
 #
 # Set platform-independent variables

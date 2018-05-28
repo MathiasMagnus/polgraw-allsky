@@ -348,6 +348,13 @@ int job_core(int pm,                   // Hemisphere
 
     modvir(sinalt, cosalt, sindelt, cosdelt,
 	   sett->N, &ifo[n], aux);
+
+#ifdef TESTING
+    save_real_array(aux->sinmodf, sett->N, "aux_sinmodf");
+    save_real_array(aux->cosmodf, sett->N, "aux_cosmodf");
+    save_numbered_real_array(ifo[n].sig.aa, sett->N, n, "ifo_sig_aa");
+    save_numbered_real_array(ifo[n].sig.aa, sett->N, n, "ifo_sig_bb");
+#endif
 	
     // Calculate detector positions with respect to baricenter
     nSource[0] = cosalt*cosdelt;
@@ -365,10 +372,10 @@ int job_core(int pm,                   // Hemisphere
       ifo[n].sig.shftf[i] = ifo[n].sig.shft[i] - shft1;
       _tmp1[n][i] = aux->t2[i] + (double)(2*i)*ifo[n].sig.shft[i];
     }
-
-	save_real_array(ifo[n].sig.shft, sett->N, "c_ifo_sig_shft.dat");
-	save_real_array(ifo[n].sig.shftf, sett->N, "c_ifo_sig_shftf.dat");
-    
+#ifdef TESTING
+	save_numbered_real_array(ifo[n].sig.shft, sett->N, n, "ifo_sig_shft");
+	save_numbered_real_array(ifo[n].sig.shftf, sett->N, n, "ifo_sig_shftf");
+#endif    
     for(i=0; i<sett->N; ++i) {
       // Phase modulation 
       phase = het0*i + sett->oms*ifo[n].sig.shft[i];
@@ -380,35 +387,28 @@ int job_core(int pm,                   // Hemisphere
 #endif
 
       // Matched filter
-#ifndef _WIN32
-      exph = cp - I*sp;
-      ifo[n].sig.xDatma[i] = ifo[n].sig.xDat[i]*ifo[n].sig.aa[i]*exph;
-      ifo[n].sig.xDatmb[i] = ifo[n].sig.xDat[i]*ifo[n].sig.bb[i]*exph;
-#else
+#ifdef _MSC_VER
       exph = cbuild(cp, -sp);
-      ifo[n].sig.xDatma[i] = cmulrc(ifo[n].sig.xDat[i]*ifo[n].sig.aa[i], exph);
-      ifo[n].sig.xDatmb[i] = cmulrc(ifo[n].sig.xDat[i]*ifo[n].sig.bb[i], exph);
+      ifo[n].sig.xDatma[i] = cmulrc(ifo[n].sig.xDat[i] * ifo[n].sig.aa[i], exph);
+      ifo[n].sig.xDatmb[i] = cmulrc(ifo[n].sig.xDat[i] * ifo[n].sig.bb[i], exph);
+#else
+      exph = cp - I * sp;
+      ifo[n].sig.xDatma[i] = ifo[n].sig.xDat[i] * ifo[n].sig.aa[i] * exph;
+      ifo[n].sig.xDatmb[i] = ifo[n].sig.xDat[i] * ifo[n].sig.bb[i] * exph;
 #endif
     }
 
     /* Resampling using spline interpolation:
      * This will double the sampling rate 
      */ 
-#ifndef _WIN32
-    for(i=0; i < sett->N; ++i) {
-      fftw_arr->xa[i] = ifo[n].sig.xDatma[i];
-      fftw_arr->xb[i] = ifo[n].sig.xDatmb[i];
-    }
-#else
+#ifdef _MSC_VER
     memcpy(fftw_arr->xa, ifo[n].sig.xDatma, sett->N * sizeof(fftw_complex));
     memcpy(fftw_arr->xb, ifo[n].sig.xDatmb, sett->N * sizeof(fftw_complex));
-#endif
-#ifdef _WIN32
-    //printf_s("\t\ttshift_pmod_gpu\n\n");
-    //fflush(NULL);
 #else
-    //printf("\t\ttshift_pmod_gpu\n\n");
-    //fflush(NULL);
+    for (i = 0; i < sett->N; ++i) {
+        fftw_arr->xa[i] = ifo[n].sig.xDatma[i];
+        fftw_arr->xb[i] = ifo[n].sig.xDatmb[i];
+    }
 #endif
 
     //save_real_array(ifo[n].sig.xDat, 5, "xDat");
@@ -419,77 +419,78 @@ int job_core(int pm,                   // Hemisphere
     // Zero-padding (filling with 0s up to sett->nfft, 
     // the nearest power of 2)
     for (i=sett->N; i<sett->nfft; ++i) {
-#ifndef _WIN32
-      fftw_arr->xa[i] = 0.;
-      fftw_arr->xb[i] = 0.;
+#ifdef _MSC_VER
+    fftw_arr->xa[i] = cbuild(0., 0.);
+    fftw_arr->xb[i] = cbuild(0., 0.);
 #else
-      fftw_arr->xa[i] = cbuild(0., 0.);
-      fftw_arr->xb[i] = cbuild(0., 0.);
+    fftw_arr->xa[i] = 0.;
+    fftw_arr->xb[i] = 0.;
 #endif
     }
-    save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "c_xa_time.dat");
-    save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "c_xb_time.dat");
-
-#ifndef _WIN32
-    fftw_execute_dft(plans->pl_int, fftw_arr->xa, fftw_arr->xa);  //forward fft (len nfft)
-    fftw_execute_dft(plans->pl_int, fftw_arr->xb, fftw_arr->xb);  //forward fft (len nfft)
-#else
+#ifdef TESTING
+    save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_time");
+    save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_time");
+#endif
+#ifdef _MSC_VER
     fftw_execute_dft(plans->pl_int, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));  //forward fft (len nfft)
     fftw_execute_dft(plans->pl_int, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));  //forward fft (len nfft)
+#else
+    fftw_execute_dft(plans->pl_int, fftw_arr->xa, fftw_arr->xa);  //forward fft (len nfft)
+    fftw_execute_dft(plans->pl_int, fftw_arr->xb, fftw_arr->xb);  //forward fft (len nfft)
 #endif
-	save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "c_xa_fourier.dat");
-	save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "c_xb_fourier.dat");
-
+#ifdef TESTING
+	save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_fourier");
+	save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_fourier");
+#endif
     // move frequencies from second half of spectrum; 
     // and zero frequencies higher than nyquist
     // loop length: nfft - nyqst = nfft - nfft/2 - 1 = nfft/2 - 1
 
     for(i=nyqst + sett->Ninterp - sett->nfft, j=nyqst; i<sett->Ninterp; ++i, ++j) {
-#ifndef _WIN32
-      fftw_arr->xa[i] = fftw_arr->xa[j];
-      fftw_arr->xa[j] = 0.;
+#ifdef _MSC_VER
+    fftw_arr->xa[i] = fftw_arr->xa[j];
+    fftw_arr->xa[j] = cbuild(0., 0.);
 #else
-      fftw_arr->xa[i] = fftw_arr->xa[j];
-      fftw_arr->xa[j] = cbuild(0., 0.);
+    fftw_arr->xa[i] = fftw_arr->xa[j];
+    fftw_arr->xa[j] = 0.;
 #endif 
     }
 
     for(i=nyqst + sett->Ninterp - sett->nfft, j=nyqst; i<sett->Ninterp; ++i, ++j) {
-#ifndef _WIN32
-      fftw_arr->xb[i] = fftw_arr->xb[j];
-      fftw_arr->xb[j] = 0.;
+#ifdef _MSC_VER
+    fftw_arr->xb[i] = fftw_arr->xb[j];
+    fftw_arr->xb[j] = cbuild(0., 0.);  
 #else
-      fftw_arr->xb[i] = fftw_arr->xb[j];
-      fftw_arr->xb[j] = cbuild(0., 0.);
+    fftw_arr->xb[i] = fftw_arr->xb[j];
+    fftw_arr->xb[j] = 0.;
 #endif 
     }
-
-	save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "c_xa_fourier_resampled.dat");
-	save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "c_xb_fourier_resampled.dat");
-
+#ifdef TESTING
+	save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_fourier_resampled");
+	save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_fourier_resampled");
+#endif
     // Backward fft (len Ninterp = nfft*interpftpad)
-#ifndef _WIN32
-    fftw_execute_dft(plans->pl_inv, fftw_arr->xa, fftw_arr->xa);
-    fftw_execute_dft(plans->pl_inv, fftw_arr->xb, fftw_arr->xb);
-#else
+#ifdef _MSC_VER
     fftw_execute_dft(plans->pl_inv, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));
     fftw_execute_dft(plans->pl_inv, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));
+#else
+    fftw_execute_dft(plans->pl_inv, fftw_arr->xa, fftw_arr->xa);
+    fftw_execute_dft(plans->pl_inv, fftw_arr->xb, fftw_arr->xb);
 #endif
-
     ft = (double)sett->interpftpad / sett->Ninterp; //scale FFT
     for (i=0; i < sett->Ninterp; ++i) {
-#ifndef _WIN32
-      fftw_arr->xa[i] *= ft;
-      fftw_arr->xb[i] *= ft;
+#ifdef _MSC_VER
+    fftw_arr->xa[i] = cmulrc(ft, fftw_arr->xa[i]);
+    fftw_arr->xb[i] = cmulrc(ft, fftw_arr->xb[i]);
 #else
-      fftw_arr->xa[i] = cmulrc(ft, fftw_arr->xa[i]);
-      fftw_arr->xb[i] = cmulrc(ft, fftw_arr->xb[i]);     
+    fftw_arr->xa[i] *= ft;
+    fftw_arr->xb[i] *= ft;
 #endif
     }
-
-	save_complex_array(fftw_arr->xa, fftw_arr->arr_len, "c_xa_time_resampled.dat");
-	save_complex_array(fftw_arr->xb, fftw_arr->arr_len, "c_xb_time_resampled.dat");
-
+#ifdef TESTING
+	save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_time_resampled");
+	save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_time_resampled");
+#endif
     //  struct timeval tstart = get_current_time(), tend;
 
     // Spline interpolation to xDatma, xDatmb arrays
@@ -497,12 +498,10 @@ int job_core(int pm,                   // Hemisphere
 	      sett->interpftpad, ifo[n].sig.xDatma);   
     splintpad(fftw_arr->xb, ifo[n].sig.shftf, sett->N, 
 	      sett->interpftpad, ifo[n].sig.xDatmb);
-
-    save_complex_array(ifo[n].sig.xDatma, sett->N, "c_ifo_sig_xDatma.dat");
-    save_complex_array(ifo[n].sig.xDatmb, sett->N, "c_ifo_sig_xDatmb.dat");
-
-    break;
-
+#ifdef TESTING
+    save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "ifo_sig_xDatma");
+    save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "ifo_sig_xDatmb");
+#endif
   } // end of detector loop 
 
   // square sums of modulation factors 
@@ -518,24 +517,23 @@ int job_core(int pm,                   // Hemisphere
     }
 
     for(i=0; i<sett->N; ++i) {
-#ifndef _WIN32
-      ifo[n].sig.xDatma[i] /= ifo[n].sig.sig2;
-      ifo[n].sig.xDatmb[i] /= ifo[n].sig.sig2;
+#ifdef _MSC_VER
+    ifo[n].sig.xDatma[i] = cdivcr(ifo[n].sig.xDatma[i], ifo[n].sig.sig2);
+    ifo[n].sig.xDatmb[i] = cdivcr(ifo[n].sig.xDatmb[i], ifo[n].sig.sig2); 
 #else
-      ifo[n].sig.xDatma[i] = cdivcr(ifo[n].sig.xDatma[i], ifo[n].sig.sig2);
-      ifo[n].sig.xDatmb[i] = cdivcr(ifo[n].sig.xDatmb[i], ifo[n].sig.sig2);
+    ifo[n].sig.xDatma[i] /= ifo[n].sig.sig2;
+    ifo[n].sig.xDatmb[i] /= ifo[n].sig.sig2;
 #endif
     }
-
-    save_complex_array(ifo[n].sig.xDatma, sett->N, "c_rescaled_ifo_sig_xDatma.dat");
-    save_complex_array(ifo[n].sig.xDatmb, sett->N, "c_rescaled_ifo_sig_xDatmb.dat");
-
+#ifdef TESTING
+    save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "rescaled_ifo_sig_xDatma");
+    save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "rescaled_ifo_sig_xDatmb");
+#endif
     aa += aatemp/ifo[n].sig.sig2; 
     bb += bbtemp/ifo[n].sig.sig2;   
   }
 
-    printf("maa=%f,  mbb=%f\n", aa, bb);
-    exit(0);
+  exit(0);
 
 #ifdef YEPPP
 #define VLEN 2048

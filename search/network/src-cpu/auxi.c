@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <math.h>
 #include <complex.h>
+#include <string.h>     // stdcpy, strcat
 #include <float.h>		// DBL_MAX
 
 // GCC: M_PI not being defined by C99 or C11, falls victim to -std=c11 instead of -std=gnu11
@@ -520,15 +521,22 @@ void print_complex_array(complex_t* arr, size_t count, const char* msg)
 
 /// <summary>Saves values of a host side real array to disk.</summary>
 ///
-void save_real_array(real_t* arr, size_t count, const char* filename)
+void save_real_array(real_t* arr, size_t count, const char* name)
 {
+    char filename[1024];
+
+    strcpy(filename, "c_");
+    strcat(filename, name);
+    strcat(filename, ".dat");
+
 	FILE* fc = fopen(filename, "w");
 	if (fc == NULL) perror("Failed to open output file.");
 
 	size_t i;
 	for (i = (size_t)0; i < count; ++i)
 		//fprintf(fc, "%lf\n", arr[i]);
-		fprintf(fc, "%zu %e\n", i, arr[i]);
+		//fprintf(fc, "%zu %e\n", i, arr[i]); // GnuPlot friendly
+        fprintf(fc, "%e\n", arr[i]); // STL friendly
 
 	int close = fclose(fc);
 	if (close == EOF) perror("Failed to close output file.");
@@ -536,17 +544,55 @@ void save_real_array(real_t* arr, size_t count, const char* filename)
 
 /// <summary>Saves values of a host side complex array to disk.</summary>
 ///
-void save_complex_array(complex_t* arr, size_t count, const char* filename)
+void save_complex_array(complex_t* arr, size_t count, const char* name)
 {
+    char filename[1024];
+
+    strcpy(filename, "c_");
+    strcat(filename, name);
+    strcat(filename, ".dat");
+
 	FILE* fc = fopen(filename, "w");
 	if (fc == NULL) perror("Failed to open output file.");
 
 	size_t i;
 	for (i = (size_t)0; i < count; ++i)
 		//fprintf(fc, "%lf %lf\n", creal(arr[i]), cimag(arr[i]));
-		//fprintf(fc, "%zu %e + i %e\n", i, creal(arr[i]), cimag(arr[i]));
-		fprintf(fc, "(%e,%e)\n", i, creal(arr[i]), cimag(arr[i]));
+		//fprintf(fc, "%zu %e + i %e\n", i, creal(arr[i]), cimag(arr[i])); // GnuPlot friendly
+		fprintf(fc, "(%e,%e)\n", creal(arr[i]), cimag(arr[i])); // STL friendly
 
 	int close = fclose(fc);
 	if (close == EOF) perror("Failed to close output file.");
+}
+
+/// <summary>Saves values of a host side real array to disk.</summary>
+///
+void save_numbered_real_array(real_t* arr, size_t count, size_t n, const char* name)
+{
+    char num_filename[1024],
+         num_str[10];
+
+    sprintf(num_str, "%zu", n);
+
+    strcpy(num_filename, name);
+    strcat(num_filename, ".");
+    strcat(num_filename, num_str);
+
+    save_real_array(arr, count, num_filename);
+}
+
+/// <summary>Saves values of a host side complex array to disk.</summary>
+///
+void save_numbered_complex_array(complex_t* arr, size_t count, size_t n, const char* name)
+{
+    char num_filename[1024],
+        num_str[10];
+
+    sprintf(num_str, "%zu", n);
+
+    strcpy(num_filename, name);
+    strcat(num_filename, ".");
+    strcat(num_filename, num_str);
+
+    save_complex_array(arr, count, num_filename);
 }

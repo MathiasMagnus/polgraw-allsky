@@ -54,7 +54,8 @@ set_target_properties (${Target_NAME} PROPERTIES FOLDER "CPU"
                                                  C_EXTENSIONS OFF)
 
 # Add verbose output if opted in for
-target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${VERBOSE}>:VERBOSE>)
+target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${PG_VERBOSE}>:VERBOSE>
+                                                   $<$<BOOL:${BUILD_TESTING}>:TESTING>)
 
 #
 # Set compiler-specific variables
