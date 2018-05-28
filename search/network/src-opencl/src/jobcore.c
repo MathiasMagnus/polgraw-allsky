@@ -469,8 +469,6 @@ real_t* job_core(int pm,                        // hemisphere
         save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, "cl_ifo_sig_xDatma.dat");
         save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, "cl_ifo_sig_xDatmb.dat");
 
-        exit(0);
-
         ft = 1. / ifo[n].sig.sig2;
 
         blas_scale(ifo[n].sig.xDatma_d,
@@ -479,6 +477,11 @@ real_t* job_core(int pm,                        // hemisphere
                    ft,
                    cl_handles,
                    blas_handles);
+
+        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, "cl_rescaled_ifo_sig_xDatma.dat");
+        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, "cl_rescaled_ifo_sig_xDatmb.dat");
+
+        exit(0);
     } // end of detector loop 
 
     real_t _maa = 0;
@@ -913,11 +916,11 @@ void blas_scale(cl_mem xa_d,
     clblasStatus status[2];
     cl_event blas_exec[2];
 #ifdef COMP_FLOAT
-    status[0] = clblasSscal(n, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[1] = clblasSscal(n, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[0] = clblasSscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
+    status[1] = clblasSscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
 #else
-    status[0] = clblasDscal(n, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[1] = clblasDscal(n, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[0] = clblasDscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
+    status[1] = clblasDscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
 #endif // COMP_FLOAT
 
     clWaitForEvents(2, blas_exec);

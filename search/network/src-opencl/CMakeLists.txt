@@ -106,7 +106,9 @@ if (BUILD_TESTING)
                      ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_time_resampled.dat
                      ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_time_resampled.dat
 					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_xDatma.dat
-					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_xDatmb.dat)
+					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_xDatmb.dat
+					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_rescaled_ifo_sig_xDatmb.dat
+					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_rescaled_ifo_sig_xDatma.dat)
 
   add_custom_command (COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${Target_NAME}
                       ARGS -data ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu

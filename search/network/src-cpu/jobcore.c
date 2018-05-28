@@ -501,7 +501,7 @@ int job_core(int pm,                   // Hemisphere
     save_complex_array(ifo[n].sig.xDatma, sett->N, "c_ifo_sig_xDatma.dat");
     save_complex_array(ifo[n].sig.xDatmb, sett->N, "c_ifo_sig_xDatmb.dat");
 
-    exit(0);
+    break;
 
   } // end of detector loop 
 
@@ -526,6 +526,11 @@ int job_core(int pm,                   // Hemisphere
       ifo[n].sig.xDatmb[i] = cdivcr(ifo[n].sig.xDatmb[i], ifo[n].sig.sig2);
 #endif
     }
+
+    save_complex_array(ifo[n].sig.xDatma, sett->N, "c_rescaled_ifo_sig_xDatma.dat");
+    save_complex_array(ifo[n].sig.xDatmb, sett->N, "c_rescaled_ifo_sig_xDatmb.dat");
+
+    exit(0);
 
     aa += aatemp/ifo[n].sig.sig2; 
     bb += bbtemp/ifo[n].sig.sig2;   
