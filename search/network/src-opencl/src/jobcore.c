@@ -916,11 +916,11 @@ void blas_scale(cl_mem xa_d,
     clblasStatus status[2];
     cl_event blas_exec[2];
 #ifdef COMP_FLOAT
-    status[0] = clblasSscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[1] = clblasSscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[0] = clblasSscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]); checkErrBLAS(status[0], "clblasSscal(xa_d)");
+    status[1] = clblasSscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]); checkErrBLAS(status[1], "clblasSscal(xb_d)");
 #else
-    status[0] = clblasDscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[1] = clblasDscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[0] = clblasDscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]); checkErrBLAS(status[0], "clblasDscal(xa_d)");
+    status[1] = clblasDscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]); checkErrBLAS(status[1], "clblasDscal(xb_d)");
 #endif // COMP_FLOAT
 
     clWaitForEvents(2, blas_exec);

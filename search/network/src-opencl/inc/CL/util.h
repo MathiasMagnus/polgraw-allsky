@@ -7,6 +7,9 @@
 // clFFT includes
 #include <clFFT.h>
 
+// clBLAS includes
+#include <clBLAS.h>
+
 // OpenCL includes
 #include <CL/cl.h>
 
@@ -18,5 +21,9 @@ void checkErr(cl_int err, const char * name);
 /// <summary>clFFT error handling function.</summary>
 ///
 void checkErrFFT(clfftStatus stat, const char * name);
+
+/// <summary>clBLAS error handling function.</summary>
+///
+void checkErrBLAS(clblasStatus stat, const char * name);
 
 #endif // __UTIL_H__

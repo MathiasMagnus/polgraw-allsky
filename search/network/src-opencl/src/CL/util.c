@@ -31,3 +31,15 @@ void checkErrFFT(clfftStatus stat, const char * name)
         exit(stat);
     }
 }
+
+/// <summary>clBLAS error handling function.</summary>
+///
+void checkErrBLAS(clblasStatus stat, const char * name)
+{
+    if (stat != CLFFT_SUCCESS)
+    {
+        printf("ERROR: %s (%i)\n", name, stat);
+
+        exit(stat);
+    }
+}
