@@ -480,8 +480,6 @@ real_t* job_core(int pm,                        // hemisphere
 
         save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, "cl_rescaled_ifo_sig_xDatma.dat");
         save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, "cl_rescaled_ifo_sig_xDatmb.dat");
-
-        exit(0);
     } // end of detector loop 
 
     real_t _maa = 0;
@@ -490,6 +488,8 @@ real_t* job_core(int pm,                        // hemisphere
     for (int n = 0; n<sett->nifo; ++n)
     {
         real_t* temp = blas_dot(ifo[n].sig.aa_d, ifo[n].sig.bb_d, sett->N, cl_handles, blas_handles);
+        real_t aatemp = temp[0],
+               bbtemp = temp[1];
 
         _maa += temp[0] / ifo[n].sig.sig2;
         _mbb += temp[1] / ifo[n].sig.sig2;
@@ -506,6 +506,8 @@ real_t* job_core(int pm,                        // hemisphere
         clWaitForEvents(2, write_event);
         for (size_t i = 0; i < 2; ++i) clReleaseEvent(write_event[i]);
     }
+
+    exit(0);
 
     // Spindown loop //
 
@@ -961,10 +963,10 @@ real_t* blas_dot(cl_mem x,
 
 #ifdef COMP_FLOAT
     status[0] = clblasSdot(n, result_buf, 0, x, 0, 1, x, 0, 1, scratch_buf[0], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[0] = clblasSdot(n, result_buf, 1, x, 0, 1, x, 0, 1, scratch_buf[1], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[1] = clblasSdot(n, result_buf, 1, y, 0, 1, y, 0, 1, scratch_buf[1], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
 #else
     status[0] = clblasDdot(n, result_buf, 0, x, 0, 1, x, 0, 1, scratch_buf[0], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[0] = clblasDdot(n, result_buf, 1, x, 0, 1, x, 0, 1, scratch_buf[1], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[1] = clblasDdot(n, result_buf, 1, y, 0, 1, y, 0, 1, scratch_buf[1], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
 #endif // COMP_FLOAT
 
     void* res = clEnqueueMapBuffer(cl_handles->read_queues[0], result_buf, CL_TRUE, CL_MAP_READ, 0, 2 * sizeof(real_t), 2, blas_exec, NULL, &CL_err);

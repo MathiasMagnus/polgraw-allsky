@@ -530,14 +530,12 @@ int job_core(int pm,                   // Hemisphere
     save_complex_array(ifo[n].sig.xDatma, sett->N, "c_rescaled_ifo_sig_xDatma.dat");
     save_complex_array(ifo[n].sig.xDatmb, sett->N, "c_rescaled_ifo_sig_xDatmb.dat");
 
-    exit(0);
-
     aa += aatemp/ifo[n].sig.sig2; 
     bb += bbtemp/ifo[n].sig.sig2;   
   }
 
-  //  printf("maa=%f,  mbb=%f\n", aa, bb);
-  //  exit(0);
+    printf("maa=%f,  mbb=%f\n", aa, bb);
+    exit(0);
 
 #ifdef YEPPP
 #define VLEN 2048
