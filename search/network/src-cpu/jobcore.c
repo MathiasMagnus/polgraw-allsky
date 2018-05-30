@@ -348,12 +348,11 @@ int job_core(int pm,                   // Hemisphere
 
     modvir(sinalt, cosalt, sindelt, cosdelt,
 	   sett->N, &ifo[n], aux);
-
 #ifdef TESTING
-    save_real_array(aux->sinmodf, sett->N, "aux_sinmodf");
-    save_real_array(aux->cosmodf, sett->N, "aux_cosmodf");
+    save_numbered_real_array(aux->sinmodf, sett->N, n, "aux_sinmodf");
+    save_numbered_real_array(aux->cosmodf, sett->N, n, "aux_cosmodf");
     save_numbered_real_array(ifo[n].sig.aa, sett->N, n, "ifo_sig_aa");
-    save_numbered_real_array(ifo[n].sig.aa, sett->N, n, "ifo_sig_bb");
+    save_numbered_real_array(ifo[n].sig.bb, sett->N, n, "ifo_sig_bb");
 #endif
 	
     // Calculate detector positions with respect to baricenter
