@@ -25,7 +25,6 @@ set (SRCS src/main.c
           src/auxi.c
 		  src/floats.c
           src/settings.c
-          #src/timer.c
           src/init.c
           src/jobcore.c
           src/spline_z.c
@@ -66,6 +65,10 @@ target_link_libraries (${Target_NAME} PRIVATE ${OpenCL_LIBRARIES}
 
 # Create project groups for IDEs
 set_target_properties (${Target_NAME} PROPERTIES FOLDER "GPU")
+
+# Add verbose output if opted in for
+target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${PG_VERBOSE}>:VERBOSE>
+                                                   $<$<BOOL:${BUILD_TESTING}>:TESTING>)
 
 #
 # Set compiler-specific variables
@@ -120,8 +123,6 @@ if (BUILD_TESTING)
     endforeach (ifo)
   endforeach (Data_Set)
 
-  #message(STATUS "CMAKE_RUNTIME_OUTPUT_DIRECTORY: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-
   # Custom command-target pair to generate reference data sets
   add_custom_command (COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gwsearch-cpu
                       ARGS -data ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu
@@ -169,7 +170,19 @@ if (BUILD_TESTING)
                                                CXX_STANDARD_REQUIRED ON
                                                CXX_EXTENSIONS OFF)
 
+  foreach (Test_Target IN ITEMS validation
+                                validation-cpu
+                                validation-cl
+								validation-data)
+
+    set_target_properties(${Test_Target} PROPERTIES FOLDER "Test")
+
+  endforeach (Test_Target)
+
+  # Calculate length of iteration for pair-wise traversal
   list (LENGTH CL_Data_Files Data_Count)
+  math (EXPR Count "${Data_Count} - 1")
+
   foreach (Index RANGE 0 ${Count})
 
     list (GET CL_Data_Files ${Index} CL_Data_File)
@@ -179,7 +192,7 @@ if (BUILD_TESTING)
 	string (REPLACE "cl_" "" Test_Name ${CL_File_Name})
 
 	add_test (NAME ${Test_Name}
-	          COMMAND validation ${Data_File} ${Ref_Data_File})
+	          COMMAND validation ${CL_Data_File} ${C_Data_File})
 
   endforeach (Index)
 		
