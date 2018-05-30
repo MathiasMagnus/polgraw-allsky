@@ -298,7 +298,12 @@ real_t* job_core(int pm,                        // hemisphere
         * of _detector, ifo[n].sig.aa, ifo[n].sig.bb)
         */
         modvir_gpu(sinalt, cosalt, sindelt, cosdelt, sett->N, &ifo[n], cl_handles, aux, n);
-
+#ifdef TESTING
+        save_numbered_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, sett->N, n, "aux_sinmodf");
+        save_numbered_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, sett->N, n, "aux_cosmodf");
+        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.aa_d, sett->N, n, "ifo_sig_aa");
+        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.bb_d, sett->N, n, "ifo_sig_bb");
+#endif
         // Calculate detector positions with respect to baricenter
         nSource[0] = cosalt*cosdelt;
         nSource[1] = sinalt*cosdelt;
@@ -315,7 +320,12 @@ real_t* job_core(int pm,                        // hemisphere
                         ifo[n].sig.aa_d, ifo[n].sig.bb_d,
                         ifo[n].sig.DetSSB_d,
                         sett->oms, sett->N, sett->nfft, sett->interpftpad, cl_handles);
-		
+#ifdef TESTING
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, 2 * sett->nfft, n, "xa_time");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, 2 * sett->nfft, n, "xb_time");
+        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shft_d, sett->N, n, "ifo_sig_shft");
+        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shftf_d, sett->N, n, "ifo_sig_shftf");
+#endif		
         clfftStatus CLFFT_status = CLFFT_SUCCESS;
         cl_event fft_exec[2];
         CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
@@ -324,23 +334,20 @@ real_t* job_core(int pm,                        // hemisphere
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
 
         clWaitForEvents(2, fft_exec);
-#ifdef _WIN32
-        //printf_s("\t\tFFT\n\n");
-#else
-        //printf("\t\tFFT\n\n");
+#ifdef TESTING
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, n, "xa_fourier");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, n, "xb_fourier");
 #endif
-        //fflush(NULL);
-
-        save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, "cl_xa_fourier.dat");
-        save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, "cl_xb_fourier.dat");
-
         resample_postfft_gpu(fft_arr->xa_d,
                              fft_arr->xb_d,
                              sett->nfft,
                              sett->Ninterp,
                              nyqst,
                              cl_handles);
-
+#ifdef TESTING
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->Ninterp, n, "xa_fourier_resampled");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->Ninterp, n, "xb_fourier_resampled");
+#endif
         // Backward fft (len Ninterp = nfft*interpftpad)
         clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
         checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
@@ -349,10 +356,10 @@ real_t* job_core(int pm,                        // hemisphere
 
         clWaitForEvents(2, fft_exec);
         for (size_t i = 0; i < 2; ++i) clReleaseEvent(fft_exec[i]);
-
-		save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, "cl_xa_time_resampled.dat");
-		save_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, "cl_xb_time_resampled.dat");
-
+#ifdef TESTING
+		save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, n, "xa_time_resampled");
+		save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, n, "xb_time_resampled");
+#endif
         //scale fft with cublas (not needed, clFFT already scales)
         //ft = (double)sett->interpftpad / sett->Ninterp;
         //blas_scale(fft_arr->xa_d,
@@ -466,9 +473,10 @@ real_t* job_core(int pm,                        // hemisphere
             for (j = 0; j < 5; ++j)
                 clReleaseEvent(unmaps[j]);
         }
-        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, "cl_ifo_sig_xDatma.dat");
-        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, "cl_ifo_sig_xDatmb.dat");
-
+#ifdef TESTING
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, n, "ifo_sig_xDatma");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, n, "ifo_sig_xDatmb");
+#endif
         ft = 1. / ifo[n].sig.sig2;
 
         blas_scale(ifo[n].sig.xDatma_d,
@@ -477,9 +485,10 @@ real_t* job_core(int pm,                        // hemisphere
                    ft,
                    cl_handles,
                    blas_handles);
-
-        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, "cl_rescaled_ifo_sig_xDatma.dat");
-        save_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, "cl_rescaled_ifo_sig_xDatmb.dat");
+#ifdef TESTING
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, n, "rescaled_ifo_sig_xDatma");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, n, "rescaled_ifo_sig_xDatmb");
+#endif
     } // end of detector loop 
 
     real_t _maa = 0;
@@ -755,11 +764,11 @@ void modvir_gpu(real_t sinal,
                 real_t cosal,
                 real_t sindel,
                 real_t cosdel,
-                int Np,
+                cl_int Np,
                 Detector_settings* ifoi,
                 OpenCL_handles* cl_handles,
                 Aux_arrays* aux,
-                int idet)
+                cl_int idet)
 {
     cl_int CL_err = CL_SUCCESS;
     real_t cosalfr, sinalfr, c2d, c2sd/*, c, s, c2s, cs*/; // Unused variables
@@ -789,17 +798,6 @@ void modvir_gpu(real_t sinal,
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Modvir], 1, NULL, &size_Np, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);
-#ifdef _WIN32
-    //printf_s("\t\tmodvir_gpu\n\n");
-#else
-    //printf("\t\tmodvir_gpu\n\n");
-#endif
-    //fflush(NULL);
-
-    save_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, 86164, "cl_aux_sinmodf.dat");
-    save_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, 86164, "cl_aux_cosmodf.dat");
-    save_real_buffer(cl_handles->exec_queues[0], ifoi->sig.aa_d, 86164, "cl_ifo_sig_aa.dat");
-    save_real_buffer(cl_handles->exec_queues[0], ifoi->sig.bb_d, 86164, "cl_ifo_sig_bb.dat");
 
     clReleaseEvent(exec);
 }
@@ -853,18 +851,6 @@ void tshift_pmod_gpu(real_t shft1,
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TShiftPMod], 1, NULL, &size_nfft, NULL, 0, NULL, &exec);
 
     clWaitForEvents(1, &exec);
-#ifdef _WIN32
-    //printf_s("\t\ttshift_pmod_gpu\n\n");
-#else
-    //printf("\t\ttshift_pmod_gpu\n\n");
-#endif
-    //fflush(NULL);
-
-    //print_real_buffer(cl_handles->exec_queues[0], xDat_d, 5, "xDat_d");
-    save_complex_buffer(cl_handles->exec_queues[0], xa_d, 2*nfft, "cl_xa_time.dat");
-    save_complex_buffer(cl_handles->exec_queues[0], xb_d, 2*nfft, "cl_xb_time.dat");
-    save_real_buffer(cl_handles->exec_queues[0], shft_d, N, "cl_ifo_sig_shft.dat");
-    save_real_buffer(cl_handles->exec_queues[0], shftf_d, N, "cl_ifo_sig_shftf.dat");
 
     clReleaseEvent(exec);
 }
@@ -891,17 +877,7 @@ void resample_postfft_gpu(cl_mem xa_d,
 
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
 
-    clWaitForEvents(1, &exec);
-#ifdef _WIN32
-    //printf_s("\t\tresample_postfft_gpu\n\n");
-    //fflush(NULL);
-#else
-    //printf("\t\tresample_postfft_gpu\n\n");
-    //fflush(NULL);
-#endif
-
-    save_complex_buffer(cl_handles->exec_queues[0], xa_d, Ninterp, "cl_xa_fourier_resampled.dat");
-    save_complex_buffer(cl_handles->exec_queues[0], xb_d, Ninterp, "cl_xb_fourier_resampled.dat");
+    clWaitForEvents(1, &exec);    
 
     clReleaseEvent(exec);
 }
@@ -926,16 +902,6 @@ void blas_scale(cl_mem xa_d,
 #endif // COMP_FLOAT
 
     clWaitForEvents(2, blas_exec);
-#ifdef _WIN32
-    //printf_s("\t\tblas_scale\n\n");
-    //fflush(NULL);
-#else
-    //printf("\t\tblas_scale\n\n");
-    //fflush(NULL);
-#endif
-
-    //print_complex_buffer(cl_handles->exec_queues[0], xa_d, 5, "xa_d");
-    //print_complex_buffer(cl_handles->exec_queues[0], xb_d, 5, "xb_d");
 
     for (size_t i = 0; i < 2; ++i) clReleaseEvent(blas_exec[i]);
 }

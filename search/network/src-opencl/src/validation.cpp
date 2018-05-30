@@ -1,12 +1,12 @@
 // STL includes
 #include <iostream>     // std::cout
 #include <string>       // std::string
-#include <fstream>      // ifstream
+#include <fstream>      // std::ifstream
 #include <vector>       // std::vector
 #include <complex>      // std::complex
 #include <iterator>     // std::istream_iterator, std::back_inserter
 #include <numeric>      // std::accumulate
-#include <algorithm>    // std::transform, all_of
+#include <algorithm>    // std::transform
 
 
 int main(int argc, char* argv[])

@@ -13,7 +13,8 @@
 #include <stdarg.h>
 #include <math.h>
 #include <complex.h>
-#include <float.h>
+#include <string.h>     // stdcpy, strcat
+#include <float.h>      // DBL_MAX
 
 
 /// <summary>Change linear (grid) coordinates to real coordinates</summary>
@@ -497,15 +498,22 @@ void print_complex_array(complex_t* arr, size_t count, const char* msg)
 
 /// <summary>Saves values of a host side real array to disk.</summary>
 ///
-void save_real_array(real_t* arr, size_t count, const char* filename)
+void save_real_array(real_t* arr, size_t count, const char* name)
 {
+    char filename[1024];
+
+    strcpy(filename, "cl_");
+    strcat(filename, name);
+    strcat(filename, ".dat");
+
 	FILE* fc = fopen(filename, "w");
 	if (fc == NULL) perror("Failed to open output file.");
 
 	size_t i;
 	for (i = (size_t)0; i < count; ++i)
-		//fprintf(fc, "%lf\n", arr[i]);
-		fprintf(fc, "%zu %e\n", i, arr[i]);
+        //fprintf(fc, "%lf\n", arr[i]);
+        //fprintf(fc, "%zu %e\n", i, arr[i]); // GnuPlot friendly
+        fprintf(fc, "%e\n", arr[i]); // STL friendly
 
 	int close = fclose(fc);
 	if (close == EOF) perror("Failed to close output file.");
@@ -513,8 +521,14 @@ void save_real_array(real_t* arr, size_t count, const char* filename)
 
 /// <summary>Saves values of a host side complex array to disk.</summary>
 ///
-void save_complex_array(complex_t* arr, size_t count, const char* filename)
+void save_complex_array(complex_t* arr, size_t count, const char* name)
 {
+    char filename[1024];
+
+    strcpy(filename, "cl_");
+    strcat(filename, name);
+    strcat(filename, ".dat");
+
 	FILE* fc = fopen(filename, "w");
 	if (fc == NULL) perror("Failed to open output file.");
 
@@ -530,7 +544,7 @@ void save_complex_array(complex_t* arr, size_t count, const char* filename)
 
 /// <summary>Saves values of a device side real array to disk.</summary>
 ///
-void save_real_buffer(cl_command_queue queue, cl_mem buf, int count, const char* filename)
+void save_real_buffer(cl_command_queue queue, cl_mem buf, int count, const char* name)
 {
 	cl_int CL_err;
 	cl_event map, unmap;
@@ -549,7 +563,7 @@ void save_real_buffer(cl_command_queue queue, cl_mem buf, int count, const char*
 	CL_err = clWaitForEvents(1, &map);
 	checkErr(CL_err, "clWaitForEvents");
 
-	save_real_array(temp, count, filename);
+	save_real_array(temp, count, name);
 
 	CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
 	checkErr(CL_err, "clEnqueueUnmapMemObject");
@@ -560,7 +574,7 @@ void save_real_buffer(cl_command_queue queue, cl_mem buf, int count, const char*
 
 /// <summary>Saves values of a device side complex array to disk.</summary>
 ///
-void save_complex_buffer(cl_command_queue queue, cl_mem buf, int count, const char* filename)
+void save_complex_buffer(cl_command_queue queue, cl_mem buf, int count, const char* name)
 {
 	cl_int CL_err;
 	cl_event map, unmap;
@@ -579,11 +593,43 @@ void save_complex_buffer(cl_command_queue queue, cl_mem buf, int count, const ch
 	CL_err = clWaitForEvents(1, &map);
 	checkErr(CL_err, "clWaitForEvents");
 
-	save_complex_array(temp, count, filename);
+	save_complex_array(temp, count, name);
 
 	CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
 	checkErr(CL_err, "clEnqueueUnmapMemObject");
 
 	clReleaseEvent(map);
 	clReleaseEvent(unmap);
+}
+
+/// <summary>Saves values of a device side real array to disk.</summary>
+///
+void save_numbered_real_buffer(cl_command_queue queue, cl_mem buf, int count, size_t n, const char* name)
+{
+    char num_filename[1024],
+         num_str[10];
+
+    sprintf(num_str, "%zu", n);
+
+    strcpy(num_filename, name);
+    strcat(num_filename, ".");
+    strcat(num_filename, num_str);
+
+    save_real_buffer(queue, buf, count, num_filename);
+}
+
+/// <summary>Saves values of a device side complex array to disk.</summary>
+///
+void save_numbered_complex_buffer(cl_command_queue queue, cl_mem buf, int count, size_t n, const char* name)
+{
+    char num_filename[1024],
+        num_str[10];
+
+    sprintf(num_str, "%zu", n);
+
+    strcpy(num_filename, name);
+    strcat(num_filename, ".");
+    strcat(num_filename, num_str);
+
+    save_complex_buffer(queue, buf, count, num_filename);
 }
