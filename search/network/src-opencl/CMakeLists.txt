@@ -91,43 +91,77 @@ set_target_properties (${Target_NAME} PROPERTIES FOLDER "GPU")
 # Add unit test
 if (BUILD_TESTING)
 
-  set (CL_Data_Files ${PROJECT_BINARY_DIR}/bin/Debug/cl_aux_cosmodf.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_aux_sinmodf.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_aa.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_bb.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_shft.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_shftf.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_time.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_time.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_fourier.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_fourier.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_fourier_resampled.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_fourier_resampled.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xa_time_resampled.dat
-                     ${PROJECT_BINARY_DIR}/bin/Debug/cl_xb_time_resampled.dat
-					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_xDatma.dat
-					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_ifo_sig_xDatmb.dat
-					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_rescaled_ifo_sig_xDatmb.dat
-					 ${PROJECT_BINARY_DIR}/bin/Debug/cl_rescaled_ifo_sig_xDatma.dat)
+  set (Data_Sets aux_cosmodf
+                 aux_sinmodf
+                 ifo_sig_aa
+                 ifo_sig_bb
+                 ifo_sig_shft
+                 ifo_sig_shftf
+                 xa_time
+                 xb_time
+                 xa_fourier
+                 xb_fourier
+                 xa_fourier_resampled
+                 xb_fourier_resampled
+                 xa_time_resampled
+                 xb_time_resampled
+                 ifo_sig_xDatma
+                 ifo_sig_xDatmb
+                 rescaled_ifo_sig_xDatmb
+                 rescaled_ifo_sig_xDatma)
 
-  add_custom_command (COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${Target_NAME}
+  set (CL_Data_Files)
+  set (C_Data_Files)
+
+  foreach (Data_Set IN LISTS Data_Sets) # Loops over stages
+    foreach (ifo RANGE 0 1) # Loops over detectors
+	  list(APPEND CL_Data_Files "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/cl_${Data_Set}.${ifo}.dat")
+	  list(APPEND C_Data_Files  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/c_${Data_Set}.${ifo}.dat")
+    endforeach (ifo)
+  endforeach (Data_Set)
+
+  #message(STATUS "CMAKE_RUNTIME_OUTPUT_DIRECTORY: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
+  # Custom command-target pair to generate reference data sets
+  add_custom_command (COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gwsearch-cpu
                       ARGS -data ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu
 					       -output .
                            -ident 001
                            -band 0666
 						   -dt 2
 						   --nocheckpoint
-						   -range testdata/test-gpu-cpu/range.dat
+						   -range ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu/range.dat
+                           -usedet H1L1
+                      WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+                      OUTPUT ${C_Data_Files}
+					  DEPENDS gwsearch-cpu)
+
+  add_custom_target (validation-cpu
+                     DEPENDS ${C_Data_Files}
+					 COMMENT "Generating reference datasets to validate against.")
+
+  # Custom command-target pair to generate OpenCL data sets
+  add_custom_command (COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${Target_NAME}
+                      ARGS -data ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu
+					       -output .
+                           -ident 001
+                           -band 0666
+						   -dt 2
+						   --nocheckpoint
+						   -range ${PROJECT_SOURCE_DIR}/../../testdata/test-gpu-cpu/range.dat
                            -usedet H1L1
 						   -device gpu
-                      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                      WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
                       OUTPUT ${CL_Data_Files}
 					  DEPENDS ${Target_NAME})
-					  #MAIN_DEPENDENCY ${Target_NAME})
 
-  add_custom_target (validtion-cl
+  add_custom_target (validation-cl
                      DEPENDS ${CL_Data_Files}
 					 COMMENT "Generating OpenCL datasets to validate.")
+
+  add_custom_target (validation-data
+                     DEPENDS validation-cpu
+					         validation-cl)
 
   add_executable (validation src/validation.cpp)
 
@@ -135,18 +169,18 @@ if (BUILD_TESTING)
                                                CXX_STANDARD_REQUIRED ON
                                                CXX_EXTENSIONS OFF)
 
-  foreach (Data_File IN LISTS CL_Data_Files)
+  list (LENGTH CL_Data_Files Data_Count)
+  foreach (Index RANGE 0 ${Count})
 
-    get_filename_component (File_Name ${Data_File} NAME)
-	string (REPLACE "cl_" "" Test_Name ${File_Name})
+    list (GET CL_Data_Files ${Index} CL_Data_File)
+	list (GET C_Data_Files  ${Index} C_Data_File)
 
-	string (REPLACE "cl_" "c_" Ref_Data_File ${Data_File})
-
-	message (STATUS "Data_File: ${Data_File}")
+    get_filename_component (CL_File_Name ${CL_Data_File} NAME)
+	string (REPLACE "cl_" "" Test_Name ${CL_File_Name})
 
 	add_test (NAME ${Test_Name}
 	          COMMAND validation ${Data_File} ${Ref_Data_File})
 
-  endforeach (Data_File IN LISTS CL_Data_Files)
+  endforeach (Index)
 		
 endif (BUILD_TESTING)
