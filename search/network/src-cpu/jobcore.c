@@ -532,8 +532,6 @@ int job_core(int pm,                   // Hemisphere
     bb += bbtemp/ifo[n].sig.sig2;   
   }
 
-  exit(0);
-
 #ifdef YEPPP
 #define VLEN 2048
     Yep64f _p[VLEN];
@@ -671,16 +669,28 @@ int job_core(int pm,                   // Hemisphere
       phase = het1*i + sgnlt[1]*_tmp1[0][i];
       cp = cos(phase);
       sp = sin(phase);
-#ifndef _WIN32
-      exph = cp - I*sp;
-      fftw_arr->xa[i] = ifo[0].sig.xDatma[i]*exph; ///ifo[0].sig.sig2;
-      fftw_arr->xb[i] = ifo[0].sig.xDatmb[i]*exph; ///ifo[0].sig.sig2;
-#else
+#ifdef _MSC_VER
       exph = cbuild(cp, -sp);
-      fftw_arr->xa[i] = cmulcc(ifo[0].sig.xDatma[i],exph); ///ifo[0].sig.sig2;
-      fftw_arr->xb[i] = cmulcc(ifo[0].sig.xDatmb[i],exph); ///ifo[0].sig.sig2;
+      fftw_arr->xa[i] = cmulcc(ifo[0].sig.xDatma[i], exph); ///ifo[0].sig.sig2;
+      fftw_arr->xb[i] = cmulcc(ifo[0].sig.xDatmb[i], exph); ///ifo[0].sig.sig2;
+#else
+      exph = cp - I * sp;
+      fftw_arr->xa[i] = ifo[0].sig.xDatma[i] * exph; ///ifo[0].sig.sig2;
+      fftw_arr->xb[i] = ifo[0].sig.xDatmb[i] * exph; ///ifo[0].sig.sig2;
 #endif
+      if (i == 16)
+      {
+          printf("i: %u\ttmp10i: %e\tphase: %e\texph: (%e,%e)\n", i, _tmp1[0][i], phase, creal(exph), cimag(exph));
+          printf("i: %u\txa[i]: (%e,%e)\n", i, creal(cmulcc(ifo[0].sig.xDatma[i], exph)), cimag(cmulcc(ifo[0].sig.xDatma[i], exph)));
+      }
     }
+#endif
+#ifdef TESTING
+    save_numbered_real_array(ifo[0].sig.shft, sett->N, 0, "pre_fft_phasemod_ifo_sig_shft");
+    save_numbered_complex_array(ifo[0].sig.xDatma, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatma");
+    save_numbered_complex_array(ifo[0].sig.xDatmb, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatmb");
+    save_numbered_complex_array(fftw_arr->xa, sett->N, 0, "pre_fft_phasemod_xa");
+    save_numbered_complex_array(fftw_arr->xb, sett->N, 0, "pre_fft_phasemod_xb");
 #endif
     
     for(n=1; n<sett->nifo; ++n) {
@@ -764,33 +774,56 @@ int job_core(int pm,                   // Hemisphere
 #endif
       }
 #endif
-      
+#ifdef TESTING
+      save_numbered_real_array(ifo[n].sig.shft, sett->N, n, "pre_fft_phasemod_ifo_sig_shft");
+      save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatma");
+      save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatmb");
+      save_numbered_complex_array(fftw_arr->xa, sett->N, n, "pre_fft_phasemod_xa");
+      save_numbered_complex_array(fftw_arr->xb, sett->N, n, "pre_fft_phasemod_xb");
+#endif 
     } // nifo
 
       // Zero-padding 
     for(i = sett->fftpad*sett->nfft-1; i != sett->N-1; --i)
-#ifndef _WIN32
-      fftw_arr->xa[i] = fftw_arr->xb[i] = 0.;
-
-      fftw_execute_dft(plans->plan, fftw_arr->xa, fftw_arr->xa);
-      fftw_execute_dft(plans->plan, fftw_arr->xb, fftw_arr->xb);
+#ifdef _MSC_VER
+        fftw_arr->xa[i] = fftw_arr->xb[i] = cbuild(0., 0.);
 #else
-      fftw_arr->xa[i] = fftw_arr->xb[i] = cbuild(0., 0.);
-
-      fftw_execute_dft(plans->plan, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));
-      fftw_execute_dft(plans->plan, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));
+        fftw_arr->xa[i] = fftw_arr->xb[i] = 0.;
 #endif
-    
-    
-    
+#ifdef TESTING
+    // Wasteful because testing infrastructure is not more complex
+    save_numbered_complex_array(fftw_arr->xa, sett->Ninterp, 0, "pre_fft_post_zero_xa");
+    save_numbered_complex_array(fftw_arr->xb, sett->Ninterp, 0, "pre_fft_post_zero_xb");
+    save_numbered_complex_array(fftw_arr->xa, sett->Ninterp, 1, "pre_fft_post_zero_xa");
+    save_numbered_complex_array(fftw_arr->xb, sett->Ninterp, 1, "pre_fft_post_zero_xb");
+#endif
+    // Perform FFT
+#ifdef _MSC_VER
+    fftw_execute_dft(plans->plan, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));
+    fftw_execute_dft(plans->plan, (fftw_complex*)(fftw_arr->xb), (fftw_complex*)(fftw_arr->xb));
+#else
+    fftw_execute_dft(plans->plan, fftw_arr->xa, fftw_arr->xa);
+    fftw_execute_dft(plans->plan, fftw_arr->xb, fftw_arr->xb);
+#endif
+#ifdef TESTING
+    // Wasteful because testing infrastructure is not more complex
+    save_numbered_complex_array(fftw_arr->xa, sett->nfftf, 0, "post_fft_phasemod_xa");
+    save_numbered_complex_array(fftw_arr->xb, sett->nfftf, 0, "post_fft_phasemod_xb");
+    save_numbered_complex_array(fftw_arr->xa, sett->nfftf, 1, "post_fft_phasemod_xa");
+    save_numbered_complex_array(fftw_arr->xb, sett->nfftf, 1, "post_fft_phasemod_xb");
+#endif    
     (*FNum)++;
-    
+
     // Computing F-statistic 
     for (i=sett->nmin; i<sett->nmax; i++) {
       F[i] = (sqr(creal(fftw_arr->xa[i])) + sqr(cimag(fftw_arr->xa[i])))/aa +
 	(sqr(creal(fftw_arr->xb[i])) + sqr(cimag(fftw_arr->xb[i])))/bb;
     }
-    
+#ifdef TESTING
+    save_numbered_real_array(F, sett->nmax - sett->nmin, 0, "Fstat");
+    save_numbered_real_array(F, sett->nmax - sett->nmin, 1, "Fstat");
+#endif 
+    exit(0);
 #if 0
     FILE *f1 = fopen("fraw-1.dat", "w");
     for(i=sett->nmin; i<sett->nmax; i++)

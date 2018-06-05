@@ -111,7 +111,17 @@ if (BUILD_TESTING)
                  ifo_sig_xDatma
                  ifo_sig_xDatmb
                  rescaled_ifo_sig_xDatmb
-                 rescaled_ifo_sig_xDatma)
+                 rescaled_ifo_sig_xDatma
+				 pre_fft_phasemod_ifo_sig_shft
+				 pre_fft_phasemod_ifo_sig_xDatma
+				 pre_fft_phasemod_ifo_sig_xDatmb
+				 pre_fft_phasemod_xa
+				 pre_fft_phasemod_xb
+				 pre_fft_post_zero_xa
+				 pre_fft_post_zero_xb
+				 post_fft_phasemod_xa
+				 post_fft_phasemod_xb
+				 Fstat)
 
   set (CL_Data_Files)
   set (C_Data_Files)

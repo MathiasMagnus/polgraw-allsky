@@ -516,8 +516,6 @@ real_t* job_core(int pm,                        // hemisphere
         for (size_t i = 0; i < 2; ++i) clReleaseEvent(write_event[i]);
     }
 
-    exit(0);
-
     // Spindown loop //
 
 #if TIMERS>2
@@ -579,6 +577,13 @@ real_t* job_core(int pm,                        // hemisphere
                         ifo[0].sig.shft_d,
                         sett->N,
                         cl_handles);
+#ifdef TESTING
+        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[0].sig.shft_d, sett->N, 0, "pre_fft_phasemod_ifo_sig_shft");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[0].sig.xDatma_d, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatma");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[0].sig.xDatmb_d, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatmb");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->N, 0, "pre_fft_phasemod_xa");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->N, 0, "pre_fft_phasemod_xb");
+#endif
 
         for (int n = 1; n<sett->nifo; ++n)
         {
@@ -591,6 +596,13 @@ real_t* job_core(int pm,                        // hemisphere
                             ifo[n].sig.shft_d,
                             sett->N,
                             cl_handles);
+#ifdef TESTING
+            save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shft_d, sett->N, n, "pre_fft_phasemod_ifo_sig_shft");
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatma");
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatmb");
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->N, n, "pre_fft_phasemod_xa");
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->N, n, "pre_fft_phasemod_xb");
+#endif
         }
 
         // initialize arrays to 0. with integer 0
@@ -606,29 +618,42 @@ real_t* job_core(int pm,                        // hemisphere
             cl_event fill_event[2];
 
             // Zero pad from offset until the end
-            CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->nfftf - sett->N) * 2 * sizeof(complex_t), 0, NULL, &fill_event[0]);
+            //CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->nfftf - sett->N) * 2 * sizeof(complex_t), 0, NULL, &fill_event[0]);
+            CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &fill_event[0]);
             checkErr(CL_err, "clEnqueueFillBuffer");
-            CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xb_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->nfftf - sett->N) * 2 * sizeof(complex_t), 0, NULL, &fill_event[1]);
+            CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xb_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &fill_event[1]);
             checkErr(CL_err, "clEnqueueFillBuffer");
 
             clWaitForEvents(2, fill_event);
 
             clReleaseEvent(fill_event[0]);
             clReleaseEvent(fill_event[1]);
+#ifdef TESTING
+            // Wasteful
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->Ninterp, 0, "pre_fft_post_zero_xa");
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->Ninterp, 0, "pre_fft_post_zero_xb");
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->Ninterp, 1, "pre_fft_post_zero_xa");
+            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->Ninterp, 1, "pre_fft_post_zero_xb");
+#endif
         }
 
         // fft length fftpad*nfft
         {
             clfftStatus CLFFT_status = CLFFT_SUCCESS;
             cl_event fft_exec[2];
-            clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+            clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
             checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
-            clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+            clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
             checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
 
             clWaitForEvents(2, fft_exec);
         }
-
+#ifdef TESTING
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->nfftf, 0, "post_fft_phasemod_xa");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->nfftf, 0, "post_fft_phasemod_xb");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->nfftf, 1, "post_fft_phasemod_xa");
+        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->nfftf, 1, "post_fft_phasemod_xb");
+#endif
         (*FNum)++;
 
         compute_Fstat_gpu(fft_arr->xa_d,
@@ -639,19 +664,22 @@ real_t* job_core(int pm,                        // hemisphere
                           sett->nmin,
                           sett->nmax,
                           cl_handles);
+#ifdef TESTING
+        save_numbered_real_buffer(cl_handles->exec_queues[0], F_d, sett->nmax - sett->nmin, 0, "Fstat");
+        save_numbered_real_buffer(cl_handles->exec_queues[0], F_d, sett->nmax - sett->nmin, 1, "Fstat");
+#endif
+        cl_int CL_err = CL_SUCCESS;
 
+        CL_err = clEnqueueReadBuffer(cl_handles->read_queues[0], F_d, CL_TRUE, 0, 2 * sett->nfft * sizeof(real_t), F, 0, NULL, NULL);
 #ifdef GPUFSTAT
         if (!(opts->white_flag))  // if the noise is not white noise
             FStat_gpu(F_d + sett->nmin, sett->nmax - sett->nmin, NAV, aux->mu_d, aux->mu_t_d);
 
 #else
+        // Normalize F-statistics 
         if (!(opts->white_flag))  // if the noise is not white noise
-            FStat_gpu_simple(F_d, sett->nfft, NAVFSTAT, cl_handles);
+            FStat(F + sett->nmin, sett->nmax - sett->nmin, NAVFSTAT, 0);
 #endif
-
-        cl_int CL_err = CL_SUCCESS;
-
-        CL_err = clEnqueueReadBuffer(cl_handles->read_queues[0], F_d, CL_TRUE, 0, 2 * sett->nfft * sizeof(real_t), F, 0, NULL, NULL);
 
         /*
         FILE *f1 = fopen("fstat-gpu.dat", "w");

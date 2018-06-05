@@ -40,6 +40,9 @@ void gridr(double *M,
            double oms,
            double Smax);
 
+/// <summary>Smooths out the F-statistics array</summary>
+double FStat(double *, int, int, int);
+
 /// <summary>LU decomposition of a given real matrix <c>a[0..n-1][0..n-1]</c>.</summary>
 /// <param name="a">An array containing elements of matrix <c>a</c> (changed on exit).</param>
 /// <param name="n">Number of rows and columns of <c>a</c>.</param>

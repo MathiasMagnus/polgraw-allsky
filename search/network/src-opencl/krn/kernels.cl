@@ -59,8 +59,8 @@ __kernel void tshift_pmod_kern(real_t shft1,
     if (i < N)
     {
         real_t S = ns0 * DetSSB_d[i * 3]
-            + ns1 * DetSSB_d[i * 3 + 1]
-            + ns2 * DetSSB_d[i * 3 + 2];
+                 + ns1 * DetSSB_d[i * 3 + 1]
+                 + ns2 * DetSSB_d[i * 3 + 2];
         shft_d[i] = S;
         shftf_d[i] = S - shft1;
 
@@ -214,15 +214,34 @@ __kernel void phase_mod_1(__global complex_t* xa,
 
     if (idx < N)
     {
-        real_t phase = -idx * (het1 + sgnlt1 * (idx + 2 * shft[idx]));
-        real_t s = sin(phase);
-        real_t c = cos(phase);
+	    // _tmp1[n][i]
+		//        |     aux->t2[i]
+		//        |         |
+		//        |         |    (double)(2*i)*ifo[n].sig.shft[i]
+		//        |         |           |
+		real_t tmp10i = idx*idx + 2*idx*shft[idx];
 
-        xa[idx].x = xar[idx].x*c - xar[idx].y*s;
-        xa[idx].y = xar[idx].x*s + xar[idx].y*c;
+		real_t phase = idx*het1 + sgnlt1*tmp10i;
+		complex_t exph = cbuild(cos(phase), -sin(phase));
 
-        xb[idx].x = xbr[idx].x*c - xbr[idx].y*s;
-        xb[idx].y = xbr[idx].x*s + xbr[idx].y*c;
+		xa[idx] = cmulcc(xar[idx], exph);
+		xb[idx] = cmulcc(xbr[idx], exph);
+
+		//if (idx == 16)
+		//{
+		//	printf("idx: %u\ttmp10i: %e\tphase: %e\texph: (%e,%e)\n", idx, tmp10i, phase, creal(exph), cimag(exph));
+		//	printf("idx: %u\txa[idx]: (%e,%e)\n", idx, creal(cmulcc(xar[idx], exph)), cimag(cmulcc(xar[idx], exph)));
+		//}
+
+        //real_t phase = -idx * (het1 + sgnlt1 * (idx + 2 * shft[idx]));
+        //real_t s = sin(phase);
+        //real_t c = cos(phase);
+		//
+        //xa[idx].x = xar[idx].x*c - xar[idx].y*s;
+        //xa[idx].y = xar[idx].x*s + xar[idx].y*c;
+		//
+        //xb[idx].x = xbr[idx].x*c - xbr[idx].y*s;
+        //xb[idx].y = xbr[idx].x*s + xbr[idx].y*c;
     }
 }
 
@@ -241,15 +260,28 @@ __kernel void phase_mod_2(__global complex_t* xa,
 
     if (idx < N)
     {
-        real_t phase = -idx * (het1 + sgnlt1 * (idx + 2 * shft[idx]));
-        real_t s = sin(phase);
-        real_t c = cos(phase);
+		// _tmp1[n][i]
+		//        |     aux->t2[i]
+		//        |         |
+		//        |         |    (double)(2*i)*ifo[n].sig.shft[i]
+		//        |         |           |
+		real_t tmp10i = idx*idx + 2*idx*shft[idx];
 
-        xa[idx].x += xar[idx].x*c - xar[idx].y*s;
-        xa[idx].y += xar[idx].x*s + xar[idx].y*c;
+		real_t phase = idx*het1 + sgnlt1*tmp10i;
+		complex_t exph = cbuild(cos(phase), -sin(phase));
 
-        xb[idx].x += xbr[idx].x*c - xbr[idx].y*s;
-        xb[idx].y += xbr[idx].x*s + xbr[idx].y*c;
+		xa[idx] += cmulcc(xar[idx], exph);
+		xb[idx] += cmulcc(xbr[idx], exph);
+
+        //real_t phase = -idx * (het1 + sgnlt1 * (idx + 2 * shft[idx]));
+        //real_t s = sin(phase);
+        //real_t c = cos(phase);
+		//
+        //xa[idx].x += xar[idx].x*c - xar[idx].y*s;
+        //xa[idx].y += xar[idx].x*s + xar[idx].y*c;
+		//
+        //xb[idx].x += xbr[idx].x*c - xbr[idx].y*s;
+        //xb[idx].y += xbr[idx].x*s + xbr[idx].y*c;
 
     }
 }
@@ -267,7 +299,13 @@ __kernel void compute_Fstat(__global complex_t* xa,
 
     if (i < N)
     {
-        F[i] = (xa[i].x*xa[i].x + xa[i].y*xa[i].y) / maa_d[0] + (xb[i].x*xb[i].x + xb[i].y*xb[i].y) / mbb_d[0];
+		complex_t xai = xa[i],
+		          xbi = xb[i];
+		real_t maa = maa_d[0],
+		       mbb = mbb_d[0];
+
+        F[i] = (pown(creal(xai), 2) + pown(cimag(xai), 2)) / maa +
+		       (pown(creal(xbi), 2) + pown(cimag(xbi), 2)) / mbb;
     }
 }
 
