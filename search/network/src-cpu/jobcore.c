@@ -678,11 +678,6 @@ int job_core(int pm,                   // Hemisphere
       fftw_arr->xa[i] = ifo[0].sig.xDatma[i] * exph; ///ifo[0].sig.sig2;
       fftw_arr->xb[i] = ifo[0].sig.xDatmb[i] * exph; ///ifo[0].sig.sig2;
 #endif
-      if (i == 16)
-      {
-          printf("i: %u\ttmp10i: %e\tphase: %e\texph: (%e,%e)\n", i, _tmp1[0][i], phase, creal(exph), cimag(exph));
-          printf("i: %u\txa[i]: (%e,%e)\n", i, creal(cmulcc(ifo[0].sig.xDatma[i], exph)), cimag(cmulcc(ifo[0].sig.xDatma[i], exph)));
-      }
     }
 #endif
 #ifdef TESTING
@@ -823,7 +818,6 @@ int job_core(int pm,                   // Hemisphere
     save_numbered_real_array(F, sett->nmax - sett->nmin, 0, "Fstat");
     save_numbered_real_array(F, sett->nmax - sett->nmin, 1, "Fstat");
 #endif 
-    exit(0);
 #if 0
     FILE *f1 = fopen("fraw-1.dat", "w");
     for(i=sett->nmin; i<sett->nmax; i++)

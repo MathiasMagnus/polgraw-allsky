@@ -193,9 +193,6 @@ __kernel void interpolate(__global real_t* new_x,
         real_t dist2 = i + 1 - x;
 
         new_y[idx] = dist1*(z[i + 1]*alpha*(dist1*dist1 - 1) + y[i + 1]) + dist2*(z[i]*alpha*(dist2*dist2 - 1) + y[i]);
-    
-        //new_y[idx].x = 0; //dist1*(z[i + 1].x*alpha*(dist1*dist1 - 1) + y[i + 1].x) + dist2*(z[i].x*alpha*(dist2*dist2 - 1) + y[i].x);
-        //new_y[idx].y = 0; //dist1*(z[i + 1].y*alpha*(dist1*dist1 - 1) + y[i + 1].y) + dist2*(z[i].y*alpha*(dist2*dist2 - 1) + y[i].y);
     }
 }
 
@@ -226,22 +223,6 @@ __kernel void phase_mod_1(__global complex_t* xa,
 
 		xa[idx] = cmulcc(xar[idx], exph);
 		xb[idx] = cmulcc(xbr[idx], exph);
-
-		//if (idx == 16)
-		//{
-		//	printf("idx: %u\ttmp10i: %e\tphase: %e\texph: (%e,%e)\n", idx, tmp10i, phase, creal(exph), cimag(exph));
-		//	printf("idx: %u\txa[idx]: (%e,%e)\n", idx, creal(cmulcc(xar[idx], exph)), cimag(cmulcc(xar[idx], exph)));
-		//}
-
-        //real_t phase = -idx * (het1 + sgnlt1 * (idx + 2 * shft[idx]));
-        //real_t s = sin(phase);
-        //real_t c = cos(phase);
-		//
-        //xa[idx].x = xar[idx].x*c - xar[idx].y*s;
-        //xa[idx].y = xar[idx].x*s + xar[idx].y*c;
-		//
-        //xb[idx].x = xbr[idx].x*c - xbr[idx].y*s;
-        //xb[idx].y = xbr[idx].x*s + xbr[idx].y*c;
     }
 }
 
@@ -272,17 +253,6 @@ __kernel void phase_mod_2(__global complex_t* xa,
 
 		xa[idx] += cmulcc(xar[idx], exph);
 		xb[idx] += cmulcc(xbr[idx], exph);
-
-        //real_t phase = -idx * (het1 + sgnlt1 * (idx + 2 * shft[idx]));
-        //real_t s = sin(phase);
-        //real_t c = cos(phase);
-		//
-        //xa[idx].x += xar[idx].x*c - xar[idx].y*s;
-        //xa[idx].y += xar[idx].x*s + xar[idx].y*c;
-		//
-        //xb[idx].x += xbr[idx].x*c - xbr[idx].y*s;
-        //xb[idx].y += xbr[idx].x*s + xbr[idx].y*c;
-
     }
 }
 
