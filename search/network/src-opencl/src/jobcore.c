@@ -277,9 +277,8 @@ real_t* job_core(const int pm,                  // hemisphere
 
     // Change linear (grid) coordinates to real coordinates
     real_t sinalt, cosalt, sindelt, cosdelt;
-    lin2ast(al1 / sett->oms, al2 / sett->oms,
-            pm, sett->sepsm, sett->cepsm,
-            &sinalt, &cosalt, &sindelt, &cosdelt);
+    lin2ast(al1 / sett->oms, al2 / sett->oms, pm, sett->sepsm, sett->cepsm, // input vars
+            &sinalt, &cosalt, &sindelt, &cosdelt);                          // output vars
 
     // calculate declination and right ascention
     // written in file as candidate signal sky positions
