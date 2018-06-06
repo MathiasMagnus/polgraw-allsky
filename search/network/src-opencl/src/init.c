@@ -770,7 +770,7 @@ void init_arrays(Detector_settings* ifo,
         // Estimation of the variance for each detector 
         ifo[i].sig.sig2 = (ifo[i].sig.crf0)*var(ifo[i].sig.xDat, sett->N);
 
-        //ifo[i].sig.DetSSB = (real_t*)calloc(3 * sett->N, sizeof(real_t));
+        ifo[i].sig.DetSSB = (real3_t*)calloc(sett->N, sizeof(real3_t));
 
         // Ephemeris file handling
         char filename[512];
@@ -785,10 +785,14 @@ void init_arrays(Detector_settings* ifo,
         {
             // Detector position w.r.t Solar System Baricenter
             // for every datapoint
-            status = fread((void *)(ifo[i].sig.DetSSB),
-                           sizeof(real_t),
-                           3 * sett->N,
-                           data);
+            for (j = 0; j < sett->N; ++j)
+            {
+                status = fread((void *)(&ifo[i].sig.DetSSB[j]),
+                               sizeof(real_t),
+                               3,
+                               data);
+                ifo[i].sig.DetSSB[j].s[3] = 0;
+            }
 
             // Deterministic phase defining the position of the Earth
             // in its diurnal motion at t=0 
@@ -815,8 +819,8 @@ void init_arrays(Detector_settings* ifo,
 
         ifo[i].sig.DetSSB_d = clCreateBuffer(cl_handles->ctx,
                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             3 * sett->N * sizeof(real_t),
-                                             ifo[i].sig.DetSSB,
+                                             sett->N * sizeof(real3_t),
+                                             &ifo[i].sig.DetSSB,
                                              &CL_err);
         checkErr(CL_err, "clCreateBuffer(ifo[i].sig.DetSSB_d)");
 

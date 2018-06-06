@@ -304,9 +304,9 @@ real_t* job_core(const int pm,                  // hemisphere
     real3_t nSource = { cosalt * cosdelt,
                         sinalt * cosdelt,
                         sindelt };
-    real_t shft1 = nSource.s[0] * ifo[n].sig.DetSSB.s[0] +
-                   nSource.s[1] * ifo[n].sig.DetSSB.s[1] +
-                   nSource.s[2] * ifo[n].sig.DetSSB.s[2];
+    real_t shft1 = nSource.s[0] * ifo[n].sig.DetSSB[0].s[0] +
+                   nSource.s[1] * ifo[n].sig.DetSSB[0].s[1] +
+                   nSource.s[2] * ifo[n].sig.DetSSB[0].s[2];
 
     tshift_pmod_events[n] = tshift_pmod_gpu(shft1, het0, nSource,                                                               // input
                                             sett->oms, sett->N, sett->nfft, sett->interpftpad,                                  // input
