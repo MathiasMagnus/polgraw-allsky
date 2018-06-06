@@ -216,16 +216,16 @@ real_t* job_core(const int pm,                  // hemisphere
                  OpenCL_handles* cl_handles,    // handles to OpenCL resources
                  BLAS_handles* blas_handles)    // handle for scaling
 {
-  real_t al1, al2, sgnlt[NPAR], nSource[3], het0, sgnl0, ft;
+  real_t al1, al2, sgnlt[NPAR], het0, sgnl0, ft;
 
   // VLA version
   //double _tmp1[sett->nifo][sett->N];
 
   // Non-VLA version
-  real_t** _tmp1;
-  _tmp1 = (real_t**)malloc(sett->nifo * sizeof(real_t*));
-  for (int x = 0; x < sett->nifo; ++x)
-    _tmp1[x] = (real_t*)malloc(sett->N * sizeof(real_t));
+  //real_t** _tmp1;
+  //_tmp1 = (real_t**)malloc(sett->nifo * sizeof(real_t*));
+  //for (int x = 0; x < sett->nifo; ++x)
+  //  _tmp1[x] = (real_t*)malloc(sett->N * sizeof(real_t));
 
   real_t* sgnlv;
 
@@ -295,33 +295,29 @@ real_t* job_core(const int pm,                  // hemisphere
                                   ifo[n].sig.aa_d, ifo[n].sig.bb_d,                // output
                                   cl_handles, 0, NULL);                            // sync
 #ifdef TESTING
-        save_numbered_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, sett->N, n, "aux_sinmodf");
-        save_numbered_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, sett->N, n, "aux_cosmodf");
-        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.aa_d, sett->N, n, "ifo_sig_aa");
-        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.bb_d, sett->N, n, "ifo_sig_bb");
+    save_numbered_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, sett->N, n, "aux_sinmodf");
+    save_numbered_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, sett->N, n, "aux_cosmodf");
+    save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.aa_d, sett->N, n, "ifo_sig_aa");
+    save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.bb_d, sett->N, n, "ifo_sig_bb");
 #endif
-        // Calculate detector positions with respect to baricenter
-        nSource[0] = cosalt*cosdelt;
-        nSource[1] = sinalt*cosdelt;
-        nSource[2] = sindelt;
+    // Calculate detector positions with respect to baricenter
+    real_t nSource[3] = { cosalt * cosdelt,
+                          sinalt * cosdelt,
+                          sindelt };
+    real_t shft1 = nSource[0] * ifo[n].sig.DetSSB[0] +
+                   nSource[1] * ifo[n].sig.DetSSB[1] +
+                   nSource[2] * ifo[n].sig.DetSSB[2];
 
-        real_t shft1;
-        shft1 = nSource[0] * ifo[n].sig.DetSSB[0] +
-                nSource[1] * ifo[n].sig.DetSSB[1] +
-                nSource[2] * ifo[n].sig.DetSSB[2];
-
-        tshift_pmod_events[n] = tshift_pmod_gpu(shft1, het0, nSource[0], nSource[1], nSource[2],
-                                                ifo[n].sig.xDat_d, fft_arr->xa_d, fft_arr->xb_d,
-                                                ifo[n].sig.shft_d, ifo[n].sig.shftf_d,
-                                                aux->tshift_d,
-                                                ifo[n].sig.aa_d, ifo[n].sig.bb_d,
-                                                ifo[n].sig.DetSSB_d,
-                                                sett->oms, sett->N, sett->nfft, sett->interpftpad, cl_handles);
+    tshift_pmod_events[n] = tshift_pmod_gpu(shft1, het0, nSource[0], nSource[1], nSource[2],                                    // input
+                                            sett->oms, sett->N, sett->nfft, sett->interpftpad,                                  // input
+                                            ifo[n].sig.xDat_d, ifo[n].sig.aa_d, ifo[n].sig.bb_d, ifo[n].sig.DetSSB_d,           // input
+                                            fft_arr->xa_d, fft_arr->xb_d, ifo[n].sig.shft_d, ifo[n].sig.shftf_d, aux->tshift_d, // output
+                                            cl_handles, 1, &modvir_events[n]);                                                  // sync
 #ifdef TESTING
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, 2 * sett->nfft, n, "xa_time");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, 2 * sett->nfft, n, "xb_time");
-        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shft_d, sett->N, n, "ifo_sig_shft");
-        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shftf_d, sett->N, n, "ifo_sig_shftf");
+    save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, 2 * sett->nfft, n, "xa_time");
+    save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, 2 * sett->nfft, n, "xb_time");
+    save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shft_d, sett->N, n, "ifo_sig_shft");
+    save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shftf_d, sett->N, n, "ifo_sig_shftf");
 #endif		
         clfftStatus CLFFT_status = CLFFT_SUCCESS;
         cl_event fft_exec[2];
@@ -747,9 +743,9 @@ real_t* job_core(const int pm,                  // hemisphere
 #endif
 
     // Non-VLA free _tmp1
-    for (int x = 0; x < sett->nifo; ++x)
-        free(_tmp1[x]);
-    free(_tmp1);
+    //for (int x = 0; x < sett->nifo; ++x)
+    //    free(_tmp1[x]);
+    //free(_tmp1);
 
     return sgnlv;
 
@@ -830,27 +826,27 @@ cl_event modvir_gpu(const cl_int idet,
     return exec;
 }
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
 cl_event tshift_pmod_gpu(const real_t shft1,
                          const real_t het0,
                          const real_t ns0,
                          const real_t ns1,
                          const real_t ns2,
+                         const real_t oms,
+                         const cl_int N,
+                         const cl_int nfft,
+                         const cl_int interpftpad,
                          const cl_mem xDat_d,
+                         const cl_mem aa_d,
+                         const cl_mem bb_d,
+                         const cl_mem DetSSB_d,
                          cl_mem xa_d,
                          cl_mem xb_d,
                          cl_mem shft_d,
                          cl_mem shftf_d,
                          cl_mem tshift_d,
-                         const cl_mem aa_d,
-                         const cl_mem bb_d,
-                         const cl_mem DetSSB_d,
-                         const real_t oms,
-                         const cl_int N,
-                         const cl_int nfft,
-                         const cl_int interpftpad,
-                         const OpenCL_handles* cl_handles)
+                         const OpenCL_handles* cl_handles,
+                         const cl_uint num_events_in_wait_list,
+                         const cl_event* event_wait_list)
 {
     cl_int CL_err = CL_SUCCESS;
 
@@ -876,7 +872,7 @@ cl_event tshift_pmod_gpu(const real_t shft1,
     cl_event exec;
     size_t size_nfft = (size_t)nfft; // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TShiftPMod], 1, NULL, &size_nfft, NULL, 0, NULL, &exec);
+    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TShiftPMod], 1, NULL, &size_nfft, NULL, num_events_in_wait_list, event_wait_list, &exec);
     checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[TShiftPMod])");
 
     return exec;
