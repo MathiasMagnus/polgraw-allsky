@@ -202,9 +202,9 @@ void search(Detector_settings* ifo,
 /// <summary>Main job function.</summary>
 /// <remarks>The output is stored in single or double precision. (<c>real_t</c> defined in struct.h)</remarks>
 ///
-real_t* job_core(int pm,                        // hemisphere
-                 int mm,                        // grid 'sky position'
-                 int nn,                        // other grid 'sky position'
+real_t* job_core(const int pm,                  // hemisphere
+                 const int mm,                  // grid 'sky position'
+                 const int nn,                  // other grid 'sky position'
                  Detector_settings* ifo,        // detector settings
                  Search_settings *sett,         // search settings
                  Command_line_opts *opts,       // cmd opts
@@ -220,7 +220,7 @@ real_t* job_core(int pm,                        // hemisphere
                  BLAS_handles* blas_handles)    // handle for scaling
 {
     int smin = s_range->sst, smax = s_range->spndr[1];
-    real_t al1, al2, sinalt, cosalt, sindelt, cosdelt, sgnlt[NPAR], nSource[3], het0, sgnl0, ft;
+    real_t al1, al2, sgnlt[NPAR], nSource[3], het0, sgnl0, ft;
 
     // VLA version
     //double _tmp1[sett->nifo][sett->N];
@@ -265,17 +265,18 @@ real_t* job_core(int pm,                        // hemisphere
     al2 = nn*sett->M[11] + mm*sett->M[15];
 
     sgnlv = NULL;
-    *sgnlc = 0;
+    *sgnlc = 0; // Redundant, already zeroed out externally.
+                // Will be removed once return value is struct.
 
     // check if the search is in an appropriate region of the grid
     // if not, returns NULL
     if ((sqr(al1) + sqr(al2)) / sqr(sett->oms) > 1.) return NULL;
 
     int ss;
-    real_t shft1/*, phase, cp, sp*/; // Unused variables
-    // complex_t exph; // Unused variable
+    real_t shft1;
 
     // Change linear (grid) coordinates to real coordinates
+    real_t sinalt, cosalt, sindelt, cosdelt;
     lin2ast(al1 / sett->oms, al2 / sett->oms,
             pm, sett->sepsm, sett->cepsm,
             &sinalt, &cosalt, &sindelt, &cosdelt);

@@ -33,9 +33,9 @@ void search(Detector_settings* ifo,
 /// <remarks>The output is stored in single or double precision. (<c>real_t</c> defined in struct.h)</remarks>
 /// <todo>Make the output a struct of size_t and real_t* instead of intricate external <c>sgnlc</c></todo>
 ///
-real_t* job_core(int pm,                        // hemisphere
-                 int mm,                        // grid 'sky position'
-                 int nn,                        // other grid 'sky position'
+real_t* job_core(const int pm,                  // hemisphere
+                 const int mm,                  // grid 'sky position'
+                 const int nn,                  // other grid 'sky position'
                  Detector_settings* ifo,        // detector settings
                  Search_settings *sett,         // search settings
                  Command_line_opts *opts,       // cmd opts

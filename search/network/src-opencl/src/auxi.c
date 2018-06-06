@@ -17,10 +17,7 @@
 #include <float.h>      // DBL_MAX
 
 
-/// <summary>Change linear (grid) coordinates to real coordinates</summary>
-/// <remarks>lin2ast described in Phys. Rev. D 82, 022005 (2010) (arXiv:1003.0844)</remarks>
-///
-void lin2ast(real_t be1, real_t be2, int pm, real_t sepsm, real_t cepsm,
+void lin2ast(const real_t be1, const real_t be2, const int pm, const real_t sepsm, const real_t cepsm,
              real_t *sinal, real_t *cosal, real_t *sindel, real_t *cosdel)
 {
 
