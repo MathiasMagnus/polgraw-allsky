@@ -31,7 +31,8 @@ void search(Detector_settings* ifo,
 
 /// <summary>Main job function.</summary>
 /// <remarks>The output is stored in single or double precision. (<c>real_t</c> defined in struct.h)</remarks>
-/// <todo>Make the output a struct of size_t and real_t* instead of intricate external <c>sgnlc</c></todo>
+/// <todo>Make the output a struct of size_t and real_t* instead of intricate external <c>sgnlc</c>.</todo>
+/// <todo>Make sky position dependent setup a callback function and make it awaitable through an event.</todo>
 ///
 real_t* job_core(const int pm,                  // hemisphere
                  const int mm,                  // grid 'sky position'
@@ -60,15 +61,22 @@ void copy_amod_coeff(Detector_settings* ifo,
 /// <summary>Calculate the amplitude modulation functions aa and bb of the given detector (in signal sub-structs: ifo->sig.aa, ifo->.sig.bb).</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 ///
-cl_event modvir_gpu(const real_t sinal,
+cl_event modvir_gpu(const cl_int idet,
+                    const cl_int Np,
+                    const real_t sinal,
                     const real_t cosal,
                     const real_t sindel,
                     const real_t cosdel,
-                    const cl_int Np,
-                    Detector_settings* ifoi,
+                    const real_t cphir,
+                    const real_t sphir,
+                    const cl_mem ifo_amod_d,
+                    const cl_mem sinmodf_d,
+                    const cl_mem cosmodf_d,
+                    cl_mem aa_d,
+                    cl_mem bb_d,
                     const OpenCL_handles* cl_handles,
-                    const Aux_arrays* aux,
-                    const cl_int idet);
+                    const cl_uint num_events_in_wait_list,
+                    const cl_event* event_wait_list);
 
 /// <summary>The purpose of this function was undocumented.</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>

@@ -199,9 +199,6 @@ void search(Detector_settings* ifo,
 
 } // end of search
 
-/// <summary>Main job function.</summary>
-/// <remarks>The output is stored in single or double precision. (<c>real_t</c> defined in struct.h)</remarks>
-///
 real_t* job_core(const int pm,                  // hemisphere
                  const int mm,                  // grid 'sky position'
                  const int nn,                  // other grid 'sky position'
@@ -219,82 +216,84 @@ real_t* job_core(const int pm,                  // hemisphere
                  OpenCL_handles* cl_handles,    // handles to OpenCL resources
                  BLAS_handles* blas_handles)    // handle for scaling
 {
-    real_t al1, al2, sgnlt[NPAR], nSource[3], het0, sgnl0, ft;
+  real_t al1, al2, sgnlt[NPAR], nSource[3], het0, sgnl0, ft;
 
-    // VLA version
-    //double _tmp1[sett->nifo][sett->N];
+  // VLA version
+  //double _tmp1[sett->nifo][sett->N];
 
-    // Non-VLA version
-    real_t** _tmp1;
-    _tmp1 = (real_t**)malloc(sett->nifo * sizeof(real_t*));
-    for (int x = 0; x < sett->nifo; ++x)
-        _tmp1[x] = (real_t*)malloc(sett->N * sizeof(real_t));
+  // Non-VLA version
+  real_t** _tmp1;
+  _tmp1 = (real_t**)malloc(sett->nifo * sizeof(real_t*));
+  for (int x = 0; x < sett->nifo; ++x)
+    _tmp1[x] = (real_t*)malloc(sett->N * sizeof(real_t));
 
-    real_t* sgnlv;
+  real_t* sgnlv;
 
-    // Stateful function (local variable with static storage duration)
-    static real_t *F;
-    if (F == NULL) F = (real_t*)malloc(2 * sett->nfft * sizeof(real_t));
+  // Stateful function (local variable with static storage duration)
+  static real_t *F;
+  if (F == NULL) F = (real_t*)malloc(2 * sett->nfft * sizeof(real_t));
 
-    /* Matrix	M(.,.) (defined on page 22 of PolGrawCWAllSkyReview1.pdf file)
-    defines the transformation form integers (bin, ss, nn, mm) determining
-    a grid point to linear coordinates omega, omegadot, alpha_1, alpha_2),
-    where bin is the frequency bin number and alpha_1 and alpha_2 are
-    defined on p. 22 of PolGrawCWAllSkyReview1.pdf file.
+  /* Matrix M(.,.) (defined on page 22 of PolGrawCWAllSkyReview1.pdf file)
+  defines the transformation form integers (bin, ss, nn, mm) determining
+  a grid point to linear coordinates omega, omegadot, alpha_1, alpha_2),
+  where bin is the frequency bin number and alpha_1 and alpha_2 are
+  defined on p. 22 of PolGrawCWAllSkyReview1.pdf file.
 
-    [omega]                          [bin]
-    [omegadot]       = M(.,.) \times [ss]
-    [alpha_1/omega]                  [nn]
-    [alpha_2/omega]                  [mm]
+  [omega]                          [bin]
+  [omegadot]       = M(.,.) \times [ss]
+  [alpha_1/omega]                  [nn]
+  [alpha_2/omega]                  [mm]
 
-    Array M[.] is related to matrix M(.,.) in the following way;
+  Array M[.] is related to matrix M(.,.) in the following way;
+  
+  [ M[0] M[4] M[8]  M[12] ]
+  M(.,.) =   [ M[1] M[5] M[9]  M[13] ]
+  [ M[2] M[6] M[10] M[14] ]
+  [ M[3] M[7] M[11] M[15] ]
 
-    [ M[0] M[4] M[8]  M[12] ]
-    M(.,.) =   [ M[1] M[5] M[9]  M[13] ]
-    [ M[2] M[6] M[10] M[14] ]
-    [ M[3] M[7] M[11] M[15] ]
+  and
 
-    and
+  M[1] = M[2] = M[3] = M[6] = M[7] = 0
+  */
 
-    M[1] = M[2] = M[3] = M[6] = M[7] = 0
-    */
+  // Grid positions
+  al1 = nn*sett->M[10] + mm*sett->M[14];
+  al2 = nn*sett->M[11] + mm*sett->M[15];
 
-    // Grid positions
-    al1 = nn*sett->M[10] + mm*sett->M[14];
-    al2 = nn*sett->M[11] + mm*sett->M[15];
+  sgnlv = NULL;
+  *sgnlc = 0; // Redundant, already zeroed out externally.
+              // Will be removed once return value is struct.
 
-    sgnlv = NULL;
-    *sgnlc = 0; // Redundant, already zeroed out externally.
-                // Will be removed once return value is struct.
+  // check if the search is in an appropriate region of the grid
+  // if not, returns NULL
+  if ((sqr(al1) + sqr(al2)) / sqr(sett->oms) > 1.) return NULL;
 
-    // check if the search is in an appropriate region of the grid
-    // if not, returns NULL
-    if ((sqr(al1) + sqr(al2)) / sqr(sett->oms) > 1.) return NULL;
+  // Change linear (grid) coordinates to real coordinates
+  real_t sinalt, cosalt, sindelt, cosdelt;
+  lin2ast(al1 / sett->oms, al2 / sett->oms, pm, sett->sepsm, sett->cepsm, // input
+          &sinalt, &cosalt, &sindelt, &cosdelt);                          // output
 
-    real_t shft1;
+  // calculate declination and right ascention
+  // written in file as candidate signal sky positions
+  sgnlt[2] = asin(sindelt);
+  sgnlt[3] = fmod(atan2(sinalt, cosalt) + 2.*M_PI, 2.*M_PI);
 
-    // Change linear (grid) coordinates to real coordinates
-    real_t sinalt, cosalt, sindelt, cosdelt;
-    lin2ast(al1 / sett->oms, al2 / sett->oms, pm, sett->sepsm, sett->cepsm, // input vars
-            &sinalt, &cosalt, &sindelt, &cosdelt);                          // output vars
+  het0 = fmod(nn*sett->M[8] + mm*sett->M[12], sett->M[0]);
 
-    // calculate declination and right ascention
-    // written in file as candidate signal sky positions
-    sgnlt[2] = asin(sindelt);
-    sgnlt[3] = fmod(atan2(sinalt, cosalt) + 2.*M_PI, 2.*M_PI);
+  // Nyquist frequency 
+  int nyqst = (sett->nfft) / 2 + 1;
 
-    het0 = fmod(nn*sett->M[8] + mm*sett->M[12], sett->M[0]);
-
-    // Nyquist frequency 
-    int nyqst = (sett->nfft) / 2 + 1;
-
-    // Loop for each detector
-    cl_event *modvir_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
-             *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event));
-    for (int n = 0; n<sett->nifo; ++n) {
-
-        // Amplitude modulation functions aa and bb for each detector (in signal sub-struct of _detector, ifo[n].sig.aa, ifo[n].sig.bb)
-        modvir_events[n] = modvir_gpu(sinalt, cosalt, sindelt, cosdelt, sett->N, &ifo[n], cl_handles, aux, n);
+  // Loop for each detector
+  cl_event *modvir_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
+           *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event));
+  for (int n = 0; n<sett->nifo; ++n)
+  {
+    modvir_events[n] = modvir_gpu(n, sett->N,                                      // input
+                                  sinalt, cosalt, sindelt, cosdelt,                // input
+                                  ifo[n].sig.cphir, ifo[n].sig.sphir,              // input
+                                  aux->ifo_amod_d, aux->sinmodf_d, aux->cosmodf_d, // input
+                                  ifo[n].sig.aa_d, ifo[n].sig.bb_d,                // output
+                                  cl_handles, 0, NULL);                            // sync
 #ifdef TESTING
         save_numbered_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, sett->N, n, "aux_sinmodf");
         save_numbered_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, sett->N, n, "aux_cosmodf");
@@ -306,6 +305,7 @@ real_t* job_core(const int pm,                  // hemisphere
         nSource[1] = sinalt*cosdelt;
         nSource[2] = sindelt;
 
+        real_t shft1;
         shft1 = nSource[0] * ifo[n].sig.DetSSB[0] +
                 nSource[1] * ifo[n].sig.DetSSB[1] +
                 nSource[2] * ifo[n].sig.DetSSB[2];
@@ -785,39 +785,46 @@ void copy_amod_coeff(Detector_settings* ifo,
     clReleaseEvent(unmap_event);
 }
 
-cl_event modvir_gpu(const real_t sinal,
+cl_event modvir_gpu(const cl_int idet,
+                    const cl_int Np,
+                    const real_t sinal,
                     const real_t cosal,
                     const real_t sindel,
                     const real_t cosdel,
-                    const cl_int Np,
-                    Detector_settings* ifoi,
+                    const real_t cphir,
+                    const real_t sphir,
+                    const cl_mem ifo_amod_d,
+                    const cl_mem sinmodf_d,
+                    const cl_mem cosmodf_d,
+                    cl_mem aa_d,
+                    cl_mem bb_d,
                     const OpenCL_handles* cl_handles,
-                    const Aux_arrays* aux,
-                    const cl_int idet)
+                    const cl_uint num_events_in_wait_list,
+                    const cl_event* event_wait_list)
 {
     cl_int CL_err = CL_SUCCESS;
-    real_t cosalfr = cosal * (ifoi->sig.cphir) + sinal * (ifoi->sig.sphir),
-           sinalfr = sinal * (ifoi->sig.cphir) - cosal * (ifoi->sig.sphir),
+    real_t cosalfr = cosal * (cphir) + sinal * (sphir),
+           sinalfr = sinal * (cphir) - cosal * (sphir),
            c2d = sqr(cosdel),
            c2sd = sindel * cosdel;
     size_t size_Np = (size_t)Np; // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &ifoi->sig.aa_d);   checkErr(CL_err, "clSetKernelArg(&ifoi->sig.aa_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &ifoi->sig.bb_d);   checkErr(CL_err, "clSetKernelArg(&ifoi->sig.bb_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &aa_d);             checkErr(CL_err, "clSetKernelArg(&aa_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &bb_d);             checkErr(CL_err, "clSetKernelArg(&bb_d)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 2, sizeof(real_t), &cosalfr);          checkErr(CL_err, "clSetKernelArg(&cosalfr)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 3, sizeof(real_t), &sinalfr);          checkErr(CL_err, "clSetKernelArg(&sinalfr)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 4, sizeof(real_t), &c2d);              checkErr(CL_err, "clSetKernelArg(&c2d)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 5, sizeof(real_t), &c2sd);             checkErr(CL_err, "clSetKernelArg(&c2sd)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &aux->sinmodf_d);   checkErr(CL_err, "clSetKernelArg(&aux->sinmodf_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &aux->cosmodf_d);   checkErr(CL_err, "clSetKernelArg(&aux->cosmodf_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &sinmodf_d);        checkErr(CL_err, "clSetKernelArg(&sinmodf_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &cosmodf_d);        checkErr(CL_err, "clSetKernelArg(&cosmodf_d)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 8, sizeof(real_t), &sindel);           checkErr(CL_err, "clSetKernelArg(&sindel)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 9, sizeof(real_t), &cosdel);           checkErr(CL_err, "clSetKernelArg(&cosdel)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 10, sizeof(cl_int), &Np);              checkErr(CL_err, "clSetKernelArg(&Np)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 11, sizeof(cl_int), &idet);            checkErr(CL_err, "clSetKernelArg(&idet)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 12, sizeof(cl_mem), &aux->ifo_amod_d); checkErr(CL_err, "clSetKernelArg(&aux->ifo_amod_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 12, sizeof(cl_mem), &ifo_amod_d);      checkErr(CL_err, "clSetKernelArg(&ifo_amod_d)");
 
     cl_event exec;
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Modvir], 1, NULL, &size_Np, NULL, 0, NULL, &exec);
+    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Modvir], 1, NULL, &size_Np, NULL, num_events_in_wait_list, event_wait_list, &exec);
     checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[Modvir])");
 
     return exec;
