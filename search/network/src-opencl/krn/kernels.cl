@@ -37,9 +37,7 @@ __kernel void modvir_kern(__global real_t* aa_d,
 ///
 __kernel void tshift_pmod_kern(real_t shft1,
                                real_t het0,
-                               real_t ns0,
-                               real_t ns1,
-                               real_t ns2,
+                               real3_t ns,
                                __global real_t* xDat_d,
                                __global complex_t* xa_d,
                                __global complex_t* xb_d,
@@ -58,9 +56,9 @@ __kernel void tshift_pmod_kern(real_t shft1,
 
     if (i < N)
     {
-        real_t S = ns0 * DetSSB_d[i * 3]
-                 + ns1 * DetSSB_d[i * 3 + 1]
-                 + ns2 * DetSSB_d[i * 3 + 2];
+        real_t S = ns.x * DetSSB_d[i * 3]
+                 + ns.y * DetSSB_d[i * 3 + 1]
+                 + ns.z * DetSSB_d[i * 3 + 2];
         shft_d[i] = S;
         shftf_d[i] = S - shft1;
 

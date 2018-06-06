@@ -50,7 +50,7 @@ typedef struct _signals
 {	
     real_t* xDat;
     cl_mem xDat_d;
-    real_t* DetSSB;
+    real3_t DetSSB;
     cl_mem DetSSB_d;        // Ephemeris of the detector
     cl_mem aa_d, bb_d;      // Amplitude modulation functions
     cl_mem shftf_d, shft_d; // Resampling and time-shifting

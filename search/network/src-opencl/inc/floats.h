@@ -22,6 +22,7 @@
 #define CLFFT_TRANSFORM_LAYOUT CLFFT_COMPLEX_INTERLEAVED
 typedef cl_double real_t;
 typedef cl_double2 complex_devt;
+typedef cl_double3 real3_t;
 #define FLOAT_TYPE cl_double
 #define COMPLEX_TYPE cl_double2
 #ifdef _WIN32

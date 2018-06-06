@@ -770,7 +770,7 @@ void init_arrays(Detector_settings* ifo,
         // Estimation of the variance for each detector 
         ifo[i].sig.sig2 = (ifo[i].sig.crf0)*var(ifo[i].sig.xDat, sett->N);
 
-        ifo[i].sig.DetSSB = (real_t*)calloc(3 * sett->N, sizeof(real_t));
+        //ifo[i].sig.DetSSB = (real_t*)calloc(3 * sett->N, sizeof(real_t));
 
         // Ephemeris file handling
         char filename[512];

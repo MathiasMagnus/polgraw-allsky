@@ -7,6 +7,7 @@ typedef float2 complex_t;
 #else
 typedef double real_t;
 typedef double2 complex_t;
+typedef double3 real3_t;
 #endif // COMP_FLOAT
 
 real_t creal(const complex_t val) { return val.x; }
