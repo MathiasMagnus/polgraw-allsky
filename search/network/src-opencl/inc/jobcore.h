@@ -58,16 +58,17 @@ void copy_amod_coeff(Detector_settings* ifo,
                      Aux_arrays* aux);
 
 /// <summary>The purpose of this function was undocumented.</summary>
+/// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 ///
-void modvir_gpu(real_t sinal,
-                real_t cosal,
-                real_t sindel,
-                real_t cosdel,
-                cl_int Np,
-                Detector_settings* ifoi,
-                OpenCL_handles* cl_handles,
-                Aux_arrays* aux,
-                cl_int idet);
+cl_event modvir_gpu(const real_t sinal,
+                    const real_t cosal,
+                    const real_t sindel,
+                    const real_t cosdel,
+                    const cl_int Np,
+                    Detector_settings* ifoi,
+                    const OpenCL_handles* cl_handles,
+                    const Aux_arrays* aux,
+                    const cl_int idet);
 
 /// <summary>The purpose of this function was undocumented.</summary>
 ///

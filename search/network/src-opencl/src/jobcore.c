@@ -786,48 +786,42 @@ void copy_amod_coeff(Detector_settings* ifo,
     clReleaseEvent(unmap_event);
 }
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
-void modvir_gpu(real_t sinal,
-                real_t cosal,
-                real_t sindel,
-                real_t cosdel,
-                cl_int Np,
-                Detector_settings* ifoi,
-                OpenCL_handles* cl_handles,
-                Aux_arrays* aux,
-                cl_int idet)
+cl_event modvir_gpu(const real_t sinal,
+                    const real_t cosal,
+                    const real_t sindel,
+                    const real_t cosdel,
+                    const cl_int Np,
+                    Detector_settings* ifoi,
+                    const OpenCL_handles* cl_handles,
+                    const Aux_arrays* aux,
+                    const cl_int idet)
 {
     cl_int CL_err = CL_SUCCESS;
-    real_t cosalfr, sinalfr, c2d, c2sd/*, c, s, c2s, cs*/; // Unused variables
-
-    cosalfr = cosal*(ifoi->sig.cphir) + sinal*(ifoi->sig.sphir);
-    sinalfr = sinal*(ifoi->sig.cphir) - cosal*(ifoi->sig.sphir);
-    c2d = sqr(cosdel);
-    c2sd = sindel*cosdel;
-
-    clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &ifoi->sig.aa_d);
-    clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &ifoi->sig.bb_d);
-    clSetKernelArg(cl_handles->kernels[Modvir], 2, sizeof(real_t), &cosalfr);
-    clSetKernelArg(cl_handles->kernels[Modvir], 3, sizeof(real_t), &sinalfr);
-    clSetKernelArg(cl_handles->kernels[Modvir], 4, sizeof(real_t), &c2d);
-    clSetKernelArg(cl_handles->kernels[Modvir], 5, sizeof(real_t), &c2sd);
-    clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &aux->sinmodf_d);
-    clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &aux->cosmodf_d);
-    clSetKernelArg(cl_handles->kernels[Modvir], 8, sizeof(real_t), &sindel);
-    clSetKernelArg(cl_handles->kernels[Modvir], 9, sizeof(real_t), &cosdel);
-    clSetKernelArg(cl_handles->kernels[Modvir], 10, sizeof(cl_int), &Np);
-    clSetKernelArg(cl_handles->kernels[Modvir], 11, sizeof(cl_int), &idet);
-    clSetKernelArg(cl_handles->kernels[Modvir], 12, sizeof(cl_mem), &aux->ifo_amod_d);
-
-    cl_event exec;
+    real_t cosalfr = cosal * (ifoi->sig.cphir) + sinal * (ifoi->sig.sphir),
+           sinalfr = sinal * (ifoi->sig.cphir) - cosal * (ifoi->sig.sphir),
+           c2d = sqr(cosdel),
+           c2sd = sindel * cosdel;
     size_t size_Np = (size_t)Np; // Helper variable to make pointer types match. Cast to silence warning
 
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &ifoi->sig.aa_d); checkErr(CL_err, "clSetKernelArg(&ifoi->sig.aa_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &ifoi->sig.bb_d); checkErr(CL_err, "clSetKernelArg(&ifoi->sig.bb_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 2, sizeof(real_t), &cosalfr); checkErr(CL_err, "clSetKernelArg(&cosalfr)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 3, sizeof(real_t), &sinalfr); checkErr(CL_err, "clSetKernelArg(&sinalfr)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 4, sizeof(real_t), &c2d); checkErr(CL_err, "clSetKernelArg(&c2d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 5, sizeof(real_t), &c2sd); checkErr(CL_err, "clSetKernelArg(&c2sd)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &aux->sinmodf_d); checkErr(CL_err, "clSetKernelArg(&aux->sinmodf_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &aux->cosmodf_d); checkErr(CL_err, "clSetKernelArg(&aux->cosmodf_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 8, sizeof(real_t), &sindel); checkErr(CL_err, "clSetKernelArg(&sindel)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 9, sizeof(real_t), &cosdel); checkErr(CL_err, "clSetKernelArg(&cosdel)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 10, sizeof(cl_int), &Np); checkErr(CL_err, "clSetKernelArg(&Np)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 11, sizeof(cl_int), &idet); checkErr(CL_err, "clSetKernelArg(&idet)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 12, sizeof(cl_mem), &aux->ifo_amod_d); checkErr(CL_err, "clSetKernelArg(&aux->ifo_amod_d)");
+
+    cl_event exec;
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Modvir], 1, NULL, &size_Np, NULL, 0, NULL, &exec);
+    checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[Modvir])");
 
-    clWaitForEvents(1, &exec);
-
-    clReleaseEvent(exec);
+    return exec;
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>
