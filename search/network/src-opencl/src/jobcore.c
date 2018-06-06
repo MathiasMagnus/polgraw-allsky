@@ -219,7 +219,6 @@ real_t* job_core(const int pm,                  // hemisphere
                  OpenCL_handles* cl_handles,    // handles to OpenCL resources
                  BLAS_handles* blas_handles)    // handle for scaling
 {
-    int smin = s_range->sst, smax = s_range->spndr[1];
     real_t al1, al2, sgnlt[NPAR], nSource[3], het0, sgnl0, ft;
 
     // VLA version
@@ -272,7 +271,6 @@ real_t* job_core(const int pm,                  // hemisphere
     // if not, returns NULL
     if ((sqr(al1) + sqr(al2)) / sqr(sett->oms) > 1.) return NULL;
 
-    int ss;
     real_t shft1;
 
     // Change linear (grid) coordinates to real coordinates
@@ -290,14 +288,13 @@ real_t* job_core(const int pm,                  // hemisphere
     // Nyquist frequency 
     int nyqst = (sett->nfft) / 2 + 1;
 
-    // Loop for each detector 
+    // Loop for each detector
+    cl_event *modvir_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
+             *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event));
     for (int n = 0; n<sett->nifo; ++n) {
 
-        /* Amplitude modulation functions aa and bb
-        * for each detector (in signal sub-struct
-        * of _detector, ifo[n].sig.aa, ifo[n].sig.bb)
-        */
-        modvir_gpu(sinalt, cosalt, sindelt, cosdelt, sett->N, &ifo[n], cl_handles, aux, n);
+        // Amplitude modulation functions aa and bb for each detector (in signal sub-struct of _detector, ifo[n].sig.aa, ifo[n].sig.bb)
+        modvir_events[n] = modvir_gpu(sinalt, cosalt, sindelt, cosdelt, sett->N, &ifo[n], cl_handles, aux, n);
 #ifdef TESTING
         save_numbered_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, sett->N, n, "aux_sinmodf");
         save_numbered_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, sett->N, n, "aux_cosmodf");
@@ -313,13 +310,13 @@ real_t* job_core(const int pm,                  // hemisphere
                 nSource[1] * ifo[n].sig.DetSSB[1] +
                 nSource[2] * ifo[n].sig.DetSSB[2];
 
-        tshift_pmod_gpu(shft1, het0, nSource[0], nSource[1], nSource[2],
-                        ifo[n].sig.xDat_d, fft_arr->xa_d, fft_arr->xb_d,
-                        ifo[n].sig.shft_d, ifo[n].sig.shftf_d,
-                        aux->tshift_d,
-                        ifo[n].sig.aa_d, ifo[n].sig.bb_d,
-                        ifo[n].sig.DetSSB_d,
-                        sett->oms, sett->N, sett->nfft, sett->interpftpad, cl_handles);
+        tshift_pmod_events[n] = tshift_pmod_gpu(shft1, het0, nSource[0], nSource[1], nSource[2],
+                                                ifo[n].sig.xDat_d, fft_arr->xa_d, fft_arr->xb_d,
+                                                ifo[n].sig.shft_d, ifo[n].sig.shftf_d,
+                                                aux->tshift_d,
+                                                ifo[n].sig.aa_d, ifo[n].sig.bb_d,
+                                                ifo[n].sig.DetSSB_d,
+                                                sett->oms, sett->N, sett->nfft, sett->interpftpad, cl_handles);
 #ifdef TESTING
         save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, 2 * sett->nfft, n, "xa_time");
         save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, 2 * sett->nfft, n, "xb_time");
@@ -527,7 +524,8 @@ real_t* job_core(const int pm,                  // hemisphere
     // Check if the signal is added to the data 
     // or the range file is given:  
     // if not, proceed with the wide range of spindowns 
-    // if yes, use smin = s_range->sst, smax = s_range->spndr[1]  
+    // if yes, use smin = s_range->sst, smax = s_range->spndr[1]
+    int smin = s_range->sst, smax = s_range->spndr[1];
     if (!strcmp(opts->addsig, "") && !strcmp(opts->range, "")) {
 
         // Spindown range defined using Smin and Smax (settings.c)  
@@ -541,6 +539,7 @@ real_t* job_core(const int pm,                  // hemisphere
     if (opts->s0_flag) smin = smax;
 
     // if spindown parameter is taken into account, smin != smax
+    int ss;
     for (ss = smin; ss <= smax; ++ss)
     {
 
@@ -803,18 +802,18 @@ cl_event modvir_gpu(const real_t sinal,
            c2sd = sindel * cosdel;
     size_t size_Np = (size_t)Np; // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &ifoi->sig.aa_d); checkErr(CL_err, "clSetKernelArg(&ifoi->sig.aa_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &ifoi->sig.bb_d); checkErr(CL_err, "clSetKernelArg(&ifoi->sig.bb_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 2, sizeof(real_t), &cosalfr); checkErr(CL_err, "clSetKernelArg(&cosalfr)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 3, sizeof(real_t), &sinalfr); checkErr(CL_err, "clSetKernelArg(&sinalfr)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 4, sizeof(real_t), &c2d); checkErr(CL_err, "clSetKernelArg(&c2d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 5, sizeof(real_t), &c2sd); checkErr(CL_err, "clSetKernelArg(&c2sd)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &aux->sinmodf_d); checkErr(CL_err, "clSetKernelArg(&aux->sinmodf_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &aux->cosmodf_d); checkErr(CL_err, "clSetKernelArg(&aux->cosmodf_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 8, sizeof(real_t), &sindel); checkErr(CL_err, "clSetKernelArg(&sindel)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 9, sizeof(real_t), &cosdel); checkErr(CL_err, "clSetKernelArg(&cosdel)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 10, sizeof(cl_int), &Np); checkErr(CL_err, "clSetKernelArg(&Np)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 11, sizeof(cl_int), &idet); checkErr(CL_err, "clSetKernelArg(&idet)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &ifoi->sig.aa_d);   checkErr(CL_err, "clSetKernelArg(&ifoi->sig.aa_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &ifoi->sig.bb_d);   checkErr(CL_err, "clSetKernelArg(&ifoi->sig.bb_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 2, sizeof(real_t), &cosalfr);          checkErr(CL_err, "clSetKernelArg(&cosalfr)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 3, sizeof(real_t), &sinalfr);          checkErr(CL_err, "clSetKernelArg(&sinalfr)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 4, sizeof(real_t), &c2d);              checkErr(CL_err, "clSetKernelArg(&c2d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 5, sizeof(real_t), &c2sd);             checkErr(CL_err, "clSetKernelArg(&c2sd)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &aux->sinmodf_d);   checkErr(CL_err, "clSetKernelArg(&aux->sinmodf_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &aux->cosmodf_d);   checkErr(CL_err, "clSetKernelArg(&aux->cosmodf_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 8, sizeof(real_t), &sindel);           checkErr(CL_err, "clSetKernelArg(&sindel)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 9, sizeof(real_t), &cosdel);           checkErr(CL_err, "clSetKernelArg(&cosdel)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 10, sizeof(cl_int), &Np);              checkErr(CL_err, "clSetKernelArg(&Np)");
+    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 11, sizeof(cl_int), &idet);            checkErr(CL_err, "clSetKernelArg(&idet)");
     CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 12, sizeof(cl_mem), &aux->ifo_amod_d); checkErr(CL_err, "clSetKernelArg(&aux->ifo_amod_d)");
 
     cl_event exec;
@@ -826,55 +825,54 @@ cl_event modvir_gpu(const real_t sinal,
 
 /// <summary>The purpose of this function was undocumented.</summary>
 ///
-void tshift_pmod_gpu(real_t shft1,
-                     real_t het0,
-                     real_t ns0,
-                     real_t ns1,
-                     real_t ns2,
-                     cl_mem xDat_d,
-                     cl_mem xa_d,
-                     cl_mem xb_d,
-                     cl_mem shft_d,
-                     cl_mem shftf_d,
-                     cl_mem tshift_d,
-                     cl_mem aa_d,
-                     cl_mem bb_d,
-                     cl_mem DetSSB_d,
-                     real_t oms,
-                     cl_int N,
-                     cl_int nfft,
-                     cl_int interpftpad,
-                     OpenCL_handles* cl_handles)
+cl_event tshift_pmod_gpu(const real_t shft1,
+                         const real_t het0,
+                         const real_t ns0,
+                         const real_t ns1,
+                         const real_t ns2,
+                         const cl_mem xDat_d,
+                         cl_mem xa_d,
+                         cl_mem xb_d,
+                         cl_mem shft_d,
+                         cl_mem shftf_d,
+                         cl_mem tshift_d,
+                         const cl_mem aa_d,
+                         const cl_mem bb_d,
+                         const cl_mem DetSSB_d,
+                         const real_t oms,
+                         const cl_int N,
+                         const cl_int nfft,
+                         const cl_int interpftpad,
+                         const OpenCL_handles* cl_handles)
 {
     cl_int CL_err = CL_SUCCESS;
 
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 0, sizeof(real_t), &shft1);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 1, sizeof(real_t), &het0);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 2, sizeof(real_t), &ns0);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 3, sizeof(real_t), &ns1);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 4, sizeof(real_t), &ns2);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 5, sizeof(cl_mem), &xDat_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 6, sizeof(cl_mem), &xa_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 7, sizeof(cl_mem), &xb_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 8, sizeof(cl_mem), &shft_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 9, sizeof(cl_mem), &shftf_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 10, sizeof(cl_mem), &tshift_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 11, sizeof(cl_mem), &aa_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 12, sizeof(cl_mem), &bb_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 13, sizeof(cl_mem), &DetSSB_d);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 14, sizeof(real_t), &oms);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 15, sizeof(cl_int), &N);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 16, sizeof(cl_int), &nfft);
-    clSetKernelArg(cl_handles->kernels[TShiftPMod], 17, sizeof(cl_int), &interpftpad);
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 0, sizeof(real_t), &shft1);        checkErr(CL_err, "clSetKernelArg(&shft1)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 1, sizeof(real_t), &het0);         checkErr(CL_err, "clSetKernelArg(&het0)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 2, sizeof(real_t), &ns0);          checkErr(CL_err, "clSetKernelArg(&ns0)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 3, sizeof(real_t), &ns1);          checkErr(CL_err, "clSetKernelArg(&ns1)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 4, sizeof(real_t), &ns2);          checkErr(CL_err, "clSetKernelArg(&ns2)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 5, sizeof(cl_mem), &xDat_d);       checkErr(CL_err, "clSetKernelArg(&xDat_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 6, sizeof(cl_mem), &xa_d);         checkErr(CL_err, "clSetKernelArg(&xa_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 7, sizeof(cl_mem), &xb_d);         checkErr(CL_err, "clSetKernelArg(&xb_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 8, sizeof(cl_mem), &shft_d);       checkErr(CL_err, "clSetKernelArg(&shft_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 9, sizeof(cl_mem), &shftf_d);      checkErr(CL_err, "clSetKernelArg(&shftf_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 10, sizeof(cl_mem), &tshift_d);    checkErr(CL_err, "clSetKernelArg(&tshift_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 11, sizeof(cl_mem), &aa_d);        checkErr(CL_err, "clSetKernelArg(&aa_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 12, sizeof(cl_mem), &bb_d);        checkErr(CL_err, "clSetKernelArg(&bb_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 13, sizeof(cl_mem), &DetSSB_d);    checkErr(CL_err, "clSetKernelArg(&DetSSB_d)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 14, sizeof(real_t), &oms);         checkErr(CL_err, "clSetKernelArg(&oms)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 15, sizeof(cl_int), &N);           checkErr(CL_err, "clSetKernelArg(&N)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 16, sizeof(cl_int), &nfft);        checkErr(CL_err, "clSetKernelArg(&nfft)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 17, sizeof(cl_int), &interpftpad); checkErr(CL_err, "clSetKernelArg(&interftpad)");
 
     cl_event exec;
     size_t size_nfft = (size_t)nfft; // Helper variable to make pointer types match. Cast to silence warning
 
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TShiftPMod], 1, NULL, &size_nfft, NULL, 0, NULL, &exec);
+    checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[TShiftPMod])");
 
-    clWaitForEvents(1, &exec);
-
-    clReleaseEvent(exec);
+    return exec;
 }
 
 /// <summary>Shifts frequencies and remove those over Nyquist.</summary>

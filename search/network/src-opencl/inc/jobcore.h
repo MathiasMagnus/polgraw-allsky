@@ -57,7 +57,7 @@ void copy_amod_coeff(Detector_settings* ifo,
                      OpenCL_handles* cl_handles,
                      Aux_arrays* aux);
 
-/// <summary>The purpose of this function was undocumented.</summary>
+/// <summary>Calculate the amplitude modulation functions aa and bb of the given detector (in signal sub-structs: ifo->sig.aa, ifo->.sig.bb).</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 ///
 cl_event modvir_gpu(const real_t sinal,
@@ -71,26 +71,27 @@ cl_event modvir_gpu(const real_t sinal,
                     const cl_int idet);
 
 /// <summary>The purpose of this function was undocumented.</summary>
+/// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 ///
-void tshift_pmod_gpu(real_t shft1,
-                     real_t het0,
-                     real_t ns0,
-                     real_t ns1,
-                     real_t ns2,
-                     cl_mem xDat_d,
-                     cl_mem xa_d,
-                     cl_mem xb_d,
-                     cl_mem shft_d,
-                     cl_mem shftf_d,
-                     cl_mem tshift_d,
-                     cl_mem aa_d,
-                     cl_mem bb_d,
-                     cl_mem DetSSB_d,
-                     real_t oms,
-                     cl_int N,
-                     cl_int nfft,
-                     cl_int interpftpad,
-                     OpenCL_handles* cl_handles);
+cl_event tshift_pmod_gpu(const real_t shft1,
+                         const real_t het0,
+                         const real_t ns0,
+                         const real_t ns1,
+                         const real_t ns2,
+                         const cl_mem xDat_d,
+                         cl_mem xa_d,
+                         cl_mem xb_d,
+                         cl_mem shft_d,
+                         cl_mem shftf_d,
+                         cl_mem tshift_d,
+                         const cl_mem aa_d,
+                         const cl_mem bb_d,
+                         const cl_mem DetSSB_d,
+                         const real_t oms,
+                         const cl_int N,
+                         const cl_int nfft,
+                         const cl_int interpftpad,
+                         const OpenCL_handles* cl_handles);
 
 /// <summary>Shifts frequencies and remove those over Nyquist.</summary>
 ///
