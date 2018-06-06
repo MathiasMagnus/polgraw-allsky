@@ -850,7 +850,7 @@ cl_event tshift_pmod_gpu(const real_t shft1,
 
     CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 0, sizeof(real_t), &shft1);        checkErr(CL_err, "clSetKernelArg(&shft1)");
     CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 1, sizeof(real_t), &het0);         checkErr(CL_err, "clSetKernelArg(&het0)");
-    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 2, sizeof(real_t), &ns);           checkErr(CL_err, "clSetKernelArg(&ns0)");
+    CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 2, sizeof(real3_t), &ns);          checkErr(CL_err, "clSetKernelArg(&ns0)");
     CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 3, sizeof(cl_mem), &xDat_d);       checkErr(CL_err, "clSetKernelArg(&xDat_d)");
     CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 4, sizeof(cl_mem), &xa_d);         checkErr(CL_err, "clSetKernelArg(&xa_d)");
     CL_err = clSetKernelArg(cl_handles->kernels[TShiftPMod], 5, sizeof(cl_mem), &xb_d);         checkErr(CL_err, "clSetKernelArg(&xb_d)");

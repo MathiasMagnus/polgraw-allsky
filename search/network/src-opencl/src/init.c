@@ -820,7 +820,7 @@ void init_arrays(Detector_settings* ifo,
         ifo[i].sig.DetSSB_d = clCreateBuffer(cl_handles->ctx,
                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                              sett->N * sizeof(real3_t),
-                                             &ifo[i].sig.DetSSB,
+                                             ifo[i].sig.DetSSB,
                                              &CL_err);
         checkErr(CL_err, "clCreateBuffer(ifo[i].sig.DetSSB_d)");
 

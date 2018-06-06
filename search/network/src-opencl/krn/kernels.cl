@@ -46,7 +46,7 @@ __kernel void tshift_pmod_kern(real_t shft1,
                                __global real_t* tshift_d,
                                __global real_t* aa_d,
                                __global real_t* bb_d,
-                               __global real_t* DetSSB_d,
+                               __global real3_t* DetSSB_d,
                                real_t oms,
                                int N,
                                int nfft,
@@ -56,9 +56,9 @@ __kernel void tshift_pmod_kern(real_t shft1,
 
     if (i < N)
     {
-        real_t S = ns.x * DetSSB_d[i * 3]
-                 + ns.y * DetSSB_d[i * 3 + 1]
-                 + ns.z * DetSSB_d[i * 3 + 2];
+        real_t S = ns.x * DetSSB_d[i].x
+                 + ns.y * DetSSB_d[i].y
+                 + ns.z * DetSSB_d[i].z;
         shft_d[i] = S;
         shftf_d[i] = S - shft1;
 
