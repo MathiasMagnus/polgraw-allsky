@@ -103,6 +103,22 @@ cl_event tshift_pmod_gpu(const real_t shft1,
                          const cl_uint num_events_in_wait_list,
                          const cl_event* event_wait_list);
 
+/// <summary>Interpolates in Fourier-space.</summary>
+///
+void fft_interpolate_gpu(const cl_int idet, 
+	                     const cl_int nfft,
+	                     const cl_int Ninterp,
+	                     const cl_int nyqst,
+	                     const FFT_plans* plans,
+	                     cl_mem xa_d,
+	                     cl_mem xb_d,
+	                     OpenCL_handles* cl_handles,
+	                     const cl_uint num_events_in_wait_list,
+	                     const cl_event* event_wait_list,
+	                     cl_event** fw_fft_events,
+	                     cl_event* resample_postfft_events,
+	                     cl_event** inv_fft_events);
+
 /// <summary>Shifts frequencies and remove those over Nyquist.</summary>
 ///
 cl_event resample_postfft_gpu(const cl_int nfft,
