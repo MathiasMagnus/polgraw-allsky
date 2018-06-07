@@ -285,7 +285,8 @@ real_t* job_core(const int pm,                  // hemisphere
 
   // Loop for each detector
   cl_event *modvir_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
-           *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event));
+           *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
+	       *resample_postfft_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event));
   for (int n = 0; n<sett->nifo; ++n)
   {
     modvir_events[n] = modvir_gpu(n, sett->N,                                      // input
@@ -331,12 +332,12 @@ real_t* job_core(const int pm,                  // hemisphere
         save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, fft_arr->arr_len, n, "xa_fourier");
         save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, fft_arr->arr_len, n, "xb_fourier");
 #endif
-        resample_postfft_gpu(fft_arr->xa_d,
-                             fft_arr->xb_d,
-                             sett->nfft,
-                             sett->Ninterp,
-                             nyqst,
-                             cl_handles);
+        resample_postfft_events[n] = resample_postfft_gpu(sett->nfft,	            // input
+			                                              sett->Ninterp,            // input
+			                                              nyqst,		            // input
+			                                              fft_arr->xa_d,            // input / output
+                                                          fft_arr->xb_d,            // input / output
+                                                          cl_handles, 2, fft_exec); // sync
 #ifdef TESTING
         save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->Ninterp, n, "xa_fourier_resampled");
         save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->Ninterp, n, "xb_fourier_resampled");
@@ -874,31 +875,30 @@ cl_event tshift_pmod_gpu(const real_t shft1,
     return exec;
 }
 
-/// <summary>Shifts frequencies and remove those over Nyquist.</summary>
-///
-void resample_postfft_gpu(cl_mem xa_d,
-                          cl_mem xb_d,
-                          cl_int nfft,
-                          cl_int Ninterp,
-                          cl_int nyqst,
-                          OpenCL_handles* cl_handles)
+cl_event resample_postfft_gpu(const cl_int nfft,
+	                          const cl_int Ninterp,
+	                          const cl_int nyqst,
+	                          cl_mem xa_d,
+	                          cl_mem xb_d,
+	                          OpenCL_handles* cl_handles,
+	                          const cl_uint num_events_in_wait_list,
+	                          const cl_event* event_wait_list)
 {
     cl_int CL_err = CL_SUCCESS;
 
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 0, sizeof(cl_mem), &xa_d);
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 1, sizeof(cl_mem), &xb_d);
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 2, sizeof(cl_int), &nfft);
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 3, sizeof(cl_int), &Ninterp);
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 4, sizeof(cl_int), &nyqst);
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 0, sizeof(cl_mem), &xa_d);    checkErr(CL_err, "clSetKernelArg(&xa_d)");
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 1, sizeof(cl_mem), &xb_d);    checkErr(CL_err, "clSetKernelArg(&xb_d)");
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 2, sizeof(cl_int), &nfft);    checkErr(CL_err, "clSetKernelArg(&nfft)");
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 3, sizeof(cl_int), &Ninterp); checkErr(CL_err, "clSetKernelArg(&Ninterp)");
+    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 4, sizeof(cl_int), &nyqst);   checkErr(CL_err, "clSetKernelArg(&nyqst)");
 
     cl_event exec;
     size_t resample_length = (size_t)Ninterp - (nyqst + nfft); // Helper variable to make pointer types match. Cast to silence warning
 
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
+	checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[ResamplePostFFT])");
 
-    clWaitForEvents(1, &exec);    
-
-    clReleaseEvent(exec);
+	return exec;
 }
 
 /// <summary>Scales vectors with a constant.</summary>

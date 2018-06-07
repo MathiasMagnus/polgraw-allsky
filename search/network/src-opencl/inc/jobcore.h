@@ -105,12 +105,14 @@ cl_event tshift_pmod_gpu(const real_t shft1,
 
 /// <summary>Shifts frequencies and remove those over Nyquist.</summary>
 ///
-void resample_postfft_gpu(cl_mem xa_d,
-                          cl_mem xb_d,
-                          cl_int nfft,
-                          cl_int Ninterp,
-                          cl_int nyqst,
-                          OpenCL_handles* cl_handles);
+cl_event resample_postfft_gpu(const cl_int nfft,
+                              const cl_int Ninterp,
+                              const cl_int nyqst,
+	                          cl_mem xa_d,
+	                          cl_mem xb_d,
+	                          OpenCL_handles* cl_handles,
+	                          const cl_uint num_events_in_wait_list,
+	                          const cl_event* event_wait_list);
 
 /// <summary>Scales vectors with a constant.</summary>
 ///
