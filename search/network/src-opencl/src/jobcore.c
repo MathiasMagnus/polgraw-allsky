@@ -216,73 +216,12 @@ real_t* job_core(const int pm,                  // hemisphere
                  OpenCL_handles* cl_handles,    // handles to OpenCL resources
                  BLAS_handles* blas_handles)    // handle for scaling
 {
-  real_t al1, al2, sgnlt[NPAR], het0, sgnl0, ft;
-
-  // VLA version
-  //double _tmp1[sett->nifo][sett->N];
-
-  // Non-VLA version
-  //real_t** _tmp1;
-  //_tmp1 = (real_t**)malloc(sett->nifo * sizeof(real_t*));
-  //for (int x = 0; x < sett->nifo; ++x)
-  //  _tmp1[x] = (real_t*)malloc(sett->N * sizeof(real_t));
-
-  real_t* sgnlv;
-
-  // Stateful function (local variable with static storage duration)
-  static real_t *F;
-  if (F == NULL) F = (real_t*)malloc(2 * sett->nfft * sizeof(real_t));
-
-  /* Matrix M(.,.) (defined on page 22 of PolGrawCWAllSkyReview1.pdf file)
-  defines the transformation form integers (bin, ss, nn, mm) determining
-  a grid point to linear coordinates omega, omegadot, alpha_1, alpha_2),
-  where bin is the frequency bin number and alpha_1 and alpha_2 are
-  defined on p. 22 of PolGrawCWAllSkyReview1.pdf file.
-
-  [omega]                          [bin]
-  [omegadot]       = M(.,.) \times [ss]
-  [alpha_1/omega]                  [nn]
-  [alpha_2/omega]                  [mm]
-
-  Array M[.] is related to matrix M(.,.) in the following way;
-  
-  [ M[0] M[4] M[8]  M[12] ]
-  M(.,.) =   [ M[1] M[5] M[9]  M[13] ]
-  [ M[2] M[6] M[10] M[14] ]
-  [ M[3] M[7] M[11] M[15] ]
-
-  and
-
-  M[1] = M[2] = M[3] = M[6] = M[7] = 0
-  */
-
-  // Grid positions
-  al1 = nn*sett->M[10] + mm*sett->M[14];
-  al2 = nn*sett->M[11] + mm*sett->M[15];
-
-  sgnlv = NULL;
+  // return values
+  real_t* sgnlv = NULL;
   *sgnlc = 0; // Redundant, already zeroed out externally.
               // Will be removed once return value is struct.
 
-  // check if the search is in an appropriate region of the grid
-  // if not, returns NULL
-  if ((sqr(al1) + sqr(al2)) / sqr(sett->oms) > 1.) return NULL;
-
-  // Change linear (grid) coordinates to real coordinates
-  real_t sinalt, cosalt, sindelt, cosdelt;
-  lin2ast(al1 / sett->oms, al2 / sett->oms, pm, sett->sepsm, sett->cepsm, // input
-          &sinalt, &cosalt, &sindelt, &cosdelt);                          // output
-
-  // calculate declination and right ascention
-  // written in file as candidate signal sky positions
-  sgnlt[2] = asin(sindelt);
-  sgnlt[3] = fmod(atan2(sinalt, cosalt) + 2.*M_PI, 2.*M_PI);
-
-  het0 = fmod(nn*sett->M[8] + mm*sett->M[12], sett->M[0]);
-
-  // Nyquist frequency 
-  int nyqst = (sett->nfft) / 2 + 1;
-
+  // Allocate storage for events to synchronize pipeline
   cl_event *modvir_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
 	       *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
 	       **fw_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
@@ -290,9 +229,20 @@ real_t* job_core(const int pm,                  // hemisphere
 	       **inv_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*));
   for (int n = 0; n < sett->nifo; ++n)
   {
-	  fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
-	  inv_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+	inv_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
   }
+
+  real_t sgnlt[NPAR], het0, sgnl0, ft, sinalt, cosalt, sindelt, cosdelt;
+
+  sky_positions(pm, mm, nn, sett->M, 				   // input
+	            sgnlt, &het0, &sgnl0, &ft,			   // output
+	            &sinalt, &cosalt, &sindelt, &cosdelt); // output
+
+  // Stateful function (local variable with static storage duration)
+  static real_t *F;
+  if (F == NULL) F = (real_t*)malloc(2 * sett->nfft * sizeof(real_t));
+
   // Loop for each detector
   for (int n = 0; n<sett->nifo; ++n)
   {
@@ -731,6 +681,62 @@ real_t* job_core(const int pm,                  // hemisphere
     return sgnlv;
 
 } // jobcore
+
+void sky_positions(const int pm,                  // hemisphere
+                   const int mm,                  // grid 'sky position'
+                   const int nn,                  // other grid 'sky position'
+                   double* M,                     // M matrix from grid point to linear coord
+                   real_t* sgnlt,
+                   real_t* het0,
+                   real_t* sgnl0,
+                   real_t* ft)
+{
+  /* Matrix M(.,.) (defined on page 22 of PolGrawCWAllSkyReview1.pdf file)
+  defines the transformation form integers (bin, ss, nn, mm) determining
+  a grid point to linear coordinates omega, omegadot, alpha_1, alpha_2),
+  where bin is the frequency bin number and alpha_1 and alpha_2 are
+  defined on p. 22 of PolGrawCWAllSkyReview1.pdf file.
+
+  [omega]                          [bin]
+  [omegadot]       = M(.,.) \times [ss]
+  [alpha_1/omega]                  [nn]
+  [alpha_2/omega]                  [mm]
+
+  Array M[.] is related to matrix M(.,.) in the following way;
+
+  [ M[0] M[4] M[8]  M[12] ]
+  M(.,.) =   [ M[1] M[5] M[9]  M[13] ]
+  [ M[2] M[6] M[10] M[14] ]
+  [ M[3] M[7] M[11] M[15] ]
+
+  and
+
+  M[1] = M[2] = M[3] = M[6] = M[7] = 0
+  */
+
+  // Grid positions
+  real_t al1 = nn * M[10] + mm * M[14],
+         al2 = nn * M[11] + mm * M[15];
+
+  // check if the search is in an appropriate region of the grid
+  // if not, returns NULL
+  //if ((sqr(al1) + sqr(al2)) / sqr(sett->oms) > 1.) return NULL;
+
+  // Change linear (grid) coordinates to real coordinates
+  real_t sinalt, cosalt, sindelt, cosdelt;
+  lin2ast(al1 / sett->oms, al2 / sett->oms, pm, sett->sepsm, sett->cepsm, // input
+		&sinalt, &cosalt, &sindelt, &cosdelt);                          // output
+
+																		// calculate declination and right ascention
+																		// written in file as candidate signal sky positions
+	sgnlt[2] = asin(sindelt);
+	sgnlt[3] = fmod(atan2(sinalt, cosalt) + 2.*M_PI, 2.*M_PI);
+
+	het0 = fmod(nn*sett->M[8] + mm * sett->M[12], sett->M[0]);
+
+	// Nyquist frequency 
+	int nyqst = (sett->nfft) / 2 + 1;
+}
 
 /// <summary>Copies amplitude modulation coefficients to constant memory.</summary>
 ///

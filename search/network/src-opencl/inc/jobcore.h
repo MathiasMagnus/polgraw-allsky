@@ -51,6 +51,21 @@ real_t* job_core(const int pm,                  // hemisphere
                  OpenCL_handles* cl_handles,    // handles to OpenCL resources
                  BLAS_handles* blas_handles);   // handle for scaling
 
+/// <summary>Calculates sky-position dependant quantities.</summary>
+///
+void sky_positions(const int pm,                  // hemisphere
+	               const int mm,                  // grid 'sky position'
+	               const int nn,                  // other grid 'sky position'
+	               double* M,                     // M matrix from grid point to linear coord
+	               real_t* sgnlt,
+	               real_t* het0,
+	               real_t* sgnl0,
+	               real_t* ft,
+	               real_t* sinalt,
+	               real_t* cosalt,
+	               real_t* sindelt,
+	               real_t* cosdelt);
+
 /// <summary>Copies amplitude modulation coefficients to constant memory.</summary>
 ///
 void copy_amod_coeff(Detector_settings* ifo,
@@ -104,6 +119,8 @@ cl_event tshift_pmod_gpu(const real_t shft1,
                          const cl_event* event_wait_list);
 
 /// <summary>Interpolates in Fourier-space.</summary>
+/// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
+/// <remarks>Storage for the events must be provided by the caller.</remarks>
 ///
 void fft_interpolate_gpu(const cl_int idet, 
 	                     const cl_int nfft,
