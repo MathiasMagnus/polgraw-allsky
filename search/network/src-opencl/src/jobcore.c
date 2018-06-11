@@ -252,12 +252,7 @@ real_t* job_core(const int pm,                  // hemisphere
                                   aux->ifo_amod_d, aux->sinmodf_d, aux->cosmodf_d, // input
                                   ifo[n].sig.aa_d, ifo[n].sig.bb_d,                // output
                                   cl_handles, 0, NULL);                            // sync
-#ifdef TESTING
-    save_numbered_real_buffer(cl_handles->exec_queues[0], aux->sinmodf_d, sett->N, n, "aux_sinmodf");
-    save_numbered_real_buffer(cl_handles->exec_queues[0], aux->cosmodf_d, sett->N, n, "aux_cosmodf");
-    save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.aa_d, sett->N, n, "ifo_sig_aa");
-    save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.bb_d, sett->N, n, "ifo_sig_bb");
-#endif
+
     // Calculate detector positions with respect to baricenter
     real3_t nSource = { cosalt * cosdelt,
                         sinalt * cosdelt,
@@ -785,30 +780,37 @@ cl_event modvir_gpu(const cl_int idet,
                     const cl_uint num_events_in_wait_list,
                     const cl_event* event_wait_list)
 {
-    cl_int CL_err = CL_SUCCESS;
-    real_t cosalfr = cosal * (cphir) + sinal * (sphir),
-           sinalfr = sinal * (cphir) - cosal * (sphir),
-           c2d = sqr(cosdel),
-           c2sd = sindel * cosdel;
-    size_t size_Np = (size_t)Np; // Helper variable to make pointer types match. Cast to silence warning
+  cl_int CL_err = CL_SUCCESS;
+  real_t cosalfr = cosal * (cphir) + sinal * (sphir),
+         sinalfr = sinal * (cphir) - cosal * (sphir),
+         c2d = sqr(cosdel),
+         c2sd = sindel * cosdel;
+  size_t size_Np = (size_t)Np; // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &aa_d);             checkErr(CL_err, "clSetKernelArg(&aa_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &bb_d);             checkErr(CL_err, "clSetKernelArg(&bb_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 2, sizeof(real_t), &cosalfr);          checkErr(CL_err, "clSetKernelArg(&cosalfr)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 3, sizeof(real_t), &sinalfr);          checkErr(CL_err, "clSetKernelArg(&sinalfr)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 4, sizeof(real_t), &c2d);              checkErr(CL_err, "clSetKernelArg(&c2d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 5, sizeof(real_t), &c2sd);             checkErr(CL_err, "clSetKernelArg(&c2sd)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &sinmodf_d);        checkErr(CL_err, "clSetKernelArg(&sinmodf_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &cosmodf_d);        checkErr(CL_err, "clSetKernelArg(&cosmodf_d)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 8, sizeof(real_t), &sindel);           checkErr(CL_err, "clSetKernelArg(&sindel)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 9, sizeof(real_t), &cosdel);           checkErr(CL_err, "clSetKernelArg(&cosdel)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 10, sizeof(cl_int), &Np);              checkErr(CL_err, "clSetKernelArg(&Np)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 11, sizeof(cl_int), &idet);            checkErr(CL_err, "clSetKernelArg(&idet)");
-    CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 12, sizeof(cl_mem), &ifo_amod_d);      checkErr(CL_err, "clSetKernelArg(&ifo_amod_d)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 0, sizeof(cl_mem), &aa_d);             checkErr(CL_err, "clSetKernelArg(&aa_d)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 1, sizeof(cl_mem), &bb_d);             checkErr(CL_err, "clSetKernelArg(&bb_d)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 2, sizeof(real_t), &cosalfr);          checkErr(CL_err, "clSetKernelArg(&cosalfr)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 3, sizeof(real_t), &sinalfr);          checkErr(CL_err, "clSetKernelArg(&sinalfr)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 4, sizeof(real_t), &c2d);              checkErr(CL_err, "clSetKernelArg(&c2d)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 5, sizeof(real_t), &c2sd);             checkErr(CL_err, "clSetKernelArg(&c2sd)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 6, sizeof(cl_mem), &sinmodf_d);        checkErr(CL_err, "clSetKernelArg(&sinmodf_d)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 7, sizeof(cl_mem), &cosmodf_d);        checkErr(CL_err, "clSetKernelArg(&cosmodf_d)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 8, sizeof(real_t), &sindel);           checkErr(CL_err, "clSetKernelArg(&sindel)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 9, sizeof(real_t), &cosdel);           checkErr(CL_err, "clSetKernelArg(&cosdel)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 10, sizeof(cl_int), &Np);              checkErr(CL_err, "clSetKernelArg(&Np)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 11, sizeof(cl_int), &idet);            checkErr(CL_err, "clSetKernelArg(&idet)");
+  CL_err = clSetKernelArg(cl_handles->kernels[Modvir], 12, sizeof(cl_mem), &ifo_amod_d);      checkErr(CL_err, "clSetKernelArg(&ifo_amod_d)");
 
-    cl_event exec;
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Modvir], 1, NULL, &size_Np, NULL, num_events_in_wait_list, event_wait_list, &exec);
-    checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[Modvir])");
+  cl_event exec;
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Modvir], 1, NULL, &size_Np, NULL, num_events_in_wait_list, event_wait_list, &exec);
+  checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[Modvir])");
+
+#ifdef TESTING
+  save_numbered_real_buffer(cl_handles->exec_queues[0], sinmodf_d, Np, n, "aux_sinmodf");
+  save_numbered_real_buffer(cl_handles->exec_queues[0], cosmodf_d, Np, n, "aux_cosmodf");
+  save_numbered_real_buffer(cl_handles->exec_queues[0], aa_d, Np, n, "ifo_sig_aa");
+  save_numbered_real_buffer(cl_handles->exec_queues[0], bb_d, Np, n, "ifo_sig_bb");
+#endif
 
     return exec;
 }
