@@ -273,9 +273,9 @@ real_t* job_core(const int pm,                  // hemisphere
     save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shft_d, sett->N, n, "ifo_sig_shft");
     save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shftf_d, sett->N, n, "ifo_sig_shftf");
 #endif		
-	fft_interpolate_gpu(n, sett->nfft, sett->Ninterp, nyqst, plans,				 // input
-		                fft_arr->xa_d, fft_arr->xb_d,							 // input / output
-		                cl_handles, 1, &tshift_pmod_events[n],					 // sync
+	fft_interpolate_gpu(n, sett->nfft, sett->Ninterp, sett->nyqst, plans,        // input
+		                fft_arr->xa_d, fft_arr->xb_d,                            // input / output
+		                cl_handles, 1, &tshift_pmod_events[n],                   // sync
 		                fw_fft_events, resample_postfft_events, inv_fft_events); // sync
 
 	clWaitForEvents(2, inv_fft_events[n]);
@@ -682,13 +682,17 @@ void sky_positions(const int pm,                  // hemisphere
                    const int mm,                  // grid 'sky position'
                    const int nn,                  // other grid 'sky position'
                    double* M,                     // M matrix from grid point to linear coord
+	               real_t oms,
 	               real_t sepsm,
 	               real_t cepsm,
-	               real_t oms,
                    real_t* sgnlt,
                    real_t* het0,
                    real_t* sgnl0,
-                   real_t* ft)
+                   real_t* ft,
+	               real_t* sinalt,
+	               real_t* cosalt,
+	               real_t* sindelt,
+	               real_t* cosdelt)
 {
   /* Matrix M(.,.) (defined on page 22 of PolGrawCWAllSkyReview1.pdf file)
   defines the transformation form integers (bin, ss, nn, mm) determining
@@ -724,14 +728,14 @@ void sky_positions(const int pm,                  // hemisphere
   // Change linear (grid) coordinates to real coordinates
   real_t sinalt, cosalt, sindelt, cosdelt;
   lin2ast(al1 / oms, al2 / oms, pm, sepsm, cepsm, // input
-          &sinalt, &cosalt, &sindelt, &cosdelt);  // output
+          sinalt, cosalt, sindelt, cosdelt);      // output
 
-																		// calculate declination and right ascention
-																		// written in file as candidate signal sky positions
-	sgnlt[2] = asin(sindelt);
-	sgnlt[3] = fmod(atan2(sinalt, cosalt) + 2.*M_PI, 2.*M_PI);
+  // calculate declination and right ascention
+  // written in file as candidate signal sky positions
+  sgnlt[2] = asin(*sindelt);
+  sgnlt[3] = fmod(atan2(*sinalt, *cosalt) + 2.*M_PI, 2.*M_PI);
 
-	*het0 = fmod(nn*M[8] + mm * M[12], M[0]);
+  *het0 = fmod(nn*M[8] + mm * M[12], M[0]);
 }
 
 /// <summary>Copies amplitude modulation coefficients to constant memory.</summary>
