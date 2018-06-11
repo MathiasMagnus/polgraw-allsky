@@ -235,9 +235,10 @@ real_t* job_core(const int pm,                  // hemisphere
 
   real_t sgnlt[NPAR], het0, sgnl0, ft, sinalt, cosalt, sindelt, cosdelt;
 
-  sky_positions(pm, mm, nn, sett->M, 				   // input
-	            sgnlt, &het0, &sgnl0, &ft,			   // output
-	            &sinalt, &cosalt, &sindelt, &cosdelt); // output
+  sky_positions(pm, mm, nn,                                   // input
+	            sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
+	            sgnlt, &het0, &sgnl0, &ft,                    // output
+	            &sinalt, &cosalt, &sindelt, &cosdelt);        // output
 
   // Stateful function (local variable with static storage duration)
   static real_t *F;
@@ -681,6 +682,9 @@ void sky_positions(const int pm,                  // hemisphere
                    const int mm,                  // grid 'sky position'
                    const int nn,                  // other grid 'sky position'
                    double* M,                     // M matrix from grid point to linear coord
+	               real_t sepsm,
+	               real_t cepsm,
+	               real_t oms,
                    real_t* sgnlt,
                    real_t* het0,
                    real_t* sgnl0,
@@ -719,15 +723,15 @@ void sky_positions(const int pm,                  // hemisphere
 
   // Change linear (grid) coordinates to real coordinates
   real_t sinalt, cosalt, sindelt, cosdelt;
-  lin2ast(al1 / sett->oms, al2 / sett->oms, pm, sett->sepsm, sett->cepsm, // input
-		&sinalt, &cosalt, &sindelt, &cosdelt);                          // output
+  lin2ast(al1 / oms, al2 / oms, pm, sepsm, cepsm, // input
+          &sinalt, &cosalt, &sindelt, &cosdelt);  // output
 
 																		// calculate declination and right ascention
 																		// written in file as candidate signal sky positions
 	sgnlt[2] = asin(sindelt);
 	sgnlt[3] = fmod(atan2(sinalt, cosalt) + 2.*M_PI, 2.*M_PI);
 
-	het0 = fmod(nn*sett->M[8] + mm * sett->M[12], sett->M[0]);
+	*het0 = fmod(nn*M[8] + mm * M[12], M[0]);
 
 	// Nyquist frequency 
 	int nyqst = (sett->nfft) / 2 + 1;
