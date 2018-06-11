@@ -732,9 +732,6 @@ void sky_positions(const int pm,                  // hemisphere
 	sgnlt[3] = fmod(atan2(sinalt, cosalt) + 2.*M_PI, 2.*M_PI);
 
 	*het0 = fmod(nn*M[8] + mm * M[12], M[0]);
-
-	// Nyquist frequency 
-	int nyqst = (sett->nfft) / 2 + 1;
 }
 
 /// <summary>Copies amplitude modulation coefficients to constant memory.</summary>

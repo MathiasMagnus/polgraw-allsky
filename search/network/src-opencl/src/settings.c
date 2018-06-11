@@ -97,6 +97,7 @@ void search_settings(Search_settings* sett)
     sett->nod = nod;      	// number of days of observation
     sett->N = N;          	// number of data points
     sett->nfft = nfft;    	// length of fft
+	sett->nyqst = nfft/2+1; // Nyquist frequency
     sett->s = s;          	// number of spindowns
     sett->Smin = Smin;    	// minimum spindown
     sett->Smax = Smax;    	// maximum spindown

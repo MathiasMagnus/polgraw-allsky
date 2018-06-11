@@ -176,6 +176,7 @@ typedef struct _search_settings {
          cepsm;	 // cos(epsm)
   
   int nfft,       // length of fft
+	  nyqst,      // Nyquist frequency
       nod,        // number of days of observation
       N,          // number of data points
       nfftf,      // nfft * fftpad
