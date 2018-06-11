@@ -78,7 +78,7 @@ void copy_amod_coeff(Detector_settings* ifo,
 
 /// <summary>Calculate the amplitude modulation functions aa and bb of the given detector (in signal sub-structs: ifo->sig.aa, ifo->.sig.bb).</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
-/// <remarks>Becomes blocking call when <c>TESTING</c> is enabled</remarks>
+/// <remarks>Becomes a blocking call when <c>TESTING</c> is enabled</remarks>
 ///
 cl_event modvir_gpu(const cl_int idet,
                     const cl_int Np,
@@ -99,8 +99,10 @@ cl_event modvir_gpu(const cl_int idet,
 
 /// <summary>The purpose of this function was undocumented.</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
+/// <remarks>Becomes a blocking call when <c>TESTING</c> is enabled</remarks>
 ///
-cl_event tshift_pmod_gpu(const real_t shft1,
+cl_event tshift_pmod_gpu(const int idet,
+	                     const real_t shft1,
                          const real_t het0,
                          const real3_t ns,
                          //const real_t ns1,
