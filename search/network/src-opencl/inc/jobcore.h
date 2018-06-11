@@ -143,6 +143,7 @@ void fft_interpolate_gpu(const cl_int idet,
 	                     cl_event** inv_fft_events);
 
 /// <summary>Shifts frequencies and remove those over Nyquist.</summary>
+/// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 ///
 cl_event resample_postfft_gpu(const cl_int nfft,
                               const cl_int Ninterp,
@@ -154,13 +155,18 @@ cl_event resample_postfft_gpu(const cl_int nfft,
 	                          const cl_event* event_wait_list);
 
 /// <summary>Scales vectors with a constant.</summary>
+/// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
+/// <remarks>Storage for the events must be provided by the caller.</remarks>
 ///
-void blas_scale(cl_mem xa_d,
-                cl_mem xa_b,
-                cl_uint n,
-                real_t a,
-                OpenCL_handles* cl_handles,
-                BLAS_handles* blas_handles);
+void blas_scale(const cl_uint n,
+	            const real_t a,
+	            cl_mem xa_d,
+	            cl_mem xb_d,
+	            BLAS_handles* blas_handles,
+	            OpenCL_handles* cl_handles,
+	            const cl_uint num_events_in_wait_list,
+	            const cl_event* event_wait_list,
+	            cl_event* blas_exec);
 
 /// <summary>Calculates the inner product of both <c>x</c> and <c>y</c>.</summary>
 /// <remarks>The function allocates an array of 2 and gives ownership to the caller.</remarks>

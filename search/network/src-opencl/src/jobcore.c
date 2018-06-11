@@ -226,11 +226,17 @@ real_t* job_core(const int pm,                  // hemisphere
 	       *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
 	       **fw_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
 	       *resample_postfft_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
-	       **inv_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*));
+	       **inv_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
+	       **spline_map_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
+	       **spline_unmap_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
+	       **spline_blas_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*));
   for (int n = 0; n < sett->nifo; ++n)
   {
 	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
 	inv_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+	spline_map_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
+	spline_unmap_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
+	spline_blas_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
   }
 
   real_t sgnlt[NPAR], het0, sgnl0, ft, sinalt, cosalt, sindelt, cosdelt;
@@ -275,135 +281,11 @@ real_t* job_core(const int pm,                  // hemisphere
 
 	clWaitForEvents(2, inv_fft_events[n]);
 
-        //scale fft with cublas (not needed, clFFT already scales)
-        //ft = (double)sett->interpftpad / sett->Ninterp;
-        //blas_scale(fft_arr->xa_d,
-        //           fft_arr->xb_d,
-        //           sett->Ninterp,
-        //           ft,
-        //           cl_handles,
-        //           blas_handles);
-
-        // Spline interpolation to xDatma, xDatmb arrays
-        //gpu_interp(fft_arr->xa_d,       //input data
-        //           sett->Ninterp,       //input data length
-        //           aux->tshift_d,       //output time domain
-        //           ifo[n].sig.xDatma_d, //output values
-        //           sett->N,             //output data length
-        //           aux->diag_d,         //diagonal
-        //           aux->ldiag_d,        //lower diagonal
-        //           aux->udiag_d,        //upper diagonal
-        //           aux->B_d,            //coefficient matrix
-        //           cl_handles);
-        //
-        //gpu_interp(fft_arr->xb_d,       //input data
-        //           sett->Ninterp,       //input data length
-        //           aux->tshift_d,       //output time domain
-        //           ifo[n].sig.xDatmb_d, //output values
-        //           sett->N,             //output data length
-        //           aux->diag_d,         //diagonal
-        //           aux->ldiag_d,        //lower diagonal
-        //           aux->udiag_d,        //upper diagonal
-        //           aux->B_d,            //coefficient matrix
-        //           cl_handles);
-
-        // Spline interpolation to xDatma, xDatmb arrays
-        {
-            cl_int CL_err;
-            void *xa_d, *xb_d, *shftf, *xDatma, *xDatmb;
-
-            xa_d = clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                      fft_arr->xa_d,
-                                      CL_TRUE,
-                                      CL_MAP_READ,
-                                      0,
-                                      fft_arr->arr_len * sizeof(complex_t),
-                                      0,
-                                      NULL,
-                                      NULL,
-                                      &CL_err);
-            checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xa_d)");
-
-            xb_d = clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                      fft_arr->xb_d,
-                                      CL_TRUE,
-                                      CL_MAP_READ,
-                                      0,
-                                      fft_arr->arr_len * sizeof(complex_t),
-                                      0,
-                                      NULL,
-                                      NULL,
-                                      &CL_err);
-            checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xb_d)");
-
-            shftf = clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                       ifo[n].sig.shftf_d,
-                                       CL_TRUE,
-                                       CL_MAP_READ,
-                                       0,
-                                       sett->N * sizeof(real_t),
-                                       0,
-                                       NULL,
-                                       NULL,
-                                       &CL_err);
-            checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.shftf_d)");
-
-            xDatma = clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                        ifo[n].sig.xDatma_d,
-                                        CL_TRUE,
-                                        CL_MAP_WRITE,
-                                        0,
-                                        sett->N * sizeof(complex_devt),
-                                        0,
-                                        NULL,
-                                        NULL,
-                                        &CL_err);
-            checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatma_d)");
-
-            xDatmb = clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                        ifo[n].sig.xDatmb_d,
-                                        CL_TRUE,
-                                        CL_MAP_WRITE,
-                                        0,
-                                        sett->N * sizeof(complex_devt),
-                                        0,
-                                        NULL,
-                                        NULL,
-                                        &CL_err);
-            checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatmb_d)");
-
-            splintpad(xa_d, shftf, sett->N, sett->interpftpad, xDatma);
-            splintpad(xb_d, shftf, sett->N, sett->interpftpad, xDatmb);
-
-            cl_event unmaps[5];
-            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], fft_arr->xa_d, xa_d, 0, NULL, &unmaps[0]); checkErr(CL_err, "clEnqueueUnMapMemObject(fft_arr->xa_d)");
-            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], fft_arr->xb_d, xb_d, 0, NULL, &unmaps[1]); checkErr(CL_err, "clEnqueueUnMapMemObject(fft_arr->xb_d)");
-            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], ifo[n].sig.shftf_d, shftf, 0, NULL, &unmaps[2]); checkErr(CL_err, "clEnqueueUnMapMemObject(ifo[n].sig.shftf_d)");
-            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, xDatma, 0, NULL, &unmaps[3]); checkErr(CL_err, "clEnqueueUnMapMemObject(ifo[n].sig.xDatma_d, xDatma)");
-            CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, xDatmb, 0, NULL, &unmaps[4]); checkErr(CL_err, "clEnqueueUnMapMemObject(ifo[n].sig.xDatma_d, xDatmb)");
-            CL_err = clWaitForEvents(5, unmaps);
-            checkErr(CL_err, "clWaitForEvents(5, unmaps)");
-
-            int j;
-            for (j = 0; j < 5; ++j)
-                clReleaseEvent(unmaps[j]);
-        }
-#ifdef TESTING
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, n, "ifo_sig_xDatma");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, n, "ifo_sig_xDatmb");
-#endif
-        ft = 1. / ifo[n].sig.sig2;
-
-        blas_scale(ifo[n].sig.xDatma_d,
-                   ifo[n].sig.xDatmb_d,
-                   sett->N,
-                   ft,
-                   cl_handles,
-                   blas_handles);
-#ifdef TESTING
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, n, "rescaled_ifo_sig_xDatma");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, n, "rescaled_ifo_sig_xDatmb");
-#endif
+	spline_interpolate_cpu(fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2,		 // input
+		                   fft_arr->xa_d, fft_arr->xb_d, ifo[n].sig.shftf_d,					 // input
+		                   ifo[n].sig.xDatma_d, ifo[n].sig.xDatmb_d,							 // output
+		                   blas_handles, cl_handles, 2, inv_fft_events[n],						 // sync
+		                   spline_map_events[n], spline_unmap_events[n], spline_blas_events[n]); // sync
     } // end of detector loop 
 
     real_t _maa = 0;
@@ -733,8 +615,6 @@ void sky_positions(const int pm,                  // hemisphere
   *het0 = fmod(nn*M[8] + mm * M[12], M[0]);
 }
 
-/// <summary>Copies amplitude modulation coefficients to constant memory.</summary>
-///
 void copy_amod_coeff(Detector_settings* ifo,
                      cl_int nifo,
                      OpenCL_handles* cl_handles,
@@ -919,6 +799,8 @@ void fft_interpolate_gpu(const cl_int idet,
 	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 1, &resample_postfft_events[idet], &inv_fft_events[idet][1], &xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
 
+	// scale fft with clblas not needed (as opposed fftw), clFFT already scales
+
 #ifdef TESTING
 	save_numbered_complex_buffer(cl_handles->exec_queues[0], xa_d, Ninterp, idet, "xa_time_resampled");
 	save_numbered_complex_buffer(cl_handles->exec_queues[0], xb_d, Ninterp, idet, "xb_time_resampled");
@@ -951,28 +833,25 @@ cl_event resample_postfft_gpu(const cl_int nfft,
 	return exec;
 }
 
-/// <summary>Scales vectors with a constant.</summary>
-///
-void blas_scale(cl_mem xa_d,
+void blas_scale(const cl_uint n,
+	            const real_t a,
+	            cl_mem xa_d,
                 cl_mem xb_d,
-                cl_uint n,
-                real_t a,
+	            BLAS_handles* blas_handles,
                 OpenCL_handles* cl_handles,
-                BLAS_handles* blas_handles)
+	            const cl_uint num_events_in_wait_list,
+	            const cl_event* event_wait_list,
+	            cl_event* blas_exec)
 {
-    clblasStatus status[2];
-    cl_event blas_exec[2];
+  clblasStatus status[2];
+
 #ifdef COMP_FLOAT
-    status[0] = clblasSscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]); checkErrBLAS(status[0], "clblasSscal(xa_d)");
-    status[1] = clblasSscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]); checkErrBLAS(status[1], "clblasSscal(xb_d)");
+  status[0] = clblasSscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasSscal(xa_d)");
+  status[1] = clblasSscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasSscal(xb_d)");
 #else
-    status[0] = clblasDscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]); checkErrBLAS(status[0], "clblasDscal(xa_d)");
-    status[1] = clblasDscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]); checkErrBLAS(status[1], "clblasDscal(xb_d)");
+  status[0] = clblasDscal(n * 2, a, xa_d, 0, 1, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasDscal(xa_d)");
+  status[1] = clblasDscal(n * 2, a, xb_d, 0, 1, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasDscal(xb_d)");
 #endif // COMP_FLOAT
-
-    clWaitForEvents(2, blas_exec);
-
-    for (size_t i = 0; i < 2; ++i) clReleaseEvent(blas_exec[i]);
 }
 
 /// <summary>Calculates the inner product of both <c>x</c> and <c>y</c>.</summary>

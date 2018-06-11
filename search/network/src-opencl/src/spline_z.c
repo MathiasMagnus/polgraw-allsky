@@ -1,9 +1,12 @@
 // Polgraw includes
 #include <CL/util.h>        // checkErr
 #include <spline_z.h>
+#include <auxi.h>
+#include <struct.h>
 
 // Standard C includes
 #include <stdlib.h>          // calloc, free
+#include <string.h>          // memcpy
 
 
 /// <summary>Initialize the spline matrices.</summary>
@@ -81,8 +84,6 @@ void init_spline_matrices(OpenCL_handles* cl_handles,
     free(dl);
 }
 
-/// <summary>Spline interpolation to xDatma, xDatmb arrays.</summary>
-///
 void gpu_interp(cl_mem cu_y,                // buffer of complex_t
                 cl_int N,
                 cl_mem cu_new_x,            // buffer of real_t
@@ -127,6 +128,116 @@ void gpu_interp(cl_mem cu_y,                // buffer of complex_t
                     N,
                     new_N,
                     cl_handles);
+}
+
+void spline_interpolate_cpu(const size_t arr_len,
+	                        const size_t N,
+	                        const int interpftpad,
+	                        const real_t sig2,
+	                        const cl_mem xa_d,
+	                        const cl_mem xb_d,
+	                        const cl_mem shftf_d,
+	                        cl_mem xDatma_d,
+	                        cl_mem xDatmb_d,
+	                        BLAS_handles* blas_handles,
+	                        OpenCL_handles* cl_handles,
+	                        const cl_uint num_events_in_wait_list,
+	                        const cl_event* event_wait_list,
+	                        cl_event* spline_map_events,
+	                        cl_event* spline_unmap_events,
+	                        cl_event* spline_blas_events)
+{
+  cl_int CL_err;
+  void *xa, *xb, *shftf, *xDatma, *xDatmb;
+
+  xa = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+			              xa_d,
+			              CL_FALSE,
+			              CL_MAP_READ,
+			              0,
+			              arr_len * sizeof(complex_t),
+	                      num_events_in_wait_list,
+	                      event_wait_list,
+			              &spline_map_events[0],
+			              &CL_err);
+  checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xa_d)");
+
+  xb = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+			              xb_d,
+	                      CL_FALSE,
+			              CL_MAP_READ,
+			              0,
+			              arr_len * sizeof(complex_t),
+	                      num_events_in_wait_list,
+	                      event_wait_list,
+	                      &spline_map_events[1],
+			              &CL_err);
+  checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xb_d)");
+
+  shftf = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+			                 shftf_d,
+	                         CL_FALSE,
+			                 CL_MAP_READ,
+			                 0,
+			                 N * sizeof(real_t),
+	                         num_events_in_wait_list,
+	                         event_wait_list,
+	                         &spline_map_events[2],
+			                 &CL_err);
+  checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.shftf_d)");
+
+  xDatma = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                              xDatma_d,
+	                          CL_FALSE,
+                              CL_MAP_WRITE,
+                              0,
+                              N * sizeof(complex_devt),
+	                          num_events_in_wait_list,
+	                          event_wait_list,
+	                          &spline_map_events[3],
+                              &CL_err);
+  checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatma_d)");
+
+  xDatmb = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+                              xDatmb_d,
+	                          CL_FALSE,
+                              CL_MAP_WRITE,
+                              0,
+                              N * sizeof(complex_devt),
+	                          num_events_in_wait_list,
+	                          event_wait_list,
+	                          &spline_map_events[4],
+                              &CL_err);
+  checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatmb_d)");
+
+  // Wait for maps and do actual interpolation
+  clWaitForEvents(5, spline_map_events);
+  splintpad(xa, shftf, N, interpftpad, xDatma);
+  splintpad(xb, shftf, N, interpftpad, xDatmb);
+  
+  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xa_d, xa, 0, NULL, &spline_unmap_events[0]);         checkErr(CL_err, "clEnqueueUnMapMemObject(xa_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xb_d, xb, 0, NULL, &spline_unmap_events[1]);         checkErr(CL_err, "clEnqueueUnMapMemObject(xb_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], shftf_d, shftf, 0, NULL, &spline_unmap_events[2]);   checkErr(CL_err, "clEnqueueUnMapMemObject(shftf_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xDatma_d, xDatma, 0, NULL, &spline_unmap_events[3]); checkErr(CL_err, "clEnqueueUnMapMemObject(xDatma_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xDatmb_d, xDatmb, 0, NULL, &spline_unmap_events[4]); checkErr(CL_err, "clEnqueueUnMapMemObject(xDatmb_d)");
+
+#ifdef TESTING
+  clWaitForEvents(5, spline_unmap_events);
+  save_numbered_complex_buffer(cl_handles->exec_queues[0], xDatma_d, N, n, "ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->exec_queues[0], xDatmb_d, N, n, "ifo_sig_xDatmb");
+#endif
+
+	blas_scale(N, 1. / sig2,
+		       xDatma_d,
+		       xDatmb_d,
+		       blas_handles,
+		       cl_handles,
+		       2, spline_unmap_events + 3, // it is enough to wait on the last 2 of the unmaps: xDatma, xDatmb
+		       spline_blas_events);
+#ifdef TESTING
+	save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, N, n, "rescaled_ifo_sig_xDatma");
+	save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, N, n, "rescaled_ifo_sig_xDatmb");
+#endif
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>

@@ -4,8 +4,9 @@
 #define _USE_MATH_DEFINES
 
 // Polgraw includes
-#include <auxi.h>
+#include <auxi.h>       // Splintpad_callback_data
 #include <CL/util.h>
+#include <spline_z.h>
 
 // Standard C includes
 #include <stdlib.h>
@@ -109,7 +110,7 @@ splint(complex_t *ya, complex_t *y2a, int n, double x)
 
 void
 splintpad(complex_t *ya, real_t *shftf, int N, int interpftpad, \
-    complex_t *out) {
+          complex_t *out) {
     /* Cubic spline with "natural" boundary conditions.
     Input:
     ya[i] - value of the function being interpolated in x_i = i,
