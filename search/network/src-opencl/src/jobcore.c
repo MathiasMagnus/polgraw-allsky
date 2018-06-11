@@ -806,6 +806,7 @@ cl_event modvir_gpu(const cl_int idet,
   checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[Modvir])");
 
 #ifdef TESTING
+  clWaitForEvents(1, &exec);
   save_numbered_real_buffer(cl_handles->exec_queues[0], sinmodf_d, Np, n, "aux_sinmodf");
   save_numbered_real_buffer(cl_handles->exec_queues[0], cosmodf_d, Np, n, "aux_cosmodf");
   save_numbered_real_buffer(cl_handles->exec_queues[0], aa_d, Np, n, "ifo_sig_aa");
