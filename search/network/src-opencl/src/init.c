@@ -938,6 +938,20 @@ void init_arrays(Detector_settings* ifo,
                                          &CL_err);
     checkErr(CL_err, "clCreateBuffer(aux_arr->ifo_amod_d)");
 
+	aux_arr->aadot_d = clCreateBuffer(cl_handles->ctx,
+		                              CL_MEM_READ_ONLY,
+		                              sizeof(real_t),
+		                              NULL,
+		                              &CL_err);
+	checkErr(CL_err, "clCreateBuffer(aux_arr->aadot_d)");
+
+	aux_arr->bbdot_d = clCreateBuffer(cl_handles->ctx,
+		                              CL_MEM_READ_ONLY,
+		                              sizeof(real_t),
+		                              NULL,
+		                              &CL_err);
+	checkErr(CL_err, "clCreateBuffer(aux_arr->bbdot_d)");
+
     aux_arr->maa_d = clCreateBuffer(cl_handles->ctx,
                                     CL_MEM_READ_ONLY,
                                     sizeof(real_t),
@@ -1085,8 +1099,12 @@ void init_blas(Search_settings* sett,
                OpenCL_handles* cl_handles,
                BLAS_handles* blas_handles)
 {
-    blas_handles->BLAS_err = clblasSetup();
-    checkErr(blas_handles->BLAS_err, "clblasSetup()");
+    clblasStatus BLAS_err = clblasSetup();
+	checkErrBLAS(BLAS_err, "clblasSetup()");
+
+	cl_int CL_err;
+	blas_handles->aaScratch_d = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sett->N * sizeof(real_t), NULL, &CL_err); checkErr(CL_err, "clCreateBuffer(blas_handles->aaScratch_d)");
+	blas_handles->bbScratch_d = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sett->N * sizeof(real_t), NULL, &CL_err); checkErr(CL_err, "clCreateBuffer(blas_handles->bbScratch_d)");
 }
 
 /// <summary>Sets up FFT plans.</summary>
@@ -1096,13 +1114,11 @@ void plan_fft(Search_settings* sett,
               FFT_plans* plans,
               FFT_arrays* fft_arr)
 {
-    cl_int CL_err = CL_SUCCESS;
-    clfftStatus CLFFT_status = CLFFT_SUCCESS;
-
-    fft_arr->arr_len = (sett->fftpad*sett->nfft > sett->Ninterp ?
+	fft_arr->arr_len = (sett->fftpad*sett->nfft > sett->Ninterp ?
                         sett->fftpad*sett->nfft :
                         sett->Ninterp);
 
+	cl_int CL_err = CL_SUCCESS;
     fft_arr->xa_d = clCreateBuffer(cl_handles->ctx,
                                    CL_MEM_READ_WRITE,
                                    fft_arr->arr_len * sizeof(complex_t),
@@ -1117,19 +1133,18 @@ void plan_fft(Search_settings* sett,
                                    &CL_err);
     checkErr(CL_err, "clCreateBuffer(fft_arr->xb_d)");
 
-    clfftSetupData fftSetup;
-    CLFFT_status = clfftSetup(&fftSetup);
-    checkErrFFT(CLFFT_status, "clffftSetup");
-
     sett->nfftf = sett->fftpad*sett->nfft;
 
-    clfftDim dim = CLFFT_1D;
 	size_t nfftf_size = (size_t)sett->nfftf,
            nfft_size = (size_t)sett->nfft,
 		   Ninterp_size = (size_t)sett->Ninterp;
 
+	clfftSetupData fftSetup;
+	clfftStatus CLFFT_status = clfftSetup(&fftSetup);
+	checkErrFFT(CLFFT_status, "clffftSetup");
+
     // Phasemod FFT
-    CLFFT_status = clfftCreateDefaultPlan(&plans->plan, cl_handles->ctx, dim, &nfftf_size);
+    CLFFT_status = clfftCreateDefaultPlan(&plans->plan, cl_handles->ctx, CLFFT_1D, &nfftf_size);
     checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
     CLFFT_status = clfftSetPlanPrecision(plans->plan, CLFFT_TRANSFORM_PRECISION);
@@ -1147,7 +1162,7 @@ void plan_fft(Search_settings* sett,
     checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
 
 	// Interpolation FFT
-    CLFFT_status = clfftCreateDefaultPlan(&plans->pl_int, cl_handles->ctx, dim, &nfft_size);
+    CLFFT_status = clfftCreateDefaultPlan(&plans->pl_int, cl_handles->ctx, CLFFT_1D, &nfft_size);
     checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
     CLFFT_status = clfftSetPlanPrecision(plans->pl_int, CLFFT_TRANSFORM_PRECISION);
@@ -1165,7 +1180,7 @@ void plan_fft(Search_settings* sett,
     checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
 
 	// Inverse FFT
-	CLFFT_status = clfftCreateDefaultPlan(&plans->pl_inv, cl_handles->ctx, dim, &Ninterp_size);
+	CLFFT_status = clfftCreateDefaultPlan(&plans->pl_inv, cl_handles->ctx, CLFFT_1D, &Ninterp_size);
 	checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
 	CLFFT_status = clfftSetPlanPrecision(plans->pl_inv, CLFFT_TRANSFORM_PRECISION);

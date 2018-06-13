@@ -33,6 +33,7 @@ void search(Detector_settings* ifo,
 /// <remarks>The output is stored in single or double precision. (<c>real_t</c> defined in struct.h)</remarks>
 /// <todo>Make the output a struct of size_t and real_t* instead of intricate external <c>sgnlc</c>.</todo>
 /// <todo>Make sky position dependent setup a callback function and make it awaitable through an event.</todo>
+/// <todo>Make multiple <c>xa_d, xb_d</c> buffers for each detector, cause currently there's a race</todo>
 ///
 real_t* job_core(const int pm,                  // hemisphere
                  const int mm,                  // grid 'sky position'
@@ -169,14 +170,17 @@ void blas_scale(const cl_uint n,
 	            cl_event* blas_exec);
 
 /// <summary>Calculates the inner product of both <c>x</c> and <c>y</c>.</summary>
-/// <remarks>The function allocates an array of 2 and gives ownership to the caller.</remarks>
-/// <remarks>Consider making the temporaries persistent, either providing them via function params or give static storage duration.</remarks>
 ///
-real_t* blas_dot(cl_mem x,
-                 cl_mem y,
-                 cl_uint n,
-                 OpenCL_handles* cl_handles,
-                 BLAS_handles* blas_handles);
+void blas_dot(const cl_uint n,
+	          const cl_mem aa_d,
+              const cl_mem bb_d,
+	          cl_mem aadot_d,
+              cl_mem bbdot_d,
+	          BLAS_handles* blas_handles,
+              OpenCL_handles* cl_handles,
+	          const cl_uint num_events_in_wait_list,
+	          const cl_event* event_wait_list,
+	          cl_event* blas_exec);
 
 /// <summary>The purpose of this function was undocumented.</summary>
 ///

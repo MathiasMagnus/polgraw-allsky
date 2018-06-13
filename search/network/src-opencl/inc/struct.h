@@ -81,7 +81,7 @@ typedef struct _fft_arrays {
 
 typedef struct _blas_handles {
 
-    cl_int BLAS_err;    // clBLAS has global state only :(
+	cl_mem aaScratch_d, bbScratch_d;
 
 } BLAS_handles;
 
@@ -156,6 +156,7 @@ typedef struct _aux_arrays {
   cl_mem ifo_amod_d;             // constant buffer of detector settings
   cl_mem diag_d, ldiag_d, udiag_d, B_d; //used in spline interpolation
   cl_mem mu_d, mu_t_d; //arrays for smoothing F-stat
+  cl_mem aadot_d, bbdot_d;
   cl_mem maa_d, mbb_d;
 
 } Aux_arrays;

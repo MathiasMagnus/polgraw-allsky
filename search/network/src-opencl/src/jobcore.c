@@ -229,7 +229,8 @@ real_t* job_core(const int pm,                  // hemisphere
 	       **inv_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
 	       **spline_map_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
 	       **spline_unmap_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **spline_blas_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*));
+	       **spline_blas_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
+	       **blas_dot_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*));
   for (int n = 0; n < sett->nifo; ++n)
   {
 	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
@@ -237,6 +238,7 @@ real_t* job_core(const int pm,                  // hemisphere
 	spline_map_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
 	spline_unmap_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
 	spline_blas_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+	blas_dot_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
   }
 
   real_t sgnlt[NPAR], het0, sgnl0, ft, sinalt, cosalt, sindelt, cosdelt;
@@ -279,13 +281,16 @@ real_t* job_core(const int pm,                  // hemisphere
 		                cl_handles, 1, &tshift_pmod_events[n],                   // sync
 		                fw_fft_events, resample_postfft_events, inv_fft_events); // sync
 
-	clWaitForEvents(2, inv_fft_events[n]);
-
 	spline_interpolate_cpu(fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2,		 // input
 		                   fft_arr->xa_d, fft_arr->xb_d, ifo[n].sig.shftf_d,					 // input
 		                   ifo[n].sig.xDatma_d, ifo[n].sig.xDatmb_d,							 // output
 		                   blas_handles, cl_handles, 2, inv_fft_events[n],						 // sync
 		                   spline_map_events[n], spline_unmap_events[n], spline_blas_events[n]); // sync
+
+	blas_dot(sett->N, ifo[n].sig.aa_d, ifo[n].sig.bb_d,		 // input
+		     aux->aadot_d, aux->bbdot_d,					 // output
+		     blas_handles, cl_handles, 1, &modvir_events[n], // sync
+		     blas_dot_events[n]);                            // sync
     } // end of detector loop 
 
     real_t _maa = 0;
@@ -854,60 +859,26 @@ void blas_scale(const cl_uint n,
 #endif // COMP_FLOAT
 }
 
-/// <summary>Calculates the inner product of both <c>x</c> and <c>y</c>.</summary>
-/// <remarks>The function allocates an array of 2 and gives ownership to the caller.</remarks>
-/// <remarks>Consider making the temporaries persistent, either providing them via function params or give static storage duration.</remarks>
-///
-real_t* blas_dot(cl_mem x,
-                 cl_mem y,
-                 cl_uint n,
-                 OpenCL_handles* cl_handles,
-                 BLAS_handles* blas_handles)
+void blas_dot(const cl_uint n, 
+	          const cl_mem aa_d,
+              const cl_mem bb_d,
+              cl_mem aadot_d,             
+	          cl_mem bbdot_d,
+	          BLAS_handles* blas_handles,
+              OpenCL_handles* cl_handles,
+	          const cl_uint num_events_in_wait_list,
+	          const cl_event* event_wait_list,
+	          cl_event* blas_exec)
 {
-    cl_int CL_err = CL_SUCCESS;
-    clblasStatus status[2];
-    cl_event blas_exec[2], unmap;
-    cl_mem result_buf, scratch_buf[2];
-
-    real_t* result = (real_t*)malloc(2 * sizeof(real_t));
-
-    result_buf = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, 2 * sizeof(real_t), NULL, &CL_err);
-    scratch_buf[0] = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, n * sizeof(real_t), NULL, &CL_err);
-    scratch_buf[1] = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, n * sizeof(real_t), NULL, &CL_err);
+    clblasStatus status[2];    
 
 #ifdef COMP_FLOAT
-    status[0] = clblasSdot(n, result_buf, 0, x, 0, 1, x, 0, 1, scratch_buf[0], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[1] = clblasSdot(n, result_buf, 1, y, 0, 1, y, 0, 1, scratch_buf[1], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[1] = clblasSdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasSetup()");
+	status[0] = clblasSdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasSetup()");
 #else
-    status[0] = clblasDdot(n, result_buf, 0, x, 0, 1, x, 0, 1, scratch_buf[0], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[0]);
-    status[1] = clblasDdot(n, result_buf, 1, y, 0, 1, y, 0, 1, scratch_buf[1], 1, cl_handles->exec_queues, 0, NULL, &blas_exec[1]);
+    status[0] = clblasDdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[1], "clblasSetup()");
+	status[1] = clblasDdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[0], "clblasSetup()");
 #endif // COMP_FLOAT
-
-    void* res = clEnqueueMapBuffer(cl_handles->read_queues[0], result_buf, CL_TRUE, CL_MAP_READ, 0, 2 * sizeof(real_t), 2, blas_exec, NULL, &CL_err);
-    checkErr(CL_err, "clEnqueueMapMemObject(result_buf)");
-
-#ifdef _WIN32
-    errno_t CRT_err = memcpy_s(result, 2 * sizeof(real_t), res, 2 * sizeof(real_t));
-    if (CRT_err != 0)
-        exit(EXIT_FAILURE);
-#else
-    memcpy(result, res, 2 * sizeof(real_t));
-#endif
-
-    CL_err = clEnqueueUnmapMemObject(cl_handles->read_queues[0], result_buf, res, 0, NULL, &unmap);
-    checkErr(CL_err, "clEnqueueUnmapMemObject(result_buf)");
-
-    clWaitForEvents(1, &unmap);
-
-    // cleanup
-    clReleaseEvent(blas_exec[0]);
-    clReleaseEvent(blas_exec[1]);
-    clReleaseEvent(unmap);
-    clReleaseMemObject(result_buf);
-    clReleaseMemObject(scratch_buf[0]);
-    clReleaseMemObject(scratch_buf[1]);
-
-    return result;
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>
