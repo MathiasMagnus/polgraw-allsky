@@ -270,7 +270,7 @@ real_t* job_core(const int pm,                  // hemisphere
                    nSource.s[1] * ifo[n].sig.DetSSB[0].s[1] +
                    nSource.s[2] * ifo[n].sig.DetSSB[0].s[2];
 
-    tshift_pmod_events[n] = tshift_pmod_gpu(n, shft1, het0, nSource,                                                               // input
+    tshift_pmod_events[n] = tshift_pmod_gpu(n, shft1, het0, nSource,                                                            // input
                                             sett->oms, sett->N, sett->nfft, sett->interpftpad,                                  // input
                                             ifo[n].sig.xDat_d, ifo[n].sig.aa_d, ifo[n].sig.bb_d, ifo[n].sig.DetSSB_d,           // input
                                             fft_arr->xa_d, fft_arr->xb_d, ifo[n].sig.shft_d, ifo[n].sig.shftf_d, aux->tshift_d, // output
@@ -287,8 +287,8 @@ real_t* job_core(const int pm,                  // hemisphere
 		                   blas_handles, cl_handles, 2, inv_fft_events[n],						 // sync
 		                   spline_map_events[n], spline_unmap_events[n], spline_blas_events[n]); // sync
 
-	blas_dot(sett->N, ifo[n].sig.aa_d, ifo[n].sig.bb_d,		 // input
-		     aux->aadot_d, aux->bbdot_d,					 // output
+	blas_dot(sett->N, ifo[n].sig.aa_d, ifo[n].sig.bb_d,      // input
+		     aux->aadots_d[n], aux->bbdots_d[n],             // output
 		     blas_handles, cl_handles, 1, &modvir_events[n], // sync
 		     blas_dot_events[n]);                            // sync
     } // end of detector loop 

@@ -940,17 +940,41 @@ void init_arrays(Detector_settings* ifo,
 
 	aux_arr->aadot_d = clCreateBuffer(cl_handles->ctx,
 		                              CL_MEM_READ_ONLY,
-		                              sizeof(real_t),
+		                              sett->nifo * sizeof(real_t),
 		                              NULL,
 		                              &CL_err);
 	checkErr(CL_err, "clCreateBuffer(aux_arr->aadot_d)");
 
 	aux_arr->bbdot_d = clCreateBuffer(cl_handles->ctx,
 		                              CL_MEM_READ_ONLY,
-		                              sizeof(real_t),
+		                              sett->nifo * sizeof(real_t),
 		                              NULL,
 		                              &CL_err);
 	checkErr(CL_err, "clCreateBuffer(aux_arr->bbdot_d)");
+
+	aux_arr->aadots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
+	aux_arr->bbdots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
+	for (i = 0; i<sett->nifo; i++)
+	{
+		cl_buffer_region region = {
+			(i - 1) * sizeof(real_t), // offset (in bytes)
+			sizeof(real_t)            // size (in bytes)
+		};
+
+		aux_arr->aadots_d[i] = clCreateSubBuffer(aux_arr->aadot_d,
+			                                     CL_MEM_READ_ONLY,
+			                                     CL_BUFFER_CREATE_TYPE_REGION,
+			                                     &region,
+			                                     &CL_err);
+		checkErr(CL_err, "clCreateBuffer(aux_arr->aadots_d)");
+
+		aux_arr->bbdots_d[i] = clCreateSubBuffer(aux_arr->bbdot_d,
+			                                     CL_MEM_READ_ONLY,
+			                                     CL_BUFFER_CREATE_TYPE_REGION,
+			                                     &region,
+			                                     &CL_err);
+		checkErr(CL_err, "clCreateBuffer(aux_arr->bbdots_d)");
+	}
 
     aux_arr->maa_d = clCreateBuffer(cl_handles->ctx,
                                     CL_MEM_READ_ONLY,

@@ -156,8 +156,9 @@ typedef struct _aux_arrays {
   cl_mem ifo_amod_d;             // constant buffer of detector settings
   cl_mem diag_d, ldiag_d, udiag_d, B_d; //used in spline interpolation
   cl_mem mu_d, mu_t_d; //arrays for smoothing F-stat
-  cl_mem aadot_d, bbdot_d;
   cl_mem maa_d, mbb_d;
+  cl_mem aadot_d, bbdot_d;     // dot-products of xx_d
+  cl_mem *aadots_d, *bbdots_d; // array of sub-buffers pointing into xxdot_d
 
 } Aux_arrays;
 
@@ -268,5 +269,14 @@ typedef struct _triggers {
   int frcount, goodcands; 
 
 } Candidate_triggers; 
+
+/// <summary>Used to communicate candidate signals between each <c>job_core</c> invocation and <c>search</c>.</summary>
+///
+typedef struct _search_results {
+
+  size_t sgnlc;  // Size of candidate signal array
+  real_t* sgnlv; // Array of candidate signals
+
+} Search_results;
 
 #endif // __STRUCT_H__
