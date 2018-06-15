@@ -230,7 +230,9 @@ real_t* job_core(const int pm,                  // hemisphere
 	       **spline_map_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
 	       **spline_unmap_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
 	       **spline_blas_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **blas_dot_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*));
+	       **blas_dot_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
+           *mxx_map_events = (cl_event*)malloc(2 * sizeof(cl_event)),
+	       *mxx_unmap_events = (cl_event*)malloc(2 * sizeof(cl_event));
   for (int n = 0; n < sett->nifo; ++n)
   {
 	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
@@ -291,22 +293,13 @@ real_t* job_core(const int pm,                  // hemisphere
 		     aux->aadots_d[n], aux->bbdots_d[n],             // output
 		     blas_handles, cl_handles, 1, &modvir_events[n], // sync
 		     blas_dot_events[n]);                            // sync
-    } // end of detector loop 
 
-    real_t _maa = 0;
-    real_t _mbb = 0;
+  } // end of detector loop  
 
-    for (int n = 0; n<sett->nifo; ++n)
-    {
-        real_t* temp = blas_dot(ifo[n].sig.aa_d, ifo[n].sig.bb_d, sett->N, cl_handles, blas_handles);
-        real_t aatemp = temp[0],
-               bbtemp = temp[1];
-
-        _maa += temp[0] / ifo[n].sig.sig2;
-        _mbb += temp[1] / ifo[n].sig.sig2;
-
-        free(temp);
-    }
+  cl_event mxx_event = calc_mxx(sett->nifo,
+	                            aux->aadot_d, aux->bbdot_d, ifo,
+	                            aux->maa_d, aux->mbb_d,
+	                            cl_handles, 2, blas_dot_events);
 
     // Copy sums to constant memory
     {
@@ -879,6 +872,114 @@ void blas_dot(const cl_uint n,
     status[0] = clblasDdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[1], "clblasSetup()");
 	status[1] = clblasDdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[0], "clblasSetup()");
 #endif // COMP_FLOAT
+}
+
+cl_event calc_mxx(const cl_uint nifo,
+	              const cl_mem aadot_d,
+	              const cl_mem bbdot_d,
+	              const Detector_settings* ifo,
+	              cl_mem maa_d,
+	              cl_mem mbb_d,
+	              OpenCL_handles* cl_handles,
+	              const cl_uint num_events_in_wait_list,
+	              const cl_event* event_wait_list,
+	              cl_event* mxx_fill_events,
+	              cl_event* xxdot_unmap_events,
+	              cl_event* mxx_map_events,
+	              cl_event* mxx_unmap_events)
+{
+	cl_int CL_err;
+	clblasStatus status[2];
+
+	real_t pattern = 0;
+
+	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], maa_d, &pattern, sizeof(real_t), 0, sizeof(complex_t), 0, NULL, &mxx_fill_events[0]); checkErr(CL_err, "clEnqueueFillBuffer(maa_d");
+	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], mbb_d, &pattern, sizeof(real_t), 0, sizeof(complex_t), 0, NULL, &mxx_fill_events[1]); checkErr(CL_err, "clEnqueueFillBuffer(mbb_d");
+
+	cl_event input_wait_events[4] = { event_wait_list[0],
+									  event_wait_list[1],
+									  mxx_fill_events[0],
+									  mxx_fill_events[1] };
+
+	// SETUP WAIT EVENTS FOR AXPY PROPERLY!
+	int i;
+	for (i = 0; i < nifo; ++i)
+	{
+#ifdef COMP_FLOAT
+		status[1] = clblasSaxpy(1, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasSetup()");
+		status[0] = clblasSaxpy(1, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasSetup()");
+#else
+		status[0] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, aadot_d, i, 1, maa_d, 0, 1, cl_handles->exec_queues, 4, input_wait_events, &blas_exec[0]); checkErrBLAS(status[1], "clblasSetup()");
+		status[1] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, bbdot_d, i, 1, mbb_d, 0, 1, cl_handles->exec_queues, 4, input_wait_events, &blas_exec[1]); checkErrBLAS(status[0], "clblasSetup()");
+#endif // COMP_FLOAT
+	}
+
+	aadot = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+		                       aadot_d,
+		                       CL_FALSE,
+		                       CL_MAP_READ,
+		                       0,
+		                       nifo * sizeof(real_t),
+		                       num_events_in_wait_list,
+		                       event_wait_list,
+		                       &xxdot_map_events[0],
+		                       &CL_err);
+	checkErr(CL_err, "clEnqueueMapBuffer(aux->aadot_d)");
+
+	bbdot = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+		                       bbdot_d,
+		                       CL_FALSE,
+		                       CL_MAP_READ,
+		                       0,
+		                       nifo * sizeof(real_t),
+		                       num_events_in_wait_list,
+		                       event_wait_list,
+		                       &xxdot_map_events[1],
+		                       &CL_err);
+	checkErr(CL_err, "clEnqueueMapBuffer(aux->bbdot_d)");
+
+	maa = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+		                     maa_d,
+		                     CL_FALSE,
+		                     CL_MAP_WRITE,
+		                     0,
+		                     sizeof(real_t),
+		                     0,
+		                     NULL,
+		                     &mxx_map_events[0],
+		                     &CL_err);
+	checkErr(CL_err, "clEnqueueMapBuffer(aux->maa_d)");
+
+	mbb = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+		                     mbb_d,
+		                     CL_FALSE,
+		                     CL_MAP_WRITE,
+		                     0,
+		                     sizeof(real_t),
+		                     0,
+		                     NULL,
+		                     &mxx_map_events[1],
+		                     &CL_err);
+	checkErr(CL_err, "clEnqueueMapBuffer(aux->mbb_d)");
+
+	CL_err = clWaitForEvents(2, mxx_map_events);
+	checkErr(CL_err, "clWaitForEvents(2, mxx_map_events)");
+
+	*maa = *mbb = 0;
+
+
+
+	for (int n = 0; n<sett->nifo; ++n)
+	{
+		real_t* temp = blas_dot(ifo[n].sig.aa_d, ifo[n].sig.bb_d, sett->N, cl_handles, blas_handles);
+		real_t aatemp = temp[0],
+			bbtemp = temp[1];
+
+		_maa += temp[0] / ifo[n].sig.sig2;
+		_mbb += temp[1] / ifo[n].sig.sig2;
+
+		free(temp);
+	}
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>
