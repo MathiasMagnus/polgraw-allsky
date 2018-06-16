@@ -183,6 +183,9 @@ void blas_dot(const cl_uint n,
 	          cl_event* blas_exec);
 
 /// <summary>Sum up results from all detectors.</summary>
+/// <todo>Factor out the plain axpy call to separate function</todo>
+/// <todo>Create an alternate implementation not doing a series of
+///       scalar axpy on device, but mapping/unmapping and summing on host.</todo>
 ///
 void calc_mxx(const cl_uint nifo,
 	          const cl_mem aadot_d,
