@@ -5,7 +5,7 @@
 #########################
 
 # The minimum version of CMake necessary to build this project
-cmake_minimum_required (VERSION 3.1.0)
+cmake_minimum_required (VERSION 3.9)
 
 # The name of our project
 set (Target_NAME gwsearch-ocl)
@@ -54,12 +54,12 @@ add_executable (${Target_NAME} ${BUILD})
 # Append our project's include directory to the "#include <>" paths
 target_include_directories (${Target_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc
                                                   ${CMAKE_CURRENT_BINARY_DIR}/inc
-                                                  ${OpenCL_INCLUDE_DIRS}
                                                   ${CLFFT_INCLUDE_DIRS}
                                                   ${CLBLAS_INCLUDE_DIRS})
 
 # Link dependant libraries
-target_link_libraries (${Target_NAME} PRIVATE ${OpenCL_LIBRARIES}
+target_link_libraries (${Target_NAME} PRIVATE OpenCL::OpenCL
+                                              OpenMP::OpenMP_C
                                               clFFT
                                               clBLAS)
 

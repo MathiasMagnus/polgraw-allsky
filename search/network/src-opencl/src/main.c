@@ -60,6 +60,9 @@ int main (int argc, char* argv[])
     // Initialize OpenCL
     init_opencl(&cl_handles, &cl_sett);
 
+	// Initialize OpenMP
+	init_openmp(cl_handles.dev_count);
+
     // Setup output buffer
     setup_output(&buffer, &opts);
 

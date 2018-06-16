@@ -99,6 +99,10 @@ void plan_fft(Search_settings* sett,
 	          FFT_plans* plans, 
 	          FFT_arrays* fft_arr);
 
+/// <summary>Initialize the OpenMP runtime</summary>
+///
+void init_openmp(cl_uint count);
+
 void read_checkpoints(
 		      Command_line_opts *opts, 
 		      Search_range *s_range,

@@ -45,6 +45,7 @@ option (PG_VERBOSE "Verbose output of search suite" OFF)
 
   if (${BUILD_OPENCL})
     find_package(OpenCL REQUIRED)
+	find_package(OpenMP REQUIRED)
     find_package(clFFT REQUIRED CONFIG)
     find_package(clBLAS REQUIRED CONFIG)
   endif (${BUILD_OPENCL})

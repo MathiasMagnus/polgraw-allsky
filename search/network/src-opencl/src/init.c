@@ -20,6 +20,9 @@
 #include <CL/cl.h>
 #include <locations.h>
 
+// OpenMP includes
+#include <omp.h>
+
 // Posix includes
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1225,8 +1228,10 @@ void plan_fft(Search_settings* sett,
 
 } // plan_fft
 
-
-// Checkpointing //
+void init_openmp(cl_uint count)
+{
+	omp_set_num_threads(count);
+}
 
 void read_checkpoints(Command_line_opts *opts,
               Search_range *s_range, 
