@@ -184,19 +184,17 @@ void blas_dot(const cl_uint n,
 
 /// <summary>Sum up results from all detectors.</summary>
 ///
-cl_event calc_mxx(const cl_uint nifo,
-	              const cl_mem aadot_d,
-	              const cl_mem bbdot_d,
-	              const Detector_settings* ifo,
-	              cl_mem maa_d,
-	              cl_mem mbb_d,
-	              OpenCL_handles* cl_handles,
-	              const cl_uint num_events_in_wait_list,
-	              const cl_event* event_wait_list,
-	              cl_event* mxx_fill_events,
-	              cl_event* xxdot_unmap_events,
-	              cl_event* mxx_map_events,
-	              cl_event* mxx_unmap_events);
+void calc_mxx(const cl_uint nifo,
+	          const cl_mem aadot_d,
+	          const cl_mem bbdot_d,
+	          const Detector_settings* ifo,
+	          cl_mem maa_d,
+	          cl_mem mbb_d,
+	          OpenCL_handles* cl_handles,
+	          const cl_uint num_events_in_wait_list,
+	          const cl_event* event_wait_list,
+	          cl_event* mxx_fill_events,
+	          cl_event* axpy_events);
 
 /// <summary>The purpose of this function was undocumented.</summary>
 ///
