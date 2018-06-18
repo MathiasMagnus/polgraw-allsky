@@ -103,10 +103,9 @@ void plan_fft(Search_settings* sett,
 ///
 void init_openmp(cl_uint count);
 
-void read_checkpoints(
-		      Command_line_opts *opts, 
-		      Search_range *s_range,
-		      int *Fnum);
+void read_checkpoints(Command_line_opts *opts, 
+		              Search_range *s_range,
+		              int *Fnum);
 
 /// <summary>Frees all resources for termination.</summary>
 ///
