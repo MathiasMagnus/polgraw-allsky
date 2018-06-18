@@ -36,7 +36,8 @@ cl_context create_standard_context(cl_device_id* devices,
 
 /// <summary>Create a set of command queues to all the devices in the context.</summary>
 ///
-cl_command_queue* create_command_queue_set(cl_context context);
+cl_command_queue** create_command_queue_set(cl_context context,
+	                                        size_t count);
 
 /// <summary>Load kernel file from disk.</summary>
 ///
@@ -47,9 +48,10 @@ char* load_program_file(const char* filename);
 cl_program build_program_source(cl_context context,
                                 const char* source);
 
-/// <summary>Create a kernel for all entry points in the program.</summary>
+/// <summary>Create a kernel for all entry points in the program for each device.</summary>
 ///
-cl_kernel* create_kernels(cl_program program);
+cl_kernel** create_kernels(cl_program program,
+	                       cl_uint count);
 
 /// <summary>Obtain the name of the kernel of a given index.</summary>
 ///

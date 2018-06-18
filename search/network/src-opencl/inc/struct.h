@@ -98,6 +98,7 @@ typedef struct _opencl_settings
 {
     cl_uint plat_id;
     cl_device_type dev_type;
+	cl_uint dev_count;
 
 } OpenCL_settings;
 
@@ -109,11 +110,11 @@ typedef struct _opencl_handles
     cl_uint dev_count;
     cl_device_id* devs;
     cl_context ctx;
-    cl_command_queue *write_queues,
-                     *exec_queues,
-                     *read_queues;
+    cl_command_queue **write_queues,
+                     **exec_queues,
+                     **read_queues;
     cl_program prog;
-    cl_kernel* kernels;
+    cl_kernel** kernels;
 
 } OpenCL_handles;
 

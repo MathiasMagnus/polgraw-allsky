@@ -57,23 +57,23 @@ int main (int argc, char* argv[])
     // Command line options 
     handle_opts(&sett, &cl_sett, &opts, argc, argv);
 
+	// Grid data 
+	read_grid(&sett, &opts);
+
+	// Search settings
+	search_settings(&sett);
+
+	// Detector network settings
+	detectors_settings(ifo, &sett, &opts);
+
+	// Setup output buffer
+	setup_output(&buffer, &opts);
+
     // Initialize OpenCL
-    init_opencl(&cl_handles, &cl_sett);
+    init_opencl(&cl_handles, &cl_sett, &sett);
 
 	// Initialize OpenMP
 	init_openmp(cl_handles.dev_count);
-
-    // Setup output buffer
-    setup_output(&buffer, &opts);
-
-    // Grid data 
-    read_grid(&sett, &opts);
-
-    // Search settings
-    search_settings(&sett);
-
-    // Detector network settings
-    detectors_settings(ifo, &sett, &opts);
 
     // Array initialization
     init_arrays(ifo, &sett, &cl_handles, &opts, &aux_arr, &F_d);

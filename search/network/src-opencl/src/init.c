@@ -48,8 +48,6 @@
 #include <limits.h>     // UINT_MAX
 
 
-/// <summary>Command line options handling: search</summary>
-///
 void handle_opts(Search_settings* sett,
                  OpenCL_settings* cl_sett,
                  Command_line_opts* opts,
@@ -305,9 +303,6 @@ void handle_opts(Search_settings* sett,
 
 } // end of command line options handling 
 
-/// <summary>Initialize OpenCL devices based on user preference.</summary>
-/// <remarks>Currently, only a sinle platform can be selected.</remarks>
-///
 void init_opencl(OpenCL_handles* cl_handles,
                  OpenCL_settings* cl_sett)
 {
@@ -320,21 +315,20 @@ void init_opencl(OpenCL_handles* cl_handles,
     cl_handles->ctx = create_standard_context(cl_handles->devs,
                                               cl_handles->dev_count);
 
-    cl_handles->write_queues = create_command_queue_set(cl_handles->ctx);
-    cl_handles->exec_queues  = create_command_queue_set(cl_handles->ctx);
-    cl_handles->read_queues  = create_command_queue_set(cl_handles->ctx);
+    cl_handles->write_queues = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
+    cl_handles->exec_queues  = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
+    cl_handles->read_queues  = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
 
     char* source = load_program_file(kernel_path);
 
     cl_handles->prog = build_program_source(cl_handles->ctx, source);
 
-    cl_handles->kernels = create_kernels(cl_handles->prog);
+    cl_handles->kernels = create_kernels(cl_handles->prog,
+		                                 cl_handles->dev_count);
 
     free(source);
 }
 
-/// <summary>Tries selecting the platform with the specified index.</summary>
-///
 cl_platform_id select_platform(cl_uint plat_id)
 {
     cl_int CL_err = CL_SUCCESS;
@@ -372,8 +366,6 @@ cl_platform_id select_platform(cl_uint plat_id)
     return result;
 }
 
-/// <summary>Selects all devices of the specified type.</summary>
-///
 cl_device_id* select_devices(cl_platform_id platform,
                              cl_device_type dev_type,
                              cl_uint* count)
@@ -417,8 +409,6 @@ cl_device_id* select_devices(cl_platform_id platform,
     return result;
 }
 
-/// <summary>Create a contxet that holds all specified devices.</summary>
-///
 cl_context create_standard_context(cl_device_id* devices, cl_uint count)
 {
     cl_int CL_err = CL_SUCCESS;
@@ -440,29 +430,31 @@ cl_context create_standard_context(cl_device_id* devices, cl_uint count)
     return result;
 }
 
-/// <summary>Create a set of command queues to all the devices in the context.</summary>
-///
-cl_command_queue* create_command_queue_set(cl_context context)
+cl_command_queue** create_command_queue_set(cl_context context,
+	                                        size_t count)
 {
     cl_int CL_err = CL_SUCCESS;
-    cl_uint count = 0;
-    cl_device_id* devices = NULL;
-    cl_command_queue* result = NULL;
 
+    cl_uint count = 0;
     CL_err = clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &count, NULL);
     checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_NUM_DEVICES)");
 
-    devices = (cl_device_id*)malloc(count * sizeof(cl_device_id));
+	cl_device_id* devices = (cl_device_id*)malloc(count * sizeof(cl_device_id));
 
     CL_err = clGetContextInfo(context, CL_CONTEXT_DEVICES, count * sizeof(cl_device_id), devices, NULL);
     checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_DEVICES)");
 
-    result = (cl_command_queue*)malloc(count * sizeof(cl_command_queue));
+	cl_command_queue** result = (cl_command_queue**)malloc(count * sizeof(cl_command_queue*));
 
     for (cl_uint i = 0; i < count; ++i)
     {
-        result[i] = clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &CL_err);
-        checkErr(CL_err, "clCreateCommandQueue()");
+		result[i] = (cl_command_queue*)malloc(MAX_DETECTORS * sizeof(cl_command_queue));
+
+		for (cl_uint j = 0; j < MAX_DETECTORS; ++j)
+		{
+			result[i][j] = clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &CL_err);
+			checkErr(CL_err, "clCreateCommandQueue()");
+		}
 
         CL_err = clReleaseDevice(devices[i]);
         checkErr(CL_err, "clReleaseDevice()");
@@ -473,8 +465,6 @@ cl_command_queue* create_command_queue_set(cl_context context)
     return result;
 }
 
-/// <summary>Load kernel file from disk.</summary>
-///
 char* load_program_file(const char* filename)
 {
     long int size = 0;
@@ -538,8 +528,6 @@ char* load_program_file(const char* filename)
     return src;
 }
 
-/// <summary>Build program file.</summary>
-///
 cl_program build_program_source(cl_context context,
                                 const char* source)
 {
@@ -593,22 +581,25 @@ cl_program build_program_source(cl_context context,
     return result;
 }
 
-/// <summary>Create a kernel for all entry points in the program.</summary>
-///
-cl_kernel* create_kernels(cl_program program)
+cl_kernel** create_kernels(cl_program program,
+	                       cl_uint count)
 {
     cl_int CL_err = CL_SUCCESS;
     cl_uint kernel_count = 11;
-    cl_kernel* result = (cl_kernel*)malloc(kernel_count * sizeof(cl_kernel));
 
-    for (cl_uint i = 0; i < kernel_count; ++i)
-        result[i] = obtain_kernel(program, i);
+    cl_kernel** result = (cl_kernel**)malloc(count * sizeof(cl_kernel*));
+
+	for (cl_uint i = 0; i < count; ++i)
+	{
+		result[i] = (cl_kernel*)malloc(kernel_count * sizeof(cl_kernel));
+
+		for (cl_uint j = 0; j < kernel_count; ++j)
+			result[i][j] = obtain_kernel(program, j);
+	}
 
     return result;
 }
 
-/// <summary>Obtain the name of the kernel of a given index.</summary>
-///
 const char* obtain_kernel_name(cl_uint i)
 {
     const char* result = NULL;
@@ -657,8 +648,6 @@ const char* obtain_kernel_name(cl_uint i)
     return result;
 }
 
-/// <summary>Obtain kernel with the specified index.</summary>
-///
 cl_kernel obtain_kernel(cl_program program, cl_uint i)
 {
     cl_int CL_err = CL_SUCCESS;
@@ -670,9 +659,6 @@ cl_kernel obtain_kernel(cl_program program, cl_uint i)
     return result;
 }
 
-/// <summary>Generate grid from the M matrix.</summary>
-/// <remarks>Processes the file 'grid.bin'</remarks>
-///
 void read_grid(Search_settings *sett,
                Command_line_opts *opts)
 {
@@ -709,8 +695,6 @@ void read_grid(Search_settings *sett,
 
 } // end of read grid 
 
-/// <summary>Initialize auxiliary and F-statistics arrays.</summary>
-///
 void init_arrays(Detector_settings* ifo,
                  Search_settings* sett,
                  OpenCL_handles* cl_handles,
@@ -1031,8 +1015,6 @@ void init_arrays(Detector_settings* ifo,
 
 } // end of init arrays 
 
-/// <summary>Set search ranges based on user preference.</summary>
-///
 void set_search_range(Search_settings *sett,
                       Command_line_opts *opts,
                       Search_range *s_range)
@@ -1120,8 +1102,6 @@ void set_search_range(Search_settings *sett,
 
 } // end of set search range
 
-/// <summary>Sets up BLAS plans.</summary>
-///
 void init_blas(Search_settings* sett,
                OpenCL_handles* cl_handles,
                BLAS_handles* blas_handles)
@@ -1134,8 +1114,6 @@ void init_blas(Search_settings* sett,
 	blas_handles->bbScratch_d = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sett->N * sizeof(real_t), NULL, &CL_err); checkErr(CL_err, "clCreateBuffer(blas_handles->bbScratch_d)");
 }
 
-/// <summary>Sets up FFT plans.</summary>
-///
 void plan_fft(Search_settings* sett,
               OpenCL_handles* cl_handles,
               FFT_plans* plans,
@@ -1282,8 +1260,6 @@ void read_checkpoints(Command_line_opts *opts,
 
 } // end reading checkpoints
 
-/// <summary>Frees all resources for termination.</summary>
-///
 void cleanup(Detector_settings* ifo,
              Search_settings *sett,
              Command_line_opts *opts,
