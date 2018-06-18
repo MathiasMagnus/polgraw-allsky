@@ -23,6 +23,9 @@
 // OpenCL includes
 #include <CL/cl.h>
 
+// OpenMP includes
+#include <omp.h>
+
 // Posix includes
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -119,6 +122,7 @@ void search(Detector_settings* ifo,
         // Two main loops over sky positions //
         for (mm = s_range->mst; mm <= s_range->mr[1]; ++mm)
         {
+            #pragma omp parallel
             for (nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
             {
                 if (opts->checkp_flag)
