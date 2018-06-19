@@ -2,41 +2,19 @@
 //
 // ISO: request safe versions of functions
 #define __STDC_WANT_LIB_EXT1__ 1
-/*
+
 // Polgraw includes
-#include <floats.h>
-#include <auxi.h>*/
 #include <settings.h>
 #include <struct.h>
 #include <jobcore.h>
-#include <init.h>/*
+#include <init.h>
 
 // Posix includes
-#include <sys/types.h>*/
-#include <sys/stat.h>/*
-#include <fcntl.h>
-#ifdef _WIN32
-//#include <direct.h>
-//#include <dirent.h>
-//#include <getopt.h>
-#else
-//#include <unistd.h>
-//#include <dirent.h>
-//#include <getopt.h>
-#endif // WIN32
-*/
+#include <sys/stat.h>
+
 // Standard C includes
-#include <stdio.h>/*      // fopen_s
-#include <stdlib.h>
-#include <math.h>
-#include <complex.h>
-#include <string.h>
-#include <errno.h>
-#include <time.h>
+#include <stdio.h>      // fopen_s
 
-
-Detector_settings ifo[MAX_DETECTORS];
-*/
 int main (int argc, char* argv[])
 {
     Detector_settings ifo[MAX_DETECTORS];

@@ -38,6 +38,7 @@ void search(Detector_settings* ifo,
 real_t* job_core(const int pm,                  // hemisphere
                  const int mm,                  // grid 'sky position'
                  const int nn,                  // other grid 'sky position'
+                 const int id,                  // device id
                  Detector_settings* ifo,        // detector settings
                  Search_settings *sett,         // search settings
                  Command_line_opts *opts,       // cmd opts
@@ -45,7 +46,6 @@ real_t* job_core(const int pm,                  // hemisphere
                  FFT_plans *plans,              // plans for fftw
                  FFT_arrays *fft_arr,           // arrays for fftw
                  Aux_arrays *aux,               // auxiliary arrays
-                 cl_mem F,                      // F-statistics array
                  int *sgnlc,                    // reference to array with the parameters of the candidate signal
                                                 // (used below to write to the file)
                  int *FNum,                     // candidate signal number
@@ -82,6 +82,7 @@ void copy_amod_coeff(Detector_settings* ifo,
 /// <remarks>Becomes a blocking call when <c>TESTING</c> is enabled</remarks>
 ///
 cl_event modvir_gpu(const cl_int idet,
+                    const cl_int id,
                     const cl_int Np,
                     const real_t sinal,
                     const real_t cosal,
@@ -102,7 +103,8 @@ cl_event modvir_gpu(const cl_int idet,
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 /// <remarks>Becomes a blocking call when <c>TESTING</c> is enabled</remarks>
 ///
-cl_event tshift_pmod_gpu(const int idet,
+cl_event tshift_pmod_gpu(const cl_int idet,
+                         const cl_int id,
 	                     const real_t shft1,
                          const real_t het0,
                          const real3_t ns,

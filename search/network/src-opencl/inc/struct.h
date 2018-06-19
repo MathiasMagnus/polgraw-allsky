@@ -51,9 +51,10 @@ typedef struct _signals
     real_t* xDat;
     cl_mem xDat_d;
     real3_t* DetSSB;
-    cl_mem DetSSB_d;        // Ephemeris of the detector
-    cl_mem aa_d, bb_d;      // Amplitude modulation functions
-    cl_mem shftf_d, shft_d; // Resampling and time-shifting
+    cl_mem DetSSB_d;          // Ephemeris of the detector
+    cl_mem *aa_d, *bb_d;      // Amplitude modulation functions
+    cl_mem *shftf_d, *shft_d; // Resampling and time-shifting
+	cl_mem *xDatma_d, *xDatmb_d;
   
     real_t epsm,
            phir,
@@ -65,7 +66,6 @@ typedef struct _signals
            sig2;            // variance of signal
 
   int Nzeros;
-  cl_mem xDatma_d, xDatmb_d;
 
 } Signals;
 
@@ -73,8 +73,8 @@ typedef struct _signals
 /* fftw arrays */
 typedef struct _fft_arrays {
 
-  cl_mem *xa_d,
-	     *xb_d;
+  cl_mem **xa_d,
+	     **xb_d;
   int arr_len;
 
 } FFT_arrays;
@@ -83,8 +83,8 @@ typedef struct _fft_arrays {
 ///
 typedef struct _blas_handles {
 
-  cl_mem *aaScratch_d,
-         *bbScratch_d;
+  cl_mem **aaScratch_d,
+         **bbScratch_d;
 
 } BLAS_handles;
 
@@ -153,7 +153,7 @@ typedef struct _aux_arrays {
 
   cl_mem sinmodf_d, cosmodf_d; // Earth position
   cl_mem t2_d  ;                // time^2
-  cl_mem tshift_d;
+  cl_mem **tshift_d;
   cl_mem ifo_amod_d;             // constant buffer of detector settings
   cl_mem diag_d, ldiag_d, udiag_d, B_d; //used in spline interpolation
   cl_mem mu_d, mu_t_d; //arrays for smoothing F-stat
