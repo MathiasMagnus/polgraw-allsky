@@ -306,27 +306,29 @@ void handle_opts(Search_settings* sett,
 void init_opencl(OpenCL_handles* cl_handles,
                  OpenCL_settings* cl_sett)
 {
-    cl_handles->plat = select_platform(cl_sett->plat_id);
+  cl_handles->plat = select_platform(cl_sett->plat_id);
 
-    cl_handles->devs = select_devices(cl_handles->plat,
-                                      cl_sett->dev_type,
-                                      &cl_handles->dev_count);
+  cl_handles->devs = select_devices(cl_handles->plat,
+                                    cl_sett->dev_type,
+                                    &cl_handles->dev_count);
 
-    cl_handles->ctx = create_standard_context(cl_handles->devs,
-                                              cl_handles->dev_count);
+  cl_handles->ctx = create_standard_context(cl_handles->devs,
+                                            cl_handles->dev_count);
 
-    cl_handles->write_queues = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
-    cl_handles->exec_queues  = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
-    cl_handles->read_queues  = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
+  cl_handles->write_queues = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
+  cl_handles->exec_queues  = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
+  cl_handles->read_queues  = create_command_queue_set(cl_handles->ctx, cl_handles->dev_count);
 
+  {
     char* source = load_program_file(kernel_path);
 
     cl_handles->prog = build_program_source(cl_handles->ctx, source);
 
-    cl_handles->kernels = create_kernels(cl_handles->prog,
-		                                 cl_handles->dev_count);
-
     free(source);
+  }
+
+  cl_handles->kernels = create_kernels(cl_handles->prog,
+                                       cl_handles->dev_count);
 }
 
 cl_platform_id select_platform(cl_uint plat_id)
@@ -703,194 +705,192 @@ void init_arrays(Detector_settings* ifo,
 	             FFT_arrays* fft_arr,
                  cl_mem* F_d)
 {
-    cl_int CL_err = CL_SUCCESS;
-    int i;
-    size_t status;
-
-    // Allocates and initializes to zero the data, detector ephemeris
-    // and the F-statistic arrays
-
-    FILE *data;
-
-    for (i = 0; i<sett->nifo; i++)
-    {
-        ifo[i].sig.xDat = (real_t*)calloc(sett->N, sizeof(real_t));
-
-        // Input time-domain data handling
-        // 
-        // The file name ifo[i].xdatname is constructed 
-        // in settings.c, while looking for the detector 
-        // subdirectories
-        if ((data = fopen(ifo[i].xdatname, "rb")) != NULL)
-        {
-            status = fread((void *)(ifo[i].sig.xDat),
-                           sizeof(real_t),
-                           sett->N,
-                           data);
-            fclose(data);
-        }
-        else
-        {
-            perror(ifo[i].xdatname);
-            exit(EXIT_FAILURE);
-        }
-
-        ifo[i].sig.xDat_d = clCreateBuffer(cl_handles->ctx,
-                                           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                           sett->N * sizeof(real_t),
-                                           ifo[i].sig.xDat,
-                                           &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
-
-        int j, Nzeros = 0;
-        // Checking for null values in the data
-        for (j = 0; j < sett->N; j++)
-            if (!ifo[i].sig.xDat[j]) Nzeros++;
-
-        ifo[i].sig.Nzeros = Nzeros;
-
-        // factor N/(N - Nzeros) to account for null values in the data
-        ifo[i].sig.crf0 = (real_t)sett->N / (sett->N - ifo[i].sig.Nzeros);
-
-        // Estimation of the variance for each detector 
-        ifo[i].sig.sig2 = (ifo[i].sig.crf0)*var(ifo[i].sig.xDat, sett->N);
-
-        ifo[i].sig.DetSSB = (real3_t*)calloc(sett->N, sizeof(real3_t));
-
-        // Ephemeris file handling
-        char filename[512];
-
-        sprintf(filename,
-                "%s/%03d/%s/DetSSB.bin",
-                opts->dtaprefix,
-                opts->ident,
-                ifo[i].name);
-
-        if ((data = fopen(filename, "rb")) != NULL)
-        {
-            // Detector position w.r.t Solar System Baricenter
-            // for every datapoint
-            for (j = 0; j < sett->N; ++j)
-            {
-                status = fread((void *)(&ifo[i].sig.DetSSB[j]),
-                               sizeof(real_t),
-                               3,
-                               data);
-                ifo[i].sig.DetSSB[j].s[3] = 0;
-            }
-
-            // Deterministic phase defining the position of the Earth
-            // in its diurnal motion at t=0 
-            status = fread((void *)(&ifo[i].sig.phir),
-                           sizeof(real_t),
-                           1,
-                           data);
-
-            // Earth's axis inclination to the ecliptic at t=0
-            status = fread((void *)(&ifo[i].sig.epsm),
-                           sizeof(real_t),
-                           1,
-                           data);
-            fclose(data);
-
-            printf("Using %s as detector %s ephemerids...\n", filename, ifo[i].name);
-
-        }
-        else
-        {
-            perror(filename);
-            return;
-        }
-
-        ifo[i].sig.DetSSB_d = clCreateBuffer(cl_handles->ctx,
-                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             sett->N * sizeof(real3_t),
-                                             ifo[i].sig.DetSSB,
-                                             &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.DetSSB_d)");
-
-        // sincos 
-        ifo[i].sig.sphir = sin(ifo[i].sig.phir);
-        ifo[i].sig.cphir = cos(ifo[i].sig.phir);
-        ifo[i].sig.sepsm = sin(ifo[i].sig.epsm);
-        ifo[i].sig.cepsm = cos(ifo[i].sig.epsm);
-
-        sett->sepsm = ifo[i].sig.sepsm;
-        sett->cepsm = ifo[i].sig.cepsm;
-
-        ifo[i].sig.xDatma_d = clCreateBuffer(cl_handles->ctx,
-                                             CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                             sett->N * sizeof(complex_devt),
-                                             NULL,
-                                             &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatma_d)");
-
-        ifo[i].sig.xDatmb_d = clCreateBuffer(cl_handles->ctx,
-                                             CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                             sett->N * sizeof(complex_devt),
-                                             NULL,
-                                             &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatmb_d)");
-
-        ifo[i].sig.aa_d = clCreateBuffer(cl_handles->ctx,
-                                         CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                         sett->N * sizeof(real_t),
-                                         NULL,
-                                         &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.aa_d)");
-
-        ifo[i].sig.bb_d = clCreateBuffer(cl_handles->ctx,
-                                         CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                         sett->N * sizeof(real_t),
-                                         NULL,
-                                         &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.bb_d)");
-
-        ifo[i].sig.shft_d = clCreateBuffer(cl_handles->ctx,
-                                           CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                           sett->N * sizeof(real_t),
-                                           NULL,
-                                           &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.shft_d)");
-
-        ifo[i].sig.shftf_d = clCreateBuffer(cl_handles->ctx,
-                                            CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                            sett->N * sizeof(real_t),
-                                            NULL,
-                                            &CL_err);
-        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.shftf_d)");
-
-    } // end loop for detectors 
-
-      // Check if the ephemerids have the same epsm parameter
-    for (i = 1; i<sett->nifo; i++)
-    {
-        if (!(ifo[i - 1].sig.sepsm == ifo[i].sig.sepsm))
-        {
-            printf("The parameter epsm (DetSSB.bin) differs for detectors %s and %s. Aborting...\n",
-                   ifo[i - 1].name,
-                   ifo[i].name);
-            exit(EXIT_FAILURE);
-        }
-
-    }
-
-    // if all is well with epsm, take the first value 
-    sett->sepsm = ifo[0].sig.sepsm;
-    sett->cepsm = ifo[0].sig.cepsm;
-
-    *F_d = clCreateBuffer(cl_handles->ctx,
-                          CL_MEM_READ_WRITE,
-                          2 * sett->nfft * sizeof(real_t),
-                          NULL,
-                          &CL_err);
-    checkErr(CL_err, "clCreateBuffer(F_d)");
+	init_ifo_arrays(sett, cl_handles, opts, ifo);
 
 	init_aux_arrays(sett, cl_handles, aux_arr);
 
 	init_fft_arrays(sett, cl_handles, fft_arr);
 
 } // end of init arrays
+
+void init_ifo_arrays(Search_settings* sett,
+                     OpenCL_handles* cl_handles,
+                     Command_line_opts* opts,
+                     Detector_settings* ifo)
+{
+  // Allocates and initializes to zero the data, detector ephemeris
+  // and the F-statistic arrays
+  size_t status;
+
+  for (int i = 0; i < sett->nifo; i++)
+  {
+    ifo[i].sig.xDat = (real_t*)calloc(sett->N, sizeof(real_t));
+
+    // Input time-domain data handling
+    // 
+    // The file name ifo[i].xdatname is constructed 
+    // in settings.c, while looking for the detector 
+    // subdirectories
+	FILE *data;
+    if ((data = fopen(ifo[i].xdatname, "rb")) != NULL)
+    {
+		status = fread((void *)(ifo[i].sig.xDat),
+                              sizeof(real_t),
+                              sett->N,
+                              data);
+        fclose(data);
+    }
+    else
+    {
+      perror(ifo[i].xdatname);
+      exit(EXIT_FAILURE);
+    }
+
+	cl_int CL_err = CL_SUCCESS;
+    ifo[i].sig.xDat_d = clCreateBuffer(cl_handles->ctx,
+                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                       sett->N * sizeof(real_t),
+                                       ifo[i].sig.xDat,
+                                       &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
+
+    int j, Nzeros = 0;
+    // Checking for null values in the data
+    for (j = 0; j < sett->N; j++)
+      if (!ifo[i].sig.xDat[j]) Nzeros++;
+
+    ifo[i].sig.Nzeros = Nzeros;
+
+    // factor N/(N - Nzeros) to account for null values in the data
+    ifo[i].sig.crf0 = (real_t)sett->N / (sett->N - ifo[i].sig.Nzeros);
+
+    // Estimation of the variance for each detector 
+    ifo[i].sig.sig2 = (ifo[i].sig.crf0)*var(ifo[i].sig.xDat, sett->N);
+
+    ifo[i].sig.DetSSB = (real3_t*)calloc(sett->N, sizeof(real3_t));
+
+    // Ephemeris file handling
+    char filename[512];
+
+    sprintf(filename,
+            "%s/%03d/%s/DetSSB.bin",
+            opts->dtaprefix,
+            opts->ident,
+            ifo[i].name);
+
+    if ((data = fopen(filename, "rb")) != NULL)
+    {
+      // Detector position w.r.t Solar System Baricenter
+      // for every datapoint
+      for (j = 0; j < sett->N; ++j)
+      {
+        status = fread((void *)(&ifo[i].sig.DetSSB[j]),
+                       sizeof(real_t),
+                       3,
+                       data);
+        ifo[i].sig.DetSSB[j].s[3] = 0;
+      }
+
+      // Deterministic phase defining the position of the Earth
+      // in its diurnal motion at t=0 
+      status = fread((void *)(&ifo[i].sig.phir),
+                     sizeof(real_t),
+                     1,
+                     data);
+
+      // Earth's axis inclination to the ecliptic at t=0
+      status = fread((void *)(&ifo[i].sig.epsm),
+                     sizeof(real_t),
+                     1,
+                     data);
+      fclose(data);
+
+      printf("Using %s as detector %s ephemerids...\n", filename, ifo[i].name);
+
+    }
+    else
+    {
+      perror(filename);
+      return;
+    }
+
+    ifo[i].sig.DetSSB_d = clCreateBuffer(cl_handles->ctx,
+                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                         sett->N * sizeof(real3_t),
+                                         ifo[i].sig.DetSSB,
+                                         &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.DetSSB_d)");
+
+    // sincos 
+    ifo[i].sig.sphir = sin(ifo[i].sig.phir);
+    ifo[i].sig.cphir = cos(ifo[i].sig.phir);
+    ifo[i].sig.sepsm = sin(ifo[i].sig.epsm);
+    ifo[i].sig.cepsm = cos(ifo[i].sig.epsm);
+
+    sett->sepsm = ifo[i].sig.sepsm;
+    sett->cepsm = ifo[i].sig.cepsm;
+
+    ifo[i].sig.xDatma_d = clCreateBuffer(cl_handles->ctx,
+                                         CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                                         sett->N * sizeof(complex_devt),
+                                         NULL,
+                                         &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatma_d)");
+
+    ifo[i].sig.xDatmb_d = clCreateBuffer(cl_handles->ctx,
+                                         CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                                         sett->N * sizeof(complex_devt),
+                                         NULL,
+                                         &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatmb_d)");
+
+    ifo[i].sig.aa_d = clCreateBuffer(cl_handles->ctx,
+                                     CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                                     sett->N * sizeof(real_t),
+                                     NULL,
+                                     &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.aa_d)");
+
+    ifo[i].sig.bb_d = clCreateBuffer(cl_handles->ctx,
+                                     CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                                     sett->N * sizeof(real_t),
+                                     NULL,
+                                     &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.bb_d)");
+
+    ifo[i].sig.shft_d = clCreateBuffer(cl_handles->ctx,
+                                       CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                                       sett->N * sizeof(real_t),
+                                       NULL,
+                                       &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.shft_d)");
+
+    ifo[i].sig.shftf_d = clCreateBuffer(cl_handles->ctx,
+                                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                                        sett->N * sizeof(real_t),
+                                        NULL,
+                                        &CL_err);
+    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.shftf_d)");
+
+  } // end loop for detectors 
+
+  // Check if the ephemerids have the same epsm parameter
+  for (int i = 1; i<sett->nifo; i++)
+  {
+    if (!(ifo[i - 1].sig.sepsm == ifo[i].sig.sepsm))
+    {
+      printf("The parameter epsm (DetSSB.bin) differs for detectors %s and %s. Aborting...\n",
+             ifo[i - 1].name,
+             ifo[i].name);
+      exit(EXIT_FAILURE);
+    }
+
+  }
+
+  // if all is well with epsm, take the first value 
+  sett->sepsm = ifo[0].sig.sepsm;
+  sett->cepsm = ifo[0].sig.cepsm;
+}
 
 void init_fft_arrays(Search_settings* sett,
                      OpenCL_handles* cl_handles,
@@ -927,7 +927,18 @@ void init_aux_arrays(Search_settings* sett,
                      OpenCL_handles* cl_handles,
                      Aux_arrays* aux_arr)
 {
-	cl_int CL_err = CL_SUCCESS;
+  cl_int CL_err = CL_SUCCESS;
+
+  aux_arr->F_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
+  for (int i = 0; i < cl_handles->dev_count; ++i)
+  {
+    aux_arr->F_d[i] = clCreateBuffer(cl_handles->ctx,
+                                     CL_MEM_READ_WRITE,
+                                     2 * sett->nfft * sizeof(real_t),
+                                     NULL,
+                                     &CL_err);
+    checkErr(CL_err, "clCreateBuffer(F_d)");
+  }
 
   // Auxiliary arrays, Earth's rotation
   aux_arr->t2_d = clCreateBuffer(cl_handles->ctx,
@@ -979,6 +990,7 @@ void init_aux_arrays(Search_settings* sett,
                                     &CL_err);
   checkErr(CL_err, "clCreateBuffer(aux_arr->bbdot_d)");
 
+  // REVISE aadots_d! nifo and dev_count?
   aux_arr->aadots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
   aux_arr->bbdots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
 

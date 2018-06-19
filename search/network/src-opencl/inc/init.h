@@ -80,6 +80,13 @@ void init_arrays(Detector_settings* ifo,
                  FFT_arrays* fft_arr,
 		         cl_mem* F_d);
 
+/// <summary>Initialize interferometer arrays.</summary>
+///
+void init_ifo_arrays(Search_settings* sett,
+	                 OpenCL_handles* cl_handles,
+                     Command_line_opts* opts,
+	                 Detector_settings* ifo);
+
 /// <summary>Initialize FFT arrays.</summary>
 ///
 void init_fft_arrays(Search_settings* sett,
