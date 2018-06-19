@@ -762,9 +762,9 @@ void fft_interpolate_gpu(const cl_int idet,
 {
 	// Forward FFT
 	clfftStatus CLFFT_status = CLFFT_SUCCESS;
-	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][0], &xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][0], &xa_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
-	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][1], &xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][1], &xb_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
 
 #ifdef TESTING
@@ -787,9 +787,9 @@ void fft_interpolate_gpu(const cl_int idet,
 #endif
 
 	// Backward fft (len Ninterp = nfft*interpftpad)
-	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 1, &resample_postfft_events[idet], &inv_fft_events[idet][0], &xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 1, &resample_postfft_events[idet], &inv_fft_events[idet][0], &xa_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
-	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 1, &resample_postfft_events[idet], &inv_fft_events[idet][1], &xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
+	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 1, &resample_postfft_events[idet], &inv_fft_events[idet][1], &xb_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
 
 	// scale fft with clblas not needed (as opposed fftw), clFFT already scales

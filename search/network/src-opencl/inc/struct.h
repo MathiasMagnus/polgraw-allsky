@@ -73,15 +73,18 @@ typedef struct _signals
 /* fftw arrays */
 typedef struct _fft_arrays {
 
-  cl_mem xa_d, xb_d;
+  cl_mem *xa_d,
+	     *xb_d;
   int arr_len;
 
 } FFT_arrays;
 
-
+/// <summary>Persistent storage of temporary arrays for BLAS operations.</summary>
+///
 typedef struct _blas_handles {
 
-	cl_mem aaScratch_d, bbScratch_d;
+  cl_mem *aaScratch_d,
+         *bbScratch_d;
 
 } BLAS_handles;
 
@@ -141,9 +144,6 @@ typedef struct _fft_plans {
   clfftPlanHandle plan,    // main plan
                   pl_int,  // interpolation forward
                   pl_inv;  // interpolation backward
-  clfftPlanHandle plan2,   // main plan
-                  pl_int2, // interpolation forward
-                  pl_inv2; // interpolation backward
 
 } FFT_plans;
 

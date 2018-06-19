@@ -76,7 +76,7 @@ int main (int argc, char* argv[])
 	init_openmp(cl_handles.dev_count);
 
     // Array initialization
-    init_arrays(ifo, &sett, &cl_handles, &opts, &aux_arr, &F_d);
+    init_arrays(ifo, &sett, &cl_handles, &opts, &aux_arr, &F_d, &fft_arr);
 
     // Amplitude modulation functions for each detector
     for (i = 0; i<sett.nifo; i++) rogcvir(&ifo[i]);
@@ -88,7 +88,7 @@ int main (int argc, char* argv[])
     init_blas(&sett, &cl_handles, &blas_handles);
 
     // FFT init 
-    plan_fft(&sett, &cl_handles, &fft_plans, &fft_arr);
+    init_fft(&sett, &cl_handles, &fft_plans);
 
     // Checkpointing
     int Fnum = 0;   // candidate signal number

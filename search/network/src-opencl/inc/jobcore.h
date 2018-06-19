@@ -128,6 +128,7 @@ cl_event tshift_pmod_gpu(const int idet,
 /// <summary>Interpolates in Fourier-space.</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 /// <remarks>Storage for the events must be provided by the caller.</remarks>
+/// <todo>Create persistent storage for FFT temporary.</todo>
 ///
 void fft_interpolate_gpu(const cl_int idet, 
 	                     const cl_int nfft,

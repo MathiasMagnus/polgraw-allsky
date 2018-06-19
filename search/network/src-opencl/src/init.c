@@ -700,6 +700,7 @@ void init_arrays(Detector_settings* ifo,
                  OpenCL_handles* cl_handles,
                  Command_line_opts* opts,
                  Aux_arrays *aux_arr,
+	             FFT_arrays* fft_arr,
                  cl_mem* F_d)
 {
     cl_int CL_err = CL_SUCCESS;
@@ -710,9 +711,6 @@ void init_arrays(Detector_settings* ifo,
     // and the F-statistic arrays
 
     FILE *data;
-
-    sett->Ninterp = sett->interpftpad*sett->nfft;
-    sett->nfftf = sett->fftpad*sett->nfft;
 
     for (i = 0; i<sett->nifo; i++)
     {
@@ -888,132 +886,174 @@ void init_arrays(Detector_settings* ifo,
                           &CL_err);
     checkErr(CL_err, "clCreateBuffer(F_d)");
 
-    // Auxiliary arrays, Earth's rotation
+	init_aux_arrays(sett, cl_handles, aux_arr);
 
-    aux_arr->t2_d = clCreateBuffer(cl_handles->ctx,
-                                   CL_MEM_READ_WRITE,
-                                   sett->N * sizeof(real_t),
-                                   NULL,
-                                   &CL_err);
-    checkErr(CL_err, "clCreateBuffer(aux_arr->t2_d)");
+	init_fft_arrays(sett, cl_handles, fft_arr);
 
-    aux_arr->cosmodf_d = clCreateBuffer(cl_handles->ctx,
-                                        CL_MEM_READ_WRITE,
-                                        sett->N * sizeof(real_t),
-                                        NULL,
-                                        &CL_err);
-    checkErr(CL_err, "clCreateBuffer(aux_arr->cosmodf_d)");
+} // end of init arrays
 
-    aux_arr->sinmodf_d = clCreateBuffer(cl_handles->ctx,
-                                        CL_MEM_READ_WRITE,
-                                        sett->N * sizeof(real_t),
-                                        NULL,
-                                        &CL_err);
-    checkErr(CL_err, "clCreateBuffer(aux_arr->sinmodf_d)");
+void init_fft_arrays(Search_settings* sett,
+                     OpenCL_handles* cl_handles,
+                     FFT_arrays* fft_arr)
+{
+  fft_arr->arr_len =
+    (sett->fftpad*sett->nfft > sett->Ninterp ?
+      sett->fftpad*sett->nfft :
+      sett->Ninterp);
 
-    aux_arr->tshift_d = clCreateBuffer(cl_handles->ctx,
-                                       CL_MEM_READ_WRITE,
-                                       sett->N * sizeof(real_t),
+  fft_arr->xa_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
+  fft_arr->xb_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
+
+  for (cl_uint i = 0; i < sett->nifo; i++)
+  {
+    cl_int CL_err = CL_SUCCESS;
+    fft_arr->xa_d[i] = clCreateBuffer(cl_handles->ctx,
+                                      CL_MEM_READ_WRITE,
+                                      fft_arr->arr_len * sizeof(complex_t),
+                                      NULL,
+                                      &CL_err);
+    checkErr(CL_err, "clCreateBuffer(fft_arr->xa_d)");
+
+    fft_arr->xb_d[i] = clCreateBuffer(cl_handles->ctx,
+                                      CL_MEM_READ_WRITE,
+                                      fft_arr->arr_len * sizeof(complex_t),
+                                      NULL,
+                                      &CL_err);
+    checkErr(CL_err, "clCreateBuffer(fft_arr->xb_d)");
+  }
+}
+
+void init_aux_arrays(Search_settings* sett,
+                     OpenCL_handles* cl_handles,
+                     Aux_arrays* aux_arr)
+{
+	cl_int CL_err = CL_SUCCESS;
+
+  // Auxiliary arrays, Earth's rotation
+  aux_arr->t2_d = clCreateBuffer(cl_handles->ctx,
+                                 CL_MEM_READ_WRITE,
+                                 sett->N * sizeof(real_t),
+                                 NULL,
+                                 &CL_err);
+  checkErr(CL_err, "clCreateBuffer(aux_arr->t2_d)");
+
+  aux_arr->cosmodf_d = clCreateBuffer(cl_handles->ctx,
+                                      CL_MEM_READ_WRITE,
+                                      sett->N * sizeof(real_t),
+                                      NULL,
+                                      &CL_err);
+  checkErr(CL_err, "clCreateBuffer(aux_arr->cosmodf_d)");
+
+  aux_arr->sinmodf_d = clCreateBuffer(cl_handles->ctx,
+                                      CL_MEM_READ_WRITE,
+                                      sett->N * sizeof(real_t),
+                                      NULL,
+                                      &CL_err);
+  checkErr(CL_err, "clCreateBuffer(aux_arr->sinmodf_d)");
+
+  aux_arr->tshift_d = clCreateBuffer(cl_handles->ctx,
+                                     CL_MEM_READ_WRITE,
+                                     sett->N * sizeof(real_t),
+                                     NULL,
+                                     &CL_err);
+  checkErr(CL_err, "clCreateBuffer(aux_arr->tshift_d)");
+
+  aux_arr->ifo_amod_d = clCreateBuffer(cl_handles->ctx,
+                                       CL_MEM_READ_ONLY,
+                                       sett->nifo * sizeof(Ampl_mod_coeff),
                                        NULL,
                                        &CL_err);
-    checkErr(CL_err, "clCreateBuffer(aux_arr->tshift_d)");
+  checkErr(CL_err, "clCreateBuffer(aux_arr->ifo_amod_d)");
 
-    aux_arr->ifo_amod_d = clCreateBuffer(cl_handles->ctx,
-                                         CL_MEM_READ_ONLY,
-                                         sett->nifo * sizeof(Ampl_mod_coeff),
-                                         NULL,
-                                         &CL_err);
-    checkErr(CL_err, "clCreateBuffer(aux_arr->ifo_amod_d)");
-
-	aux_arr->aadot_d = clCreateBuffer(cl_handles->ctx,
-		                              CL_MEM_READ_ONLY,
-		                              sett->nifo * sizeof(real_t),
-		                              NULL,
-		                              &CL_err);
-	checkErr(CL_err, "clCreateBuffer(aux_arr->aadot_d)");
-
-	aux_arr->bbdot_d = clCreateBuffer(cl_handles->ctx,
-		                              CL_MEM_READ_ONLY,
-		                              sett->nifo * sizeof(real_t),
-		                              NULL,
-		                              &CL_err);
-	checkErr(CL_err, "clCreateBuffer(aux_arr->bbdot_d)");
-
-	aux_arr->aadots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
-	aux_arr->bbdots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
-	for (i = 0; i<sett->nifo; i++)
-	{
-		cl_buffer_region region = {
-			(i - 1) * sizeof(real_t), // offset (in bytes)
-			sizeof(real_t)            // size (in bytes)
-		};
-
-		aux_arr->aadots_d[i] = clCreateSubBuffer(aux_arr->aadot_d,
-			                                     CL_MEM_READ_ONLY,
-			                                     CL_BUFFER_CREATE_TYPE_REGION,
-			                                     &region,
-			                                     &CL_err);
-		checkErr(CL_err, "clCreateBuffer(aux_arr->aadots_d)");
-
-		aux_arr->bbdots_d[i] = clCreateSubBuffer(aux_arr->bbdot_d,
-			                                     CL_MEM_READ_ONLY,
-			                                     CL_BUFFER_CREATE_TYPE_REGION,
-			                                     &region,
-			                                     &CL_err);
-		checkErr(CL_err, "clCreateBuffer(aux_arr->bbdots_d)");
-	}
-
-    aux_arr->maa_d = clCreateBuffer(cl_handles->ctx,
+  aux_arr->aadot_d = clCreateBuffer(cl_handles->ctx,
                                     CL_MEM_READ_ONLY,
-                                    sizeof(real_t),
+                                    sett->nifo * sizeof(real_t),
                                     NULL,
                                     &CL_err);
-    checkErr(CL_err, "clCreateBuffer(aux_arr->maa_d)");
+  checkErr(CL_err, "clCreateBuffer(aux_arr->aadot_d)");
 
-    aux_arr->mbb_d = clCreateBuffer(cl_handles->ctx,
+  aux_arr->bbdot_d = clCreateBuffer(cl_handles->ctx,
                                     CL_MEM_READ_ONLY,
-                                    sizeof(real_t),
+                                    sett->nifo * sizeof(real_t),
                                     NULL,
                                     &CL_err);
-    checkErr(CL_err, "clCreateBuffer(aux_arr->mbb_d)");
+  checkErr(CL_err, "clCreateBuffer(aux_arr->bbdot_d)");
 
-    init_spline_matrices(cl_handles,
-                         &aux_arr->diag_d,
-                         &aux_arr->ldiag_d,
-                         &aux_arr->udiag_d,
-                         &aux_arr->B_d,
-                         sett->Ninterp);
+  aux_arr->aadots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
+  aux_arr->bbdots_d = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
 
-    CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 0, sizeof(cl_mem), &aux_arr->sinmodf_d);
-    checkErr(CL_err, "clSetKernelArg(0)");
-    CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 1, sizeof(cl_mem), &aux_arr->cosmodf_d);
-    checkErr(CL_err, "clSetKernelArg(1)");
-    CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 2, sizeof(real_t), &sett->omr);
-    checkErr(CL_err, "clSetKernelArg(2)");
-    CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 3, sizeof(cl_int), &sett->N);
-    checkErr(CL_err, "clSetKernelArg(3)");
+  for (cl_uint i = 0; i<sett->nifo; i++)
+  {
+    cl_buffer_region region = {
+      (i - 1) * sizeof(real_t), // offset (in bytes)
+      sizeof(real_t)            // size (in bytes)
+    };
 
-    cl_event exec;
-    size_t size_N = (size_t)sett->N; // Variable so pointer can be given to API
+    aux_arr->aadots_d[i] = clCreateSubBuffer(aux_arr->aadot_d,
+                                             CL_MEM_READ_ONLY,
+                                             CL_BUFFER_CREATE_TYPE_REGION,
+                                             &region,
+                                             &CL_err);
+    checkErr(CL_err, "clCreateBuffer(aux_arr->aadots_d)");
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0],
-                                    cl_handles->kernels[ComputeSinCosModF],
-                                    1,
-                                    NULL,
-                                    &size_N,
-                                    NULL,
-                                    0,
-                                    NULL,
-                                    &exec);
-    checkErr(CL_err, "clEnqueueNDRangeKernel(ComputeSinCosModF)");
+    aux_arr->bbdots_d[i] = clCreateSubBuffer(aux_arr->bbdot_d,
+                                             CL_MEM_READ_ONLY,
+                                             CL_BUFFER_CREATE_TYPE_REGION,
+                                             &region,
+                                             &CL_err);
+    checkErr(CL_err, "clCreateBuffer(aux_arr->bbdots_d)");
+  }
 
-    CL_err = clWaitForEvents(1, &exec);
-    checkErr(CL_err, "clWaitForEvents(exec)");
+  aux_arr->maa_d = clCreateBuffer(cl_handles->ctx,
+                                  CL_MEM_READ_ONLY,
+                                  sizeof(real_t),
+                                  NULL,
+                                  &CL_err);
+  checkErr(CL_err, "clCreateBuffer(aux_arr->maa_d)");
 
-    // OpenCL cleanup
-    clReleaseEvent(exec);
+  aux_arr->mbb_d = clCreateBuffer(cl_handles->ctx,
+                                  CL_MEM_READ_ONLY,
+                                  sizeof(real_t),
+                                  NULL,
+                                  &CL_err);
+  checkErr(CL_err, "clCreateBuffer(aux_arr->mbb_d)");
 
-} // end of init arrays 
+  init_spline_matrices(cl_handles,
+                       &aux_arr->diag_d,
+                       &aux_arr->ldiag_d,
+                       &aux_arr->udiag_d,
+                       &aux_arr->B_d,
+                       sett->Ninterp);
+
+  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 0, sizeof(cl_mem), &aux_arr->sinmodf_d);
+  checkErr(CL_err, "clSetKernelArg(0)");
+  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 1, sizeof(cl_mem), &aux_arr->cosmodf_d);
+  checkErr(CL_err, "clSetKernelArg(1)");
+  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 2, sizeof(real_t), &sett->omr);
+  checkErr(CL_err, "clSetKernelArg(2)");
+  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 3, sizeof(cl_int), &sett->N);
+  checkErr(CL_err, "clSetKernelArg(3)");
+
+  cl_event exec;
+  size_t size_N = (size_t)sett->N; // Variable so pointer can be given to API
+
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0],
+                                  cl_handles->kernels[ComputeSinCosModF],
+                                  1,
+                                  NULL,
+                                  &size_N,
+                                  NULL,
+                                  0,
+                                  NULL,
+                                  &exec);
+  checkErr(CL_err, "clEnqueueNDRangeKernel(ComputeSinCosModF)");
+
+  CL_err = clWaitForEvents(1, &exec);
+  checkErr(CL_err, "clWaitForEvents(exec)");
+
+  // OpenCL cleanup
+  clReleaseEvent(exec);
+}
 
 void set_search_range(Search_settings *sett,
                       Command_line_opts *opts,
@@ -1106,40 +1146,24 @@ void init_blas(Search_settings* sett,
                OpenCL_handles* cl_handles,
                BLAS_handles* blas_handles)
 {
-    clblasStatus BLAS_err = clblasSetup();
-	checkErrBLAS(BLAS_err, "clblasSetup()");
+    clblasStatus status = clblasSetup();
+	checkErrBLAS(status, "clblasSetup()");
 
-	cl_int CL_err;
-	blas_handles->aaScratch_d = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sett->N * sizeof(real_t), NULL, &CL_err); checkErr(CL_err, "clCreateBuffer(blas_handles->aaScratch_d)");
-	blas_handles->bbScratch_d = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sett->N * sizeof(real_t), NULL, &CL_err); checkErr(CL_err, "clCreateBuffer(blas_handles->bbScratch_d)");
+	blas_handles->aaScratch_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
+	blas_handles->bbScratch_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
+
+	for (cl_uint i = 0; i < cl_handles->dev_count; ++i)
+	{
+		cl_int CL_err = CL_SUCCESS;
+		blas_handles->aaScratch_d[i] = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sett->N * sizeof(real_t), NULL, &CL_err); checkErr(CL_err, "clCreateBuffer(blas_handles->aaScratch_d)");
+		blas_handles->bbScratch_d[i] = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sett->N * sizeof(real_t), NULL, &CL_err); checkErr(CL_err, "clCreateBuffer(blas_handles->bbScratch_d)");
+	}
 }
 
-void plan_fft(Search_settings* sett,
+void init_fft(Search_settings* sett,
               OpenCL_handles* cl_handles,
-              FFT_plans* plans,
-              FFT_arrays* fft_arr)
+              FFT_plans* plans)
 {
-	fft_arr->arr_len = (sett->fftpad*sett->nfft > sett->Ninterp ?
-                        sett->fftpad*sett->nfft :
-                        sett->Ninterp);
-
-	cl_int CL_err = CL_SUCCESS;
-    fft_arr->xa_d = clCreateBuffer(cl_handles->ctx,
-                                   CL_MEM_READ_WRITE,
-                                   fft_arr->arr_len * sizeof(complex_t),
-                                   NULL,
-                                   &CL_err);
-    checkErr(CL_err, "clCreateBuffer(fft_arr->xa_d)");
-
-    fft_arr->xb_d = clCreateBuffer(cl_handles->ctx,
-                                   CL_MEM_READ_WRITE,
-                                   fft_arr->arr_len * sizeof(complex_t),
-                                   NULL,
-                                   &CL_err);
-    checkErr(CL_err, "clCreateBuffer(fft_arr->xb_d)");
-
-    sett->nfftf = sett->fftpad*sett->nfft;
-
 	size_t nfftf_size = (size_t)sett->nfftf,
            nfft_size = (size_t)sett->nfft,
 		   Ninterp_size = (size_t)sett->Ninterp;
@@ -1271,7 +1295,7 @@ void cleanup(Detector_settings* ifo,
              Aux_arrays *aux,
              cl_mem F_d)
 {
-    for (int i = 0; i<sett->nifo; i++)
+	for (int i = 0; i<sett->nifo; i++)
     {
         free(ifo[i].sig.xDat);
         free(ifo[i].sig.DetSSB);
@@ -1297,14 +1321,143 @@ void cleanup(Detector_settings* ifo,
     free(sett->M);
 
     clfftDestroyPlan(&plans->plan);
-    //clfftDestroyPlan(&plans->pl_int);
-    //clfftDestroyPlan(&plans->pl_inv);
+    clfftDestroyPlan(&plans->pl_int);
+    clfftDestroyPlan(&plans->pl_inv);
 
-    clfftTeardown();
+	clblasTeardown();
 
-} // end of cleanup & memory free 
+} // end of cleanup & memory free
 
+void cleanup_arrays(Detector_settings* ifo,
+                    Search_settings* sett,
+                    OpenCL_handles* cl_handles,
+                    Command_line_opts* opts,
+                    Aux_arrays* aux_arr,
+                    FFT_arrays* fft_arr,
+                    cl_mem* F_d)
+{
+	cleanup_fft_arrays(fft_arr, cl_handles->dev_count);
+}
 
+void cleanup_fft_arrays(FFT_arrays* fft_arr,
+                        cl_uint count)
+{
+	for (cl_uint i = 0; i < count; ++i)
+	{
+		cl_int CL_err = CL_SUCCESS;
+
+		CL_err = clReleaseMemObject(fft_arr->xa_d[i]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xa_d[i])");
+		CL_err = clReleaseMemObject(fft_arr->xb_d[i]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xb_d[i])");
+	}
+
+	free(fft_arr->xa_d);
+	free(fft_arr->xb_d);
+}
+
+void cleanup_opencl(OpenCL_handles* cl_handles)
+{
+	cleanup_kernels(cl_handles->kernels, cl_handles->dev_count);
+
+	cleanup_program(cl_handles->prog);
+
+	cleanup_command_queue_set(cl_handles->read_queues, cl_handles->dev_count);
+	cleanup_command_queue_set(cl_handles->exec_queues, cl_handles->dev_count);
+	cleanup_command_queue_set(cl_handles->write_queues, cl_handles->dev_count);
+
+	cleanup_context(cl_handles->ctx);
+
+	cleanup_devices(cl_handles->devs, cl_handles->dev_count);
+}
+
+void cleanup_devices(cl_device_id* devices,
+                     cl_uint count)
+{
+	for (cl_uint i = 0; i < count; ++i)
+	{
+		cl_int CL_err = clReleaseDevice(devices[i]);
+		checkErr(CL_err, "clReleaseDevice(devices[i])");
+	}
+
+	free(devices);
+}
+
+void cleanup_context(cl_context ctx)
+{
+	cl_int CL_err = CL_SUCCESS;
+
+	CL_err = clReleaseContext(ctx);
+	checkErr(CL_err, "clReleaseContext(ctx)");
+}
+
+void cleanup_command_queue_set(cl_command_queue** queues,
+                               size_t count)
+{
+	for (cl_uint i = 0; i < count; ++i)
+	{
+		for (cl_uint j = 0; j < MAX_DETECTORS; ++j)
+		{
+			cl_int CL_err = clReleaseCommandQueue(queues[i][j]);
+			checkErr(CL_err, "clReleaseCommandQueue(queues[i][j])");
+		}
+
+		free(queues[i]);
+	}
+
+	free(queues);
+}
+
+void cleanup_program(cl_program prog)
+{
+	cl_int CL_err = clReleaseProgram(prog);
+	checkErr(CL_err, "clReleaseProgram(prog);");
+}
+
+void cleanup_kernels(cl_kernel** kernels,
+                     cl_uint count)
+{
+	cl_uint kernel_count = 11;
+
+	for (cl_uint i = 0; i < count; ++i)
+	{
+		for (cl_uint j = 0; j < kernel_count; ++j)
+		{
+			cl_int CL_err = clReleaseKernel(kernels[i][j]);
+			checkErr(CL_err, "clReleaseKernel(kernels[i][j])");
+		}
+
+		free(kernels[i]);
+	}
+
+	free(kernels);
+}
+
+void cleanup_blas(Search_settings* sett,
+	              OpenCL_handles* cl_handles,
+	              BLAS_handles* blas_handles)
+{
+	for (cl_uint i = 0; i < cl_handles->dev_count; ++i)
+	{
+		cl_int CL_err = CL_SUCCESS;
+		CL_err = clReleaseMemObject(blas_handles->aaScratch_d[i]); checkErr(CL_err, "clReleaseMemObject(blas_handles->aaScratch_d)");
+		CL_err = clReleaseMemObject(blas_handles->bbScratch_d[i]); checkErr(CL_err, "clReleaseMemObject(blas_handles->bbScratch_d)");
+	}
+
+	clblasTeardown();
+}
+
+void cleanup_fft(Search_settings* sett,
+	             OpenCL_handles* cl_handles,
+	             FFT_plans* plans,
+	             FFT_arrays* fft_arr)
+{
+	clfftStatus status = CLFFT_SUCCESS;
+
+	status = clfftDestroyPlan(plans->plan);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
+	status = clfftDestroyPlan(plans->pl_int); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
+	status = clfftDestroyPlan(plans->pl_inv); checkErrFFT(status, "clfftDestroyPlan(plans->pl_inv)");
+
+	clfftTeardown();
+}
 
 // Command line options handling: coincidences //
 
@@ -1572,60 +1725,3 @@ void manage_grid_matrix(
 } // end of manage grid matrix  
 
 #endif
-
-/*---------------------------------------------------------------------------*/
-
-/*
-  Initialize CUDA: cuinit
-  - sets cuda device to (in priority order): cdev, 0 
-  - returns: device id or -1 on error
-*/
-int cuinit(int cdev)
-{
-  //int dev, deviceCount = 0;
-  //cudaDeviceProp deviceProp;
-  
-//  if (cudaGetDeviceCount(&deviceCount) != cudaSuccess) {
-//    printf("ERROR: cudaGetDeviceCount FAILED CUDA Driver and Runtime version may be mismatched.\n");
-//    return(-1);
-//  }
-//  if (deviceCount == 0) {
-//    printf("ERROR: There is no device supporting CUDA\n");
-//    return(-1);
-//  }
-//  if (cdev < 0 && cdev >= deviceCount) {
-//    printf("\nWARNING: Device %d is not available! Trying device 0\n", cdev);
-//    cdev = 0;
-//  }
-//
-//  printf("__________________________________CUDA devices___________________________________\n");
-//  printf("Set | ID |        Name        |   Gmem(B)   | Smem(B) | Cmem(B) | C.Cap. | Thr/bl |\n");
-//  
-//  for (dev = 0; dev < deviceCount; ++dev) {
-//    cudaGetDeviceProperties(&deviceProp, dev);
-//    if (deviceProp.major == 9999 && deviceProp.minor == 9999) {
-//      printf("- | %1d | %16s | Error | Error | Error | Error | Error |\n", dev, deviceProp.name );
-//      if ( dev==cdev ) {
-//	printf("ERROR: Can't set device %d\n", cdev);
-//	return(-1);
-//      }
-//    }
-//    if (dev==cdev) {
-//      printf(" *  |");
-//      cudaSetDevice(cdev);
-//    } else {
-//      printf("    |");
-//    }
-//    printf(" %1d  | %18.18s | %11Zu | %7Zu | %7Zu |   %d.%d  | %6d |\n", 
-//	   dev, deviceProp.name, deviceProp.totalGlobalMem, deviceProp.sharedMemPerBlock, 
-//	   deviceProp.totalConstMem, deviceProp.major, deviceProp.minor, deviceProp.maxThreadsPerBlock );
-//  }
-//  printf("---------------------------------------------------------------------------------\n");
-//  
-//  /* enable mapped memory */
-//  cudaSetDeviceFlags(cudaDeviceMapHost);
-//
-//  /* force initialization */
-//  cudaThreadSynchronize();
-  return(cdev);
-}

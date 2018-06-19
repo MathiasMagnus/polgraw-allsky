@@ -117,6 +117,9 @@ void search_settings(Search_settings* sett)
     // initial value of number of known instrumental lines in band 
     sett->numlines_band = 0;
 
+	sett->Ninterp = sett->interpftpad*sett->nfft;
+	sett->nfftf = sett->fftpad*sett->nfft;
+
 } // search settings
 
 #define buf_size 512

@@ -14,7 +14,10 @@ void handle_opts(Search_settings* sett,
 		         char* argv[]);
 
 /// <summary>Initialize OpenCL devices based on user preference.</summary>
-/// <remarks>Currently, only a sinle platform can be selected.</remarks>
+/// <remarks>Currently, only a single platform can be selected. At some point,
+///          multi-platform may be implemented. This is mighty useful for
+///          Intel CPU+IGP & Nvidia/AMD dGPU setups, primarily notebooks.
+///          In non-mobile form factors dGPU significantly outweights CPU+IGP.</remarks>
 ///
 void init_opencl(OpenCL_handles* cl_handles,
                  OpenCL_settings* cl_sett);
@@ -73,8 +76,21 @@ void init_arrays(Detector_settings* ifo,
                  Search_settings* sett,
                  OpenCL_handles* cl_handles,
 		         Command_line_opts* opts, 
-		         Aux_arrays* aux_arr, 
+		         Aux_arrays* aux_arr,
+                 FFT_arrays* fft_arr,
 		         cl_mem* F_d);
+
+/// <summary>Initialize FFT arrays.</summary>
+///
+void init_fft_arrays(Search_settings* sett,
+                     OpenCL_handles* cl_handles,
+                     FFT_arrays* fft_arr);
+
+/// <summary>Initialize auxiliary arrays.</summary>
+///
+void init_aux_arrays(Search_settings* sett,
+                     OpenCL_handles* cl_handles,
+	                 Aux_arrays* aux_arr);
 
 void add_signal(
 		Search_settings *sett,
@@ -96,10 +112,9 @@ void init_blas(Search_settings* sett,
 
 /// <summary>Sets up FFT plans.</summary>
 ///
-void plan_fft(Search_settings* sett,
+void init_fft(Search_settings* sett,
               OpenCL_handles* cl_handles,
-	          FFT_plans* plans, 
-	          FFT_arrays* fft_arr);
+	          FFT_plans* plans);
 
 /// <summary>Initialize the OpenMP runtime</summary>
 ///
@@ -109,7 +124,7 @@ void read_checkpoints(Command_line_opts *opts,
 		              Search_range *s_range,
 		              int *Fnum);
 
-/// <summary>Frees all resources for termination.</summary>
+/// <summary>Release and free all resources in reverse order for termination.</summary>
 ///
 void cleanup(Detector_settings* ifo,
              Search_settings *sett,
@@ -121,6 +136,61 @@ void cleanup(Detector_settings* ifo,
 	         FFT_arrays *fft_arr,
 	         Aux_arrays *aux,
 	         cl_mem F_d);
+
+/// <summary>Cleanup auxiliary and F-statistics arrays.</summary>
+///
+void cleanup_arrays(Detector_settings* ifo,
+                    Search_settings* sett,
+                    OpenCL_handles* cl_handles,
+                    Command_line_opts* opts,
+                    Aux_arrays* aux_arr,
+                    FFT_arrays* fft_arr,
+                    cl_mem* F_d);
+
+/// <summary>Release and free FFT arrays.</summary>
+///
+void cleanup_fft_arrays(FFT_arrays* fft_arr,
+	                    cl_uint count);
+
+/// <summary>Frees OpenCL resources.</summary>
+///
+void cleanup_opencl(OpenCL_handles* cl_handles);
+
+/// <summary>Release and free OpenCL devices.</summary>
+///
+void cleanup_devices(cl_device_id* devices,
+	                 cl_uint count);
+
+/// <summary>Release OpenCL context.</summary>
+///
+void cleanup_context(cl_context ctx);
+
+/// <summary>Releases and frees a set of command queues.</summary>
+///
+void cleanup_command_queue_set(cl_command_queue** queues,
+	                           size_t count);
+
+/// <summary>Release program.</summary>
+///
+void cleanup_program(cl_program prog);
+
+/// <summary>Releases and frees all kernels.</summary>
+///
+void cleanup_kernels(cl_kernel** kernels,
+	                cl_uint count);
+
+/// <summary>Cleanup BLAS internal states.</summary>
+///
+void cleanup_blas(Search_settings* sett,
+	              OpenCL_handles* cl_handles,
+	              BLAS_handles* blas_handles);
+
+/// <summary>Cleanup FFT plans.</summary>
+///
+void cleanup_fft(Search_settings* sett,
+	             OpenCL_handles* cl_handles,
+	             FFT_plans* plans,
+	             FFT_arrays* fft_arr);
 
 // Coincidences specific functions 
 void handle_opts_coinc(
@@ -137,7 +207,5 @@ void convert_to_linear(
 		       Search_settings *sett,
 		       Command_line_opts_coinc *opts, 
 		       Candidate_triggers *trig);
-
-int cuinit(int cdev);
 
 #endif // __INIT_H__
