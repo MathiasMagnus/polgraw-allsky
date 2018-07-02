@@ -312,40 +312,19 @@ real_t* job_core(const int pm,                  // hemisphere
            cl_handles, sett->nifo, blas_dot_events, // sync
 	       mxx_fill_events, axpy_events);           // sync
 
-    // Spindown loop //
+    
+	int smin, smax;
+	spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
+                   s_range, opts,						    // input
+                   &smin, &smax);						    // output
 
-#if TIMERS>2
-    struct timespec tstart, tend;
-    double spindown_timer = 0;
-    int spindown_counter = 0;
-#endif
+	printf("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
 
-    // Check if the signal is added to the data 
-    // or the range file is given:  
-    // if not, proceed with the wide range of spindowns 
-    // if yes, use smin = s_range->sst, smax = s_range->spndr[1]
-    int smin = s_range->sst, smax = s_range->spndr[1];
-    if (!strcmp(opts->addsig, "") && !strcmp(opts->range, "")) {
-
-        // Spindown range defined using Smin and Smax (settings.c)  
-        smin = (int)trunc((sett->Smin - nn*sett->M[9] - mm*sett->M[13]) / sett->M[5]);  // Cast is intentional and safe (silences warning).
-        smax = (int)trunc(-(nn*sett->M[9] + mm*sett->M[13] + sett->Smax) / sett->M[5]); // Cast is intentional and safe (silences warning).
-    }
-
-    printf("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
-
-    // No-spindown calculations
-    if (opts->s0_flag) smin = smax;
-
-    // if spindown parameter is taken into account, smin != smax
-    int ss;
-    for (ss = smin; ss <= smax; ++ss)
+	// Spindown loop
+	//
+	// if spindown parameter is taken into account, smin != smax
+    for (int ss = smin; ss <= smax; ++ss)
     {
-
-#if TIMERS>2
-        tstart = get_current_time();
-#endif 
-
         // Spindown parameter
         sgnlt[1] = ss*sett->M[5] + nn*sett->M[9] + mm*sett->M[13];
 
@@ -922,6 +901,32 @@ void calc_mxx(const cl_uint nifo,
 		status[1] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, bbdot_d, i, 1, mbb_d, 0, 1, 1, cl_handles->exec_queues, 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[0], "clblasDaxpy()");
 #endif // COMP_FLOAT
 	}
+}
+
+void spindown_range(const int mm,                  // grid 'sky position'
+                    const int nn,                  // other grid 'sky position'
+                    const real_t Smin,
+                    const real_t Smax,
+                    const double* M,               // M matrix from grid point to linear coord
+                    const Search_range* s_range,
+                    const Command_line_opts *opts,
+	                int* smin,
+	                int* smax)
+{
+	// Check if the signal is added to the data 
+	// or the range file is given:  
+	// if not, proceed with the wide range of spindowns 
+	// if yes, use smin = s_range->sst, smax = s_range->spndr[1]
+	*smin = s_range->sst, *smax = s_range->spndr[1];
+	if (!strcmp(opts->addsig, "") && !strcmp(opts->range, "")) {
+
+		// Spindown range defined using Smin and Smax (settings.c)  
+		*smin = (int)trunc((Smin - nn * M[9] - mm * M[13]) / M[5]);  // Cast is intentional and safe (silences warning).
+		*smax = (int)trunc(-(nn * M[9] + mm * M[13] + Smax) / M[5]); // Cast is intentional and safe (silences warning).
+	}
+
+	// No-spindown calculations
+	if (opts->s0_flag) *smin = *smax;
 }
 
 /// <summary>The purpose of this function was undocumented.</summary>

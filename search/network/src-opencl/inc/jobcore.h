@@ -202,6 +202,18 @@ void calc_mxx(const cl_uint nifo,
 	          cl_event* mxx_fill_events,
 	          cl_event* axpy_events);
 
+/// <summary>Calculates spindown values to process.</summary>
+///
+void spindown_range(const int mm,                  // grid 'sky position'
+                    const int nn,                  // other grid 'sky position'
+                    const real_t Smin,
+                    const real_t Smax,
+                    const double* M,               // M matrix from grid point to linear coord
+                    const Search_range* s_range,
+                    const Command_line_opts *opts,
+                    int* smin,
+                    int* smax);
+
 /// <summary>The purpose of this function was undocumented.</summary>
 ///
 void phase_mod_1_gpu(cl_mem xa,
