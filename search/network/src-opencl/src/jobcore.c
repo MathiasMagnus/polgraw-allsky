@@ -237,7 +237,8 @@ real_t* job_core(const int pm,                  // hemisphere
 	       **spline_blas_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
 	       **blas_dot_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
            *mxx_fill_events = (cl_event*)malloc(2 * sizeof(cl_event)),
-	       *axpy_events = (cl_event*)malloc(sett->nifo * 2 * sizeof(cl_event));
+	       *axpy_events = (cl_event*)malloc(sett->nifo * 2 * sizeof(cl_event)),
+	       *phase_mod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event));
   for (int n = 0; n < sett->nifo; ++n)
   {
 	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
@@ -313,77 +314,48 @@ real_t* job_core(const int pm,                  // hemisphere
 	       mxx_fill_events, axpy_events);           // sync
 
     
-	int smin, smax;
-	spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
-                   s_range, opts,						    // input
-                   &smin, &smax);						    // output
+  int smin, smax;
+  spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
+                 s_range, opts,                           // input
+                 &smin, &smax);                           // output
 
-	printf("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
+  printf("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
 
-	// Spindown loop
-	//
-	// if spindown parameter is taken into account, smin != smax
-    for (int ss = smin; ss <= smax; ++ss)
-    {
-        // Spindown parameter
-        sgnlt[1] = ss*sett->M[5] + nn*sett->M[9] + mm*sett->M[13];
-
-        //    // Spindown range
-        //    if(sgnlt[1] >= -sett->Smax && sgnlt[1] <= sett->Smax) { 
-
-        int ii;
-        real_t Fc, het1;
-
+  // Spindown loop
+  //
+  // if spindown parameter is taken into account, smin != smax
+  for (int ss = smin; ss <= smax; ++ss)
+  {
 #ifdef VERBOSE
-        //print a 'dot' every new spindown
-        printf("."); fflush(stdout);
+    //print a 'dot' every new spindown
+    printf("."); fflush(stdout);
 #endif 
+    
+	// Spindown parameter
+    sgnlt[1] = ss*sett->M[5] + nn*sett->M[9] + mm*sett->M[13];
 
-        het1 = fmod(ss*sett->M[4], sett->M[0]);
-        if (het1<0) het1 += sett->M[0];
+	real_t het1 = fmod(ss*sett->M[4], sett->M[0]);
 
-        sgnl0 = het0 + het1;
-        // printf("%d  %d\n", BLOCK_SIZE, (sett->N + BLOCK_SIZE - 1)/BLOCK_SIZE );
+    if (het1<0) het1 += sett->M[0];
+	
+	sgnl0 = het0 + het1; // are we reusing memory here? What does 'sgnl0' mean?
 
-        phase_mod_1_gpu(fft_arr->xa_d,
-                        fft_arr->xb_d,
-                        ifo[0].sig.xDatma_d,
-                        ifo[0].sig.xDatmb_d,
-                        het1,
-                        sgnlt[1],
-                        ifo[0].sig.shft_d,
-                        sett->N,
-                        cl_handles);
-#ifdef TESTING
-        save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[0].sig.shft_d, sett->N, 0, "pre_fft_phasemod_ifo_sig_shft");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[0].sig.xDatma_d, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatma");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[0].sig.xDatmb_d, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatmb");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->N, 0, "pre_fft_phasemod_xa");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->N, 0, "pre_fft_phasemod_xb");
-#endif
+	// spline_interpolate_cpu is the last operation we should wait on for args to be ready
+	phase_mod_events[0] = 
+      phase_mod_1_gpu(0, id, sett->N, het1, sgnlt[1],                                  // input
+                      ifo[0].sig.xDatma_d, ifo[0].sig.xDatmb_d, ifo[0].sig.shft_d[id], // input
+                      fft_arr->xa_d[0][id], fft_arr->xb_d[0][id],                      // output
+                      cl_handles, 5, spline_unmap_events[0]);                          // sync
 
-        for (int n = 1; n<sett->nifo; ++n)
-        {
-            phase_mod_2_gpu(fft_arr->xa_d,
-                            fft_arr->xb_d,
-                            ifo[n].sig.xDatma_d,
-                            ifo[n].sig.xDatmb_d,
-                            het1,
-                            sgnlt[1],
-                            ifo[n].sig.shft_d,
-                            sett->N,
-                            cl_handles);
-#ifdef TESTING
-            save_numbered_real_buffer(cl_handles->exec_queues[0], ifo[n].sig.shft_d, sett->N, n, "pre_fft_phasemod_ifo_sig_shft");
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatma");
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatmb");
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->N, n, "pre_fft_phasemod_xa");
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->N, n, "pre_fft_phasemod_xb");
-#endif
-        }
+    for (int n = 1; n<sett->nifo; ++n)
+    {
+      phase_mod_events[n] =
+        phase_mod_2_gpu(0, id, sett->N, het1, sgnlt[1],                                  // input
+                        ifo[n].sig.xDatma_d, ifo[n].sig.xDatmb_d, ifo[n].sig.shft_d[id], // input
+                        fft_arr->xa_d[n][id], fft_arr->xb_d[n][id],                      // output
+                        cl_handles, 1, phase_mod_events[n - 1]);                         // sync
+    }
 
-        // initialize arrays to 0. with integer 0
-        // assuming double , remember to change when switching to float
         {
             cl_int CL_err = CL_SUCCESS;
 #ifdef _WIN32
@@ -468,10 +440,13 @@ real_t* job_core(const int pm,                  // hemisphere
         //exit(EXIT_SUCCESS);
         */
 
-        for (int i = sett->nmin; i<sett->nmax; i++) {
-            if ((Fc = F[i]) > opts->trl) { // if F-stat exceeds trl (critical value)
+        for (int i = sett->nmin; i<sett->nmax; i++)
+		{
+			real_t Fc = F[i];
+
+            if (Fc > opts->trl) { // if F-stat exceeds trl (critical value)
                                            // Find local maximum for neighboring signals 
-                ii = i;
+                int ii = i;
 
                 while (++i < sett->nmax && F[i] > opts->trl) {
                     if (F[i] >= Fc) {
@@ -929,72 +904,92 @@ void spindown_range(const int mm,                  // grid 'sky position'
 	if (opts->s0_flag) *smin = *smax;
 }
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
-void phase_mod_1_gpu(cl_mem xa,
-                     cl_mem xb,
-                     cl_mem xar,
-                     cl_mem xbr,
-                     real_t het1,
-                     real_t sgnlt1,
-                     cl_mem shft,
-                     cl_int N,
-                     OpenCL_handles* cl_handles)
+cl_event phase_mod_1_gpu(const cl_int idet,
+                         const cl_int id,
+                         const cl_int N,
+                         const real_t het1,
+                         const real_t sgnlt1,
+                         const cl_mem xar,
+                         const cl_mem xbr,
+                         const cl_mem shft,
+                         cl_mem xa,
+                         cl_mem xb,
+                         OpenCL_handles* cl_handles,
+                         const cl_uint num_events_in_wait_list,
+                         const cl_event* event_wait_list)
 {
-    cl_int CL_err = CL_SUCCESS;
+  cl_int CL_err = CL_SUCCESS;
 
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 0, sizeof(cl_mem), &xa);
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 1, sizeof(cl_mem), &xb);
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 2, sizeof(cl_mem), &xar);
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 3, sizeof(cl_mem), &xbr);
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 4, sizeof(real_t), &het1);
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 5, sizeof(real_t), &sgnlt1);
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 6, sizeof(cl_mem), &shft);
-    clSetKernelArg(cl_handles->kernels[PhaseMod1], 7, sizeof(cl_int), &N);
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 0, sizeof(cl_mem), &xa);	  checkErr(CL_err, "clSetKernelArg(&xa)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 1, sizeof(cl_mem), &xb);	  checkErr(CL_err, "clSetKernelArg(&xb)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 2, sizeof(cl_mem), &xar);	  checkErr(CL_err, "clSetKernelArg(&xar)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 3, sizeof(cl_mem), &xbr);	  checkErr(CL_err, "clSetKernelArg(&xbr)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 4, sizeof(real_t), &het1);	  checkErr(CL_err, "clSetKernelArg(&het1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 5, sizeof(real_t), &sgnlt1); checkErr(CL_err, "clSetKernelArg(&sgnlt1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 6, sizeof(cl_mem), &shft);	  checkErr(CL_err, "clSetKernelArg(&shft)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 7, sizeof(cl_int), &N);      checkErr(CL_err, "clSetKernelArg(&N)");
 
-    cl_event exec;
-    size_t size_N = (size_t)N; // Helper variable to make pointer types match. Cast to silence warning
+  cl_event exec;
+  size_t size_N = (size_t)N; // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[PhaseMod1], 1, NULL, &size_N, NULL, 0, NULL, &exec);
-    checkErr(CL_err, "clEnqueueNDRangeKernel(PhaseMod1)");
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[PhaseMod1], 1, NULL, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
+  checkErr(CL_err, "clEnqueueNDRangeKernel(PhaseMod1)");
 
-    clWaitForEvents(1, &exec);
+#ifdef TESTING
+  CL_err = clWaitForEvents(1, &exec); checkErr(CL_err, "clWaitForEvents(PhaseMod1)");
+  
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.shft_d, N, idet, "pre_fft_phasemod_ifo_sig_shft");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatma_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatmb_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, N, idet, "pre_fft_phasemod_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, N, idet, "pre_fft_phasemod_xb");
+#endif
 
-    clReleaseEvent(exec);
+  return exec;
 }
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
-void phase_mod_2_gpu(cl_mem xa,
-                     cl_mem xb,
-                     cl_mem xar,
-                     cl_mem xbr,
-                     real_t het1,
-                     real_t sgnlt1,
-                     cl_mem shft,
-                     cl_int N,
-                     OpenCL_handles* cl_handles)
+cl_event phase_mod_2_gpu(const cl_int idet,
+                         const cl_int id,
+                         const cl_int N,
+                         const real_t het1,
+                         const real_t sgnlt1,
+                         const cl_mem xar,
+                         const cl_mem xbr,
+                         const cl_mem shft,
+                         cl_mem xa,
+                         cl_mem xb,
+                         OpenCL_handles* cl_handles,
+                         const cl_uint num_events_in_wait_list,
+                         const cl_event* event_wait_list)
 {
-    cl_int CL_err = CL_SUCCESS;
+  cl_int CL_err = CL_SUCCESS;
 
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 0, sizeof(cl_mem), &xa);
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 1, sizeof(cl_mem), &xb);
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 2, sizeof(cl_mem), &xar);
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 3, sizeof(cl_mem), &xbr);
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 4, sizeof(real_t), &het1);
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 5, sizeof(real_t), &sgnlt1);
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 6, sizeof(cl_mem), &shft);
-    clSetKernelArg(cl_handles->kernels[PhaseMod2], 7, sizeof(cl_int), &N);
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 0, sizeof(cl_mem), &xa);	  checkErr(CL_err, "clSetKernelArg(&xa)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 1, sizeof(cl_mem), &xb);	  checkErr(CL_err, "clSetKernelArg(&xb)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 2, sizeof(cl_mem), &xar);	  checkErr(CL_err, "clSetKernelArg(&xar)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 3, sizeof(cl_mem), &xbr);	  checkErr(CL_err, "clSetKernelArg(&xbr)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 4, sizeof(real_t), &het1);	  checkErr(CL_err, "clSetKernelArg(&het1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 5, sizeof(real_t), &sgnlt1); checkErr(CL_err, "clSetKernelArg(&sgnlt1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 6, sizeof(cl_mem), &shft);	  checkErr(CL_err, "clSetKernelArg(&shft)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 7, sizeof(cl_int), &N);      checkErr(CL_err, "clSetKernelArg(&N)");
 
-    cl_event exec;
-    size_t size_N = (size_t)N; // Helper variable to make pointer types match. Cast to silence warning
+  cl_event exec;
+  size_t size_N = (size_t)N; // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[PhaseMod2], 1, 0, &size_N, NULL, 0, NULL, &exec);
-    checkErr(CL_err, "clEnqueueNDRangeKernel(PhaseMod2)");
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[PhaseMod2], 1, NULL, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
+  checkErr(CL_err, "clEnqueueNDRangeKernel(PhaseMod1)");
 
-    clWaitForEvents(1, &exec);
+#ifdef TESTING
+  CL_err = clWaitForEvents(1, &exec); checkErr(CL_err, "clWaitForEvents(PhaseMod1)");
 
-    clReleaseEvent(exec);
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.shft_d, N, idet, "pre_fft_phasemod_ifo_sig_shft");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatma_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatmb_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, N, idet, "pre_fft_phasemod_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, N, idet, "pre_fft_phasemod_xb");
+#endif
+
+  return exec;
 }
 
 /// <summary>Compute F-statistics.</summary>

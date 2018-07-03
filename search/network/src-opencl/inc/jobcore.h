@@ -215,28 +215,38 @@ void spindown_range(const int mm,                  // grid 'sky position'
                     int* smax);
 
 /// <summary>The purpose of this function was undocumented.</summary>
+/// <todo>Merge phase_mod_1 and phase_mod_2 via zeroing out result arrays initially.</todo>
 ///
-void phase_mod_1_gpu(cl_mem xa,
-                     cl_mem xb,
-                     cl_mem xar,
-                     cl_mem xbr,
-                     real_t het1,
-                     real_t sgnlt1,
-                     cl_mem shft,
-                     cl_int N,
-                     OpenCL_handles* cl_handles);
+cl_event phase_mod_1_gpu(const cl_int idet,
+                         const cl_int id,
+                         const cl_int N,
+                         const real_t het1,
+                         const real_t sgnlt1,
+                         const cl_mem xar,
+                         const cl_mem xbr,
+                         const cl_mem shft,
+                         cl_mem xa,
+                         cl_mem xb,
+                         OpenCL_handles* cl_handles,
+                         const cl_uint num_events_in_wait_list,
+                         const cl_event* event_wait_list);
 
 /// <summary>The purpose of this function was undocumented.</summary>
+/// <todo>Merge phase_mod_1 and phase_mod_2 via zeroing out result arrays initially.</todo>
 ///
-void phase_mod_2_gpu(cl_mem xa,
-                     cl_mem xb,
-                     cl_mem xar,
-                     cl_mem xbr,
-                     real_t het1,
-                     real_t sgnlt1,
-                     cl_mem shft,
-                     cl_int N,
-                     OpenCL_handles* cl_handles);
+cl_event phase_mod_1_gpu(const cl_int idet,
+                         const cl_int id,
+                         const cl_int N,
+                         const real_t het1,
+                         const real_t sgnlt1,
+                         const cl_mem xar,
+                         const cl_mem xbr,
+                         const cl_mem shft,
+                         cl_mem xa,
+                         cl_mem xb,
+                         OpenCL_handles* cl_handles,
+                         const cl_uint num_events_in_wait_list,
+                         const cl_event* event_wait_list);
 
 /// <summary>Compute F-statistics.</summary>
 /// 
