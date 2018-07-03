@@ -263,6 +263,19 @@ void zero_pad(const cl_int idet,
               const cl_event* event_wait_list,
               cl_event* zero_pad_events);
 
+/// <summary>Transform data from time-domain to frequency domain for F-statistics.</summary>
+///
+void time_to_frequency(const cl_int idet,
+                       const cl_int id,
+                       const Search_settings *sett,
+                       const FFT_plans* plans,
+                       cl_mem xa_d,
+                       cl_mem xb_d,
+                       OpenCL_handles* cl_handles,
+                       const cl_uint num_events_in_wait_list,
+                       const cl_event* event_wait_list,
+                       cl_event* fw2_fft_events);
+
 /// <summary>Compute F-statistics.</summary>
 /// 
 void compute_Fstat_gpu(cl_mem xa,

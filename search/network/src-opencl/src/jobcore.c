@@ -239,7 +239,8 @@ real_t* job_core(const int pm,                  // hemisphere
            *mxx_fill_events = (cl_event*)malloc(2 * sizeof(cl_event)),
 	       *axpy_events = (cl_event*)malloc(sett->nifo * 2 * sizeof(cl_event)),
            *phase_mod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
-           *zero_pad_events = (cl_event*)malloc(2 * sizeof(cl_event));
+           *zero_pad_events = (cl_event*)malloc(2 * sizeof(cl_event)),
+	       *fw2_fft_events = (cl_event*)malloc(2 * sizeof(cl_event*));
   for (int n = 0; n < sett->nifo; ++n)
   {
 	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
@@ -363,23 +364,11 @@ real_t* job_core(const int pm,                  // hemisphere
              cl_handles, 1, &phase_mod_events[sett->nifo - 1], // sync
              zero_pad_events);                                 // sync
 
-        // fft length fftpad*nfft
-        {
-            clfftStatus CLFFT_status = CLFFT_SUCCESS;
-            cl_event fft_exec[2];
-            clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[0], &fft_arr->xa_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
-            checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
-            clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues, 0, NULL, &fft_exec[1], &fft_arr->xb_d, NULL, NULL /*May be slow, consider using tmp_buffer*/);
-            checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
+	time_to_frequency(0, id, sett, plans,                         // input
+                      fft_arr->xa_d[0][id], fft_arr->xb_d[0][id], // input / output
+                      cl_handles, 2, zero_pad_events,             // sync
+                      fw2_fft_events);                            // sync
 
-            clWaitForEvents(2, fft_exec);
-        }
-#ifdef TESTING
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->nfftf, 0, "post_fft_phasemod_xa");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->nfftf, 0, "post_fft_phasemod_xb");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->nfftf, 1, "post_fft_phasemod_xa");
-        save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->nfftf, 1, "post_fft_phasemod_xb");
-#endif
         (*FNum)++;
 
         compute_Fstat_gpu(fft_arr->xa_d,
@@ -406,16 +395,6 @@ real_t* job_core(const int pm,                  // hemisphere
         if (!(opts->white_flag))  // if the noise is not white noise
             FStat(F + sett->nmin, sett->nmax - sett->nmin, NAVFSTAT, 0);
 #endif
-
-        /*
-        FILE *f1 = fopen("fstat-gpu.dat", "w");
-        for(i=sett->nmin; i<sett->nmax; i++)
-        fprintf(f1, "%d   %lf\n", i, F[i]);
-
-        fclose(f1);
-        printf("wrote fstat-gpu.dat | ss=%d  \n", ss);
-        //exit(EXIT_SUCCESS);
-        */
 
         for (int i = sett->nmin; i<sett->nmax; i++)
 		{
@@ -453,16 +432,6 @@ real_t* job_core(const int pm,                  // hemisphere
             } // if Fc > trl 
 
         } // for i
-
-
-#if TIMERS>2
-        tend = get_current_time();
-        spindown_timer += get_time_difference(tstart, tend);
-        spindown_counter++;
-#endif
-
-
-        //    } // if sgnlt[1] 
 
     } // for ss 
 
@@ -999,10 +968,37 @@ void zero_pad(const cl_int idet,
 #ifdef TESTING
   clWaitForEvents(2, zero_pad_events);
   // Wasteful
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, sett->Ninterp, 0, "pre_fft_post_zero_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, sett->Ninterp, 0, "pre_fft_post_zero_xb");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, sett->Ninterp, 1, "pre_fft_post_zero_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, sett->Ninterp, 1, "pre_fft_post_zero_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->Ninterp, 0, "pre_fft_post_zero_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->Ninterp, 0, "pre_fft_post_zero_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->Ninterp, 1, "pre_fft_post_zero_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->Ninterp, 1, "pre_fft_post_zero_xb");
+#endif
+}
+
+void time_to_frequency(const cl_int idet,
+                       const cl_int id,
+                       const Search_settings *sett,
+                       const FFT_plans* plans,
+                       cl_mem xa_d,
+                       cl_mem xb_d,
+                       OpenCL_handles* cl_handles,
+                       const cl_uint num_events_in_wait_list,
+                       const cl_event* event_wait_list,
+                       cl_event* fw2_fft_events)
+{
+  clfftStatus CLFFT_status = CLFFT_SUCCESS;
+
+  clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues[id][idet], 0, NULL, &fw2_fft_events[0], &xa_d, NULL, NULL);
+  checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
+  clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, cl_handles->exec_queues[id][idet], 0, NULL, &fw2_fft_events[1], &xb_d, NULL, NULL);
+  checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
+
+#ifdef TESTING
+  clWaitForEvents(2, fw2_fft_events);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->nfftf, 0, "post_fft_phasemod_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 0, "post_fft_phasemod_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->nfftf, 1, "post_fft_phasemod_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 1, "post_fft_phasemod_xb");
 #endif
 }
 
