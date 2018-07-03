@@ -315,10 +315,10 @@ __kernel void compute_Fstat(__global complex_t* xa,
 /// <precondition>lsi less than or equal to ssi</precondition>
 /// <precondition>lsi be an integer power of 2</precondition>
 /// 
-__kernel void fstat_norm_simple(__global real_t* F,
-                                __local real_t* shared,
-                                unsigned int ssi,
-                                unsigned int nav)
+__kernel void normalize_Fstat_wg_reduce(__global real_t* F,
+                                        __local real_t* shared,
+                                        unsigned int ssi,
+                                        unsigned int nav)
 {
     size_t gid = get_global_id(0),
            lid = get_local_id(0),

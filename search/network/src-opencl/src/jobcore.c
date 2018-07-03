@@ -291,7 +291,7 @@ real_t* job_core(const int pm,                  // hemisphere
                       aux->tshift_d[n][id],                                        // output
                       cl_handles, 1, &modvir_events[n]);                           // sync
 
-	fft_interpolate_gpu(n, sett->nfft, sett->Ninterp, sett->nyqst, plans,        // input
+	fft_interpolate_gpu(n, id, sett->nfft, sett->Ninterp, sett->nyqst, plans,    // input
 		                fft_arr->xa_d, fft_arr->xb_d,                            // input / output
 		                cl_handles, 1, &tshift_pmod_events[n],                   // sync
 		                fw_fft_events, resample_postfft_events, inv_fft_events); // sync
@@ -369,28 +369,21 @@ real_t* job_core(const int pm,                  // hemisphere
                       cl_handles, 2, zero_pad_events,             // sync
                       fw2_fft_events);                            // sync
 
-        (*FNum)++;
+    (*FNum)++; // TODO: revisit this variable
 
-        compute_Fstat_gpu(fft_arr->xa_d,
-                          fft_arr->xb_d,
-                          F_d,
-                          aux->maa_d,
-                          aux->mbb_d,
-                          sett->nmin,
-                          sett->nmax,
-                          cl_handles);
-#ifdef TESTING
-        save_numbered_real_buffer(cl_handles->exec_queues[0], F_d, sett->nmax - sett->nmin, 0, "Fstat");
-        save_numbered_real_buffer(cl_handles->exec_queues[0], F_d, sett->nmax - sett->nmin, 1, "Fstat");
-#endif
-        cl_int CL_err = CL_SUCCESS;
+    cl_event compute_Fstat_event =
+	  compute_Fstat_gpu(0, id, sett->nmin, sett->nmax,
+                        fft_arr->xa_d, fft_arr->xb_d, aux->maa_d, aux->mbb_d,
+                        aux->F_d[id],
+                        cl_handles, 2, fw2_fft_events);
 
-        CL_err = clEnqueueReadBuffer(cl_handles->read_queues[0], F_d, CL_TRUE, 0, 2 * sett->nfft * sizeof(real_t), F, 0, NULL, NULL);
 #ifdef GPUFSTAT
         if (!(opts->white_flag))  // if the noise is not white noise
             FStat_gpu(F_d + sett->nmin, sett->nmax - sett->nmin, NAV, aux->mu_d, aux->mu_t_d);
-
 #else
+	cl_int CL_err = CL_SUCCESS;
+
+	CL_err = clEnqueueReadBuffer(cl_handles->read_queues[0], F_d, CL_TRUE, 0, 2 * sett->nfft * sizeof(real_t), F, 0, NULL, NULL);
         // Normalize F-statistics 
         if (!(opts->white_flag))  // if the noise is not white noise
             FStat(F + sett->nmin, sett->nmax - sett->nmin, NAVFSTAT, 0);
@@ -726,7 +719,7 @@ cl_event resample_postfft_gpu(const cl_int idet,
     cl_event exec;
     size_t resample_length = (size_t)Ninterp - (nyqst + nfft); // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
+    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
 	checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[ResamplePostFFT])");
 
 #ifdef TESTING
@@ -881,7 +874,7 @@ cl_event phase_mod_1_gpu(const cl_int idet,
   cl_event exec;
   size_t size_N = (size_t)N; // Helper variable to make pointer types match. Cast to silence warning
 
-  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[PhaseMod1], 1, NULL, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][PhaseMod1], 1, NULL, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
   checkErr(CL_err, "clEnqueueNDRangeKernel(PhaseMod1)");
 
 #ifdef TESTING
@@ -925,7 +918,7 @@ cl_event phase_mod_2_gpu(const cl_int idet,
   cl_event exec;
   size_t size_N = (size_t)N; // Helper variable to make pointer types match. Cast to silence warning
 
-  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[PhaseMod2], 1, NULL, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][PhaseMod2], 1, NULL, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
   checkErr(CL_err, "clEnqueueNDRangeKernel(PhaseMod1)");
 
 #ifdef TESTING
@@ -1004,43 +997,50 @@ void time_to_frequency(const cl_int idet,
 
 /// <summary>Compute F-statistics.</summary>
 /// 
-void compute_Fstat_gpu(cl_mem xa,
-                       cl_mem xb,
-                       cl_mem F,
-                       cl_mem maa_d,
-                       cl_mem mbb_d,
-                       cl_int nmin,
-                       cl_int nmax,
-                       OpenCL_handles* cl_handles)
+cl_event compute_Fstat_gpu(const cl_int idet,
+                           const cl_int id,
+                           const cl_int nmin,
+                           const cl_int nmax,
+                           const cl_mem xa_d,
+                           const cl_mem xb_d,
+                           const cl_mem maa_d,
+                           const cl_mem mbb_d,
+                           cl_mem F_d,
+                           OpenCL_handles* cl_handles,
+                           const cl_uint num_events_in_wait_list,
+                           const cl_event* event_wait_list)
 {
-    cl_int CL_err = CL_SUCCESS;
-    cl_int N = nmax - nmin;
+  cl_int CL_err = CL_SUCCESS;
+  cl_int N = nmax - nmin;
 
-    clSetKernelArg(cl_handles->kernels[ComputeFStat], 0, sizeof(cl_mem), &xa);
-    clSetKernelArg(cl_handles->kernels[ComputeFStat], 1, sizeof(cl_mem), &xb);
-    clSetKernelArg(cl_handles->kernels[ComputeFStat], 2, sizeof(cl_mem), &F);
-    clSetKernelArg(cl_handles->kernels[ComputeFStat], 3, sizeof(cl_mem), &maa_d);
-    clSetKernelArg(cl_handles->kernels[ComputeFStat], 4, sizeof(cl_mem), &mbb_d);
-    clSetKernelArg(cl_handles->kernels[ComputeFStat], 5, sizeof(cl_int), &N);
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 0, sizeof(cl_mem), &xa_d);
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 1, sizeof(cl_mem), &xb_d);
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 2, sizeof(cl_mem), &F_d);
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 3, sizeof(cl_mem), &maa_d);
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 4, sizeof(cl_mem), &mbb_d);
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 5, sizeof(cl_int), &N);
 
-    cl_event exec;
-    size_t size_N = (size_t)N,
-           size_nmin = (size_t)nmin; // Helper variable to make pointer types match. Cast to silence warning
+  cl_event exec;
+  size_t size_N = (size_t)N,
+         size_nmin = (size_t)nmin; // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ComputeFStat], 1, &size_nmin, &size_N, NULL, 0, NULL, &exec);
-    checkErr(CL_err, "clEnqueueNDRangeKernel(ComputeFStat)");
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][ComputeFStat], 1, &size_nmin, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
+  checkErr(CL_err, "clEnqueueNDRangeKernel(ComputeFStat)");
 
-    clWaitForEvents(1, &exec);
+#ifdef TESTING
+  // Wasteful
+  clWaitForEvents(1, &exec);
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], F_d, sett->nmax - sett->nmin, 0, "Fstat");
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], F_d, sett->nmax - sett->nmin, 1, "Fstat");
+#endif
 
-    clReleaseEvent(exec);
+	return exec;
 }
 
-/// <summary>Compute F-statistics.</summary>
-///
-void FStat_gpu_simple(cl_mem F_d,
-    cl_uint nfft,
-    cl_uint nav,
-    OpenCL_handles* cl_handles)
+void normalize_FStat_gpu_wg_reduce(cl_mem F_d,
+                                   cl_uint nfft,
+                                   cl_uint nav,
+                                   OpenCL_handles* cl_handles)
 {
     cl_int CL_err = CL_SUCCESS;
     cl_uint N = nfft / nav;

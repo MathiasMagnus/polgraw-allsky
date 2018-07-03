@@ -278,18 +278,22 @@ void time_to_frequency(const cl_int idet,
 
 /// <summary>Compute F-statistics.</summary>
 /// 
-void compute_Fstat_gpu(cl_mem xa,
-                       cl_mem xb,
-                       cl_mem F,
-                       cl_mem maa_d,
-                       cl_mem mbb_d,
-                       cl_int nmin,
-                       cl_int nmax,
-                       OpenCL_handles* cl_handles);
+cl_event compute_Fstat_gpu(const cl_int idet,
+                           const cl_int id,
+                           const cl_int nmin,
+                           const cl_int nmax,
+                           const cl_mem xa_d,
+                           const cl_mem xb_d,
+                           const cl_mem maa_d,
+                           const cl_mem mbb_d,
+                           cl_mem F_d,
+                           OpenCL_handles* cl_handles,
+                           const cl_uint num_events_in_wait_list,
+                           const cl_event* event_wait_list);
 
-/// <summary>Compute F-statistics.</summary>
+/// <summary>Normalize F-statistics.</summary>
 ///
-void FStat_gpu_simple(cl_mem F_d,
+void normalize_FStat_gpu_wg_reduce(cl_mem F_d,
                       cl_uint nfft,
                       cl_uint nav,
                       OpenCL_handles* cl_handles);

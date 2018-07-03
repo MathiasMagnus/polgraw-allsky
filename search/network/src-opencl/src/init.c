@@ -639,7 +639,7 @@ const char* obtain_kernel_name(cl_uint i)
         result = "compute_Fstat";
         break;
     case FStatSimple:
-        result = "fstat_norm_simple";
+        result = "normalize_Fstat_wg_reduce";
         break;
     default:
         perror("Unkown kernel index");

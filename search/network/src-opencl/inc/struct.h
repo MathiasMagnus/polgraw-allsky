@@ -160,7 +160,7 @@ typedef struct _aux_arrays {
   cl_mem maa_d, mbb_d;
   cl_mem aadot_d, bbdot_d;     // dot-products of xx_d
   cl_mem *aadots_d, *bbdots_d; // array of sub-buffers pointing into xxdot_d
-  cl_mem *F_d;
+  cl_mem *F_d;                 // F-statistics
 
 } Aux_arrays;
 
