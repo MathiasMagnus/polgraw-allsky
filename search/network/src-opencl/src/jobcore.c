@@ -238,7 +238,8 @@ real_t* job_core(const int pm,                  // hemisphere
 	       **blas_dot_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
            *mxx_fill_events = (cl_event*)malloc(2 * sizeof(cl_event)),
 	       *axpy_events = (cl_event*)malloc(sett->nifo * 2 * sizeof(cl_event)),
-	       *phase_mod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event));
+           *phase_mod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
+           *zero_pad_events = (cl_event*)malloc(2 * sizeof(cl_event));
   for (int n = 0; n < sett->nifo; ++n)
   {
 	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
@@ -349,42 +350,18 @@ real_t* job_core(const int pm,                  // hemisphere
 
     for (int n = 1; n<sett->nifo; ++n)
     {
+      // xY_d[0] is intentional, we're summing into the first xY_d arrays from xDatmY_d
       phase_mod_events[n] =
-        phase_mod_2_gpu(0, id, sett->N, het1, sgnlt[1],                                  // input
+        phase_mod_2_gpu(n, id, sett->N, het1, sgnlt[1],                                  // input
                         ifo[n].sig.xDatma_d, ifo[n].sig.xDatmb_d, ifo[n].sig.shft_d[id], // input
-                        fft_arr->xa_d[n][id], fft_arr->xb_d[n][id],                      // output
+                        fft_arr->xa_d[0][id], fft_arr->xb_d[0][id],                      // output
                         cl_handles, 1, phase_mod_events[n - 1]);                         // sync
     }
 
-        {
-            cl_int CL_err = CL_SUCCESS;
-#ifdef _WIN32
-            complex_t pattern = { 0, 0 };
-#else
-            complex_t pattern = 0;
-#endif
-
-            cl_event fill_event[2];
-
-            // Zero pad from offset until the end
-            //CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->nfftf - sett->N) * 2 * sizeof(complex_t), 0, NULL, &fill_event[0]);
-            CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &fill_event[0]);
-            checkErr(CL_err, "clEnqueueFillBuffer");
-            CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], fft_arr->xb_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &fill_event[1]);
-            checkErr(CL_err, "clEnqueueFillBuffer");
-
-            clWaitForEvents(2, fill_event);
-
-            clReleaseEvent(fill_event[0]);
-            clReleaseEvent(fill_event[1]);
-#ifdef TESTING
-            // Wasteful
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->Ninterp, 0, "pre_fft_post_zero_xa");
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->Ninterp, 0, "pre_fft_post_zero_xb");
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xa_d, sett->Ninterp, 1, "pre_fft_post_zero_xa");
-            save_numbered_complex_buffer(cl_handles->exec_queues[0], fft_arr->xb_d, sett->Ninterp, 1, "pre_fft_post_zero_xb");
-#endif
-        }
+	zero_pad(0, id, sett,                                      // input
+             fft_arr->xa_d[0][id], fft_arr->xb_d[0][id],       // input / output
+             cl_handles, 1, &phase_mod_events[sett->nifo - 1], // sync
+             zero_pad_events);                                 // sync
 
         // fft length fftpad*nfft
         {
@@ -993,6 +970,40 @@ cl_event phase_mod_2_gpu(const cl_int idet,
 #endif
 
   return exec;
+}
+
+void zero_pad(const cl_int idet,
+              const cl_int id,
+              const Search_settings *sett,
+              cl_mem xa_d,
+              cl_mem xb_d,
+              OpenCL_handles* cl_handles,
+              const cl_uint num_events_in_wait_list,
+              const cl_event* event_wait_list,
+              cl_event* zero_pad_events)
+{
+  cl_int CL_err = CL_SUCCESS;
+
+#ifdef _WIN32
+  complex_t pattern = { 0, 0 };
+#else
+  complex_t pattern = 0;
+#endif
+
+  // Zero pad from offset until the end
+  CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][idet], xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &zero_pad_events[0]);
+  checkErr(CL_err, "clEnqueueFillBuffer");
+  CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][idet], xb_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &zero_pad_events[1]);
+  checkErr(CL_err, "clEnqueueFillBuffer");
+
+#ifdef TESTING
+  clWaitForEvents(2, zero_pad_events);
+  // Wasteful
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, sett->Ninterp, 0, "pre_fft_post_zero_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, sett->Ninterp, 0, "pre_fft_post_zero_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, sett->Ninterp, 1, "pre_fft_post_zero_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, sett->Ninterp, 1, "pre_fft_post_zero_xb");
+#endif
 }
 
 /// <summary>Compute F-statistics.</summary>

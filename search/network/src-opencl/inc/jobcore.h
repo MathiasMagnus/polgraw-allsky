@@ -251,6 +251,18 @@ cl_event phase_mod_1_gpu(const cl_int idet,
                          const cl_uint num_events_in_wait_list,
                          const cl_event* event_wait_list);
 
+/// <summary>Zero pad from offset until the end of the buffer.</summary>
+///
+void zero_pad(const cl_int idet,
+              const cl_int id,
+              const Search_settings *sett,
+              cl_mem xa_d,
+              cl_mem xb_d,  
+              OpenCL_handles* cl_handles,
+              const cl_uint num_events_in_wait_list,
+              const cl_event* event_wait_list,
+              cl_event* zero_pad_events);
+
 /// <summary>Compute F-statistics.</summary>
 /// 
 void compute_Fstat_gpu(cl_mem xa,
