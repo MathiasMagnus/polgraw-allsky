@@ -700,16 +700,17 @@ cl_event tshift_pmod_gpu(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(1, &exec);
-  save_numbered_complex_buffer(cl_handles->read_queues[0], xa_d, 2 * nfft, idet, "xa_time");
-  save_numbered_complex_buffer(cl_handles->read_queues[0], xb_d, 2 * nfft, idet, "xb_time");
-  save_numbered_real_buffer(cl_handles->read_queues[0], shft_d, N, idet, "ifo_sig_shft");
-  save_numbered_real_buffer(cl_handles->read_queues[0], shftf_d, N, idet, "ifo_sig_shftf");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, 2 * nfft, idet, "xa_time");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, 2 * nfft, idet, "xb_time");
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], shft_d, N, idet, "ifo_sig_shft");
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], shftf_d, N, idet, "ifo_sig_shftf");
 #endif
 
     return exec;
 }
 
 void fft_interpolate_gpu(const cl_int idet,
+                         const cl_int id,
 	                     const cl_int nfft,
                          const cl_int Ninterp,
                          const cl_int nyqst,
@@ -725,45 +726,41 @@ void fft_interpolate_gpu(const cl_int idet,
 {
 	// Forward FFT
 	clfftStatus CLFFT_status = CLFFT_SUCCESS;
-	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][0], &xa_d, NULL, NULL);
+	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][0], &xa_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
-	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][1], &xb_d, NULL, NULL);
+	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][1], &xb_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
 
 #ifdef TESTING
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], xa_d, nfft, idet, "xa_fourier");
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], xb_d, nfft, idet, "xb_fourier");
+	clWaitForEvents(2, fw_fft_events[idet]);
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, nfft, idet, "xa_fourier");
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, nfft, idet, "xb_fourier");
 #endif
 
 	// Resample coefficients
 	resample_postfft_events[idet] =
-		resample_postfft_gpu(nfft,	                              // input
-		                     Ninterp,                             // input
-		                     nyqst,                               // input
-		                     xa_d,                                // input / output
-		                     xb_d,                                // input / output
+		resample_postfft_gpu(idet, id, nfft, Ninterp, nyqst,      // input
+		                     xa_d, xb_d,                          // input / output
 		                     cl_handles, 2, fw_fft_events[idet]); // sync
 
-#ifdef TESTING
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], xa_d, sett->Ninterp, idet, "xa_fourier_resampled");
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], xb_d, sett->Ninterp, idet, "xb_fourier_resampled");
-#endif
-
 	// Backward fft (len Ninterp = nfft*interpftpad)
-	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 1, &resample_postfft_events[idet], &inv_fft_events[idet][0], &xa_d, NULL, NULL);
+	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues[id][idet], 1, &resample_postfft_events[idet], &inv_fft_events[idet][0], &xa_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
-	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues, 1, &resample_postfft_events[idet], &inv_fft_events[idet][1], &xb_d, NULL, NULL);
+	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues[id][idet], 1, &resample_postfft_events[idet], &inv_fft_events[idet][1], &xb_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
 
 	// scale fft with clblas not needed (as opposed fftw), clFFT already scales
 
 #ifdef TESTING
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], xa_d, Ninterp, idet, "xa_time_resampled");
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], xb_d, Ninterp, idet, "xb_time_resampled");
+	clWaitForEvents(2, inv_fft_events[idet]);
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, Ninterp, idet, "xa_time_resampled");
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, Ninterp, idet, "xb_time_resampled");
 #endif
 }
 
-cl_event resample_postfft_gpu(const cl_int nfft,
+cl_event resample_postfft_gpu(const cl_int idet,
+                              const cl_int id,
+                              const cl_int nfft,
 	                          const cl_int Ninterp,
 	                          const cl_int nyqst,
 	                          cl_mem xa_d,
@@ -774,17 +771,23 @@ cl_event resample_postfft_gpu(const cl_int nfft,
 {
     cl_int CL_err = CL_SUCCESS;
 
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 0, sizeof(cl_mem), &xa_d);    checkErr(CL_err, "clSetKernelArg(&xa_d)");
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 1, sizeof(cl_mem), &xb_d);    checkErr(CL_err, "clSetKernelArg(&xb_d)");
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 2, sizeof(cl_int), &nfft);    checkErr(CL_err, "clSetKernelArg(&nfft)");
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 3, sizeof(cl_int), &Ninterp); checkErr(CL_err, "clSetKernelArg(&Ninterp)");
-    clSetKernelArg(cl_handles->kernels[ResamplePostFFT], 4, sizeof(cl_int), &nyqst);   checkErr(CL_err, "clSetKernelArg(&nyqst)");
+    clSetKernelArg(cl_handles->kernels[id][ResamplePostFFT], 0, sizeof(cl_mem), &xa_d);    checkErr(CL_err, "clSetKernelArg(&xa_d)");
+    clSetKernelArg(cl_handles->kernels[id][ResamplePostFFT], 1, sizeof(cl_mem), &xb_d);    checkErr(CL_err, "clSetKernelArg(&xb_d)");
+    clSetKernelArg(cl_handles->kernels[id][ResamplePostFFT], 2, sizeof(cl_int), &nfft);    checkErr(CL_err, "clSetKernelArg(&nfft)");
+    clSetKernelArg(cl_handles->kernels[id][ResamplePostFFT], 3, sizeof(cl_int), &Ninterp); checkErr(CL_err, "clSetKernelArg(&Ninterp)");
+    clSetKernelArg(cl_handles->kernels[id][ResamplePostFFT], 4, sizeof(cl_int), &nyqst);   checkErr(CL_err, "clSetKernelArg(&nyqst)");
 
     cl_event exec;
     size_t resample_length = (size_t)Ninterp - (nyqst + nfft); // Helper variable to make pointer types match. Cast to silence warning
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
+    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
 	checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[ResamplePostFFT])");
+
+#ifdef TESTING
+	clWaitForEvents(1, &exec);
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->Ninterp, idet, "xa_fourier_resampled");
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->Ninterp, idet, "xb_fourier_resampled");
+#endif
 
 	return exec;
 }

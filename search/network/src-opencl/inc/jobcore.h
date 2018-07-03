@@ -132,7 +132,8 @@ cl_event tshift_pmod_gpu(const cl_int idet,
 /// <remarks>Storage for the events must be provided by the caller.</remarks>
 /// <todo>Create persistent storage for FFT temporary.</todo>
 ///
-void fft_interpolate_gpu(const cl_int idet, 
+void fft_interpolate_gpu(const cl_int idet,
+                         const cl_int id,
 	                     const cl_int nfft,
 	                     const cl_int Ninterp,
 	                     const cl_int nyqst,
@@ -149,7 +150,9 @@ void fft_interpolate_gpu(const cl_int idet,
 /// <summary>Shifts frequencies and remove those over Nyquist.</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 ///
-cl_event resample_postfft_gpu(const cl_int nfft,
+cl_event resample_postfft_gpu(const cl_int idet,
+                              const cl_int id,
+                              const cl_int nfft,
                               const cl_int Ninterp,
                               const cl_int nyqst,
 	                          cl_mem xa_d,
