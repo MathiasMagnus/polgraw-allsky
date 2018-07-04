@@ -135,7 +135,7 @@ enum Kernel
     PhaseMod1 = 7,
     PhaseMod2 = 8,
     ComputeFStat = 9,
-    FStatSimple = 10
+    NormalizeFStatWG = 10
 };
 
 /* FFTW plans  */ 

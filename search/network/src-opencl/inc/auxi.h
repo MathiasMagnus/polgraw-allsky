@@ -12,10 +12,10 @@
 #define TOSTR(x) TOSTRA(x)
 
 #define TINY 1.0e-20
-#define NINTERP 3			 /* degree of the interpolation polynomial */
+//#define NINTERP 3			 /* degree of the interpolation polynomial */
 					 /* Do not change this value!!! */
 #define NAVFSTAT 4096
-//#define round(x) floor((x)+0.5)
+
 
 /// <summary>Change linear (grid) coordinates to real coordinates</summary>
 /// <remarks>lin2ast described in Phys. Rev. D 82, 022005 (2010) (arXiv:1003.0844)</remarks>

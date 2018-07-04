@@ -9,11 +9,6 @@
 #include <clBLAS.h>
 
 
-#define BLOCK_SIZE 256
-#define BLOCK_SIZE_RED 128
-#define BLOCK_DIM(n, b) ((n)/b + ((n)%b==0 ? 0 : 1))
-#define NAV_THREADS 16
-
 /// <summary>Main searching function.</summary>
 /// <remarks>This function loops over hemispheres, sky positions and spin-downs.</remarks>
 ///
@@ -293,10 +288,26 @@ cl_event compute_Fstat_gpu(const cl_int idet,
 
 /// <summary>Normalize F-statistics.</summary>
 ///
-void normalize_FStat_gpu_wg_reduce(cl_mem F_d,
-                      cl_uint nfft,
-                      cl_uint nav,
-                      OpenCL_handles* cl_handles);
+cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
+                                       const cl_int id,
+                                       const cl_uint nfft,
+                                       const cl_uint nav,
+                                       cl_mem F_d,
+                                       OpenCL_handles* cl_handles,
+                                       const cl_uint num_events_in_wait_list,
+                                       const cl_event* event_wait_list);
+
+/// <summary>Looks for </summary>
+///
+cl_event find_peaks(const cl_int idet,
+                    const cl_int id,
+                    const cl_int nmin,
+                    const cl_int nmax,
+                    const cl_mem F_d,
+                    Search_results* results,
+                    OpenCL_handles* cl_handles,
+                    const cl_uint num_events_in_wait_list,
+                    const cl_event* event_wait_list);
 
 /// <summary>Saves the designated array into a file with the specified name.</summary>
 ///

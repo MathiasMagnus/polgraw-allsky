@@ -638,7 +638,7 @@ const char* obtain_kernel_name(cl_uint i)
     case ComputeFStat:
         result = "compute_Fstat";
         break;
-    case FStatSimple:
+    case NormalizeFStatWG:
         result = "normalize_Fstat_wg_reduce";
         break;
     default:

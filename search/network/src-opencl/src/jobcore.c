@@ -50,6 +50,7 @@
 #include <errno.h>          // errno_t
 #include <stdlib.h>         // EXIT_FAILURE
 #include <stdbool.h>        // TRUE
+#include <assert.h>         // assert
 
 
 /// <summary>Main searching function.</summary>
@@ -377,10 +378,12 @@ real_t* job_core(const int pm,                  // hemisphere
                         aux->F_d[id],
                         cl_handles, 2, fw2_fft_events);
 
-#ifdef GPUFSTAT
-        if (!(opts->white_flag))  // if the noise is not white noise
-            FStat_gpu(F_d + sett->nmin, sett->nmax - sett->nmin, NAV, aux->mu_d, aux->mu_t_d);
-#else
+	cl_event normalize_Fstat_event =
+		normalize_FStat_gpu_wg_reduce(0, id, sett->nfft, NAVFSTAT,          // input
+                                      aux->F_d[id],                         // input / output
+                                      cl_handles, 1, &compute_Fstat_event); // sync
+
+#if 0
 	cl_int CL_err = CL_SUCCESS;
 
 	CL_err = clEnqueueReadBuffer(cl_handles->read_queues[0], F_d, CL_TRUE, 0, 2 * sett->nfft * sizeof(real_t), F, 0, NULL, NULL);
@@ -437,11 +440,6 @@ real_t* job_core(const int pm,                  // hemisphere
     printf("\nTotal spindown loop time: %e s, mean spindown time: %e s (%d runs)\n",
         spindown_timer, spindown_timer / spindown_counter, spindown_counter);
 #endif
-
-    // Non-VLA free _tmp1
-    //for (int x = 0; x < sett->nifo; ++x)
-    //    free(_tmp1[x]);
-    //free(_tmp1);
 
     return sgnlv;
 
@@ -1037,42 +1035,49 @@ cl_event compute_Fstat_gpu(const cl_int idet,
 	return exec;
 }
 
-void normalize_FStat_gpu_wg_reduce(cl_mem F_d,
-                                   cl_uint nfft,
-                                   cl_uint nav,
-                                   OpenCL_handles* cl_handles)
+cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
+                                       const cl_int id,
+                                       const cl_uint nfft,
+                                       const cl_uint nav,
+                                       cl_mem F_d,
+                                       OpenCL_handles* cl_handles,
+                                       const cl_uint num_events_in_wait_list,
+                                       const cl_event* event_wait_list)
 {
-    cl_int CL_err = CL_SUCCESS;
-    cl_uint N = nfft / nav;
-    size_t max_wgs;             // maximum supported wgs on the device (limited by register count)
-    cl_ulong local_size;        // local memory size in bytes
-    cl_uint ssi;                // shared size in num gentypes
+  cl_int CL_err = CL_SUCCESS;
+  cl_uint N = nfft / nav;
+  size_t max_wgs;             // maximum supported wgs on the device (limited by register count)
+  cl_ulong local_size;        // local memory size in bytes
+  cl_uint ssi;                // shared size in num gentypes
 
-    CL_err = clGetKernelWorkGroupInfo(cl_handles->kernels[FStatSimple], cl_handles->devs[0], CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &max_wgs, NULL);
-    checkErr(CL_err, "clGetKernelWorkGroupInfo(FStatSimple, CL_KERNEL_WORK_GROUP_SIZE)");
+  CL_err = clGetKernelWorkGroupInfo(cl_handles->kernels[id][NormalizeFStatWG], cl_handles->devs[id], CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &max_wgs, NULL);
+  checkErr(CL_err, "clGetKernelWorkGroupInfo(FStatSimple, CL_KERNEL_WORK_GROUP_SIZE)");
 
-    CL_err = clGetDeviceInfo(cl_handles->devs[0], CL_DEVICE_LOCAL_MEM_SIZE, sizeof(cl_ulong), &local_size, NULL);
-    checkErr(CL_err, "clGetDeviceInfo(FStatSimple, CL_DEVICE_LOCAL_MEM_SIZE)");
+   CL_err = clGetDeviceInfo(cl_handles->devs[id], CL_DEVICE_LOCAL_MEM_SIZE, sizeof(cl_ulong), &local_size, NULL);
+   checkErr(CL_err, "clGetDeviceInfo(FStatSimple, CL_DEVICE_LOCAL_MEM_SIZE)");
 
-    // How long is the array of local memory
-    ssi = (cl_uint)(local_size / sizeof(real_t)); // Assume integer is enough to store gentype count (well, it better)
+  // How long is the array of local memory
+  ssi = (cl_uint)(local_size / sizeof(real_t)); // Assume integer is enough to store gentype count (well, it better)
 
-    clSetKernelArg(cl_handles->kernels[FStatSimple], 0, sizeof(cl_mem), &F_d);
-    clSetKernelArg(cl_handles->kernels[FStatSimple], 1, ssi * sizeof(real_t), NULL);
-    clSetKernelArg(cl_handles->kernels[FStatSimple], 2, sizeof(cl_uint), &ssi);
-    clSetKernelArg(cl_handles->kernels[FStatSimple], 3, sizeof(cl_uint), &nav);
+  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 0, sizeof(cl_mem), &F_d);
+  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 1, ssi * sizeof(real_t), NULL);
+  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 2, sizeof(cl_uint), &ssi);
+  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 3, sizeof(cl_uint), &nav);
 
-    size_t gsi = N;
+  size_t gsi = N;
+  size_t wgs = gsi < max_wgs ? gsi : max_wgs;
 
-    size_t wgs = gsi < max_wgs ? gsi : max_wgs;
+  // Check preconditions of kernel before launch
+  assert(ssi <= nav);
+  assert(wgs <= ssi);
+  assert(((wgs != 0) && !(wgs & (wgs - 1)))); // Method 9. @ https://www.exploringbinary.com/ten-ways-to-check-if-an-integer-is-a-power-of-two-in-c/
+  assert(!(gsi % nav));
 
-    cl_event exec;
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[FStatSimple], 1, NULL, &gsi, &wgs, 0, NULL, &exec);
-    checkErr(CL_err, "clEnqueueNDRangeKernel(FStatSimple)");
+  cl_event exec;
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][NormalizeFStatWG], 1, NULL, &gsi, &wgs, num_events_in_wait_list, event_wait_list, &exec);
+  checkErr(CL_err, "clEnqueueNDRangeKernel(FStatSimple)");
 
-    clWaitForEvents(1, &exec);
-
-    clReleaseEvent(exec);
+  return exec;
 }
 
 #ifdef GPUFSTAT
