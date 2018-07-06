@@ -68,7 +68,7 @@ void detectors_settings(Detector_settings* ifo,
 
 /// <summary>Coefficients of the amplitude modulation functions of the Virgo detector.</summary>
 ///
-void rogcvir(Detector_settings* ifoi);
+void rogcvir(const int nifo, Detector_settings* ifoi);
 
 int lineph (double, double *, double *, char *, char *, int);
 

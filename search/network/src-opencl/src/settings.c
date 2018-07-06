@@ -310,7 +310,7 @@ void detectors_settings(Detector_settings* ifo,
 
 /// <summary>Coefficients of the amplitude modulation functions of the Virgo detector.</summary>
 ///
-void rogcvir(Detector_settings* ifoi)
+void rogcvir(const int nifo, Detector_settings* ifo)
 {
   // In the notation of Phys. Rev. D 58, 063001 (1998):
   // ephi = lambda (geographical latitude phi in radians)
@@ -318,14 +318,16 @@ void rogcvir(Detector_settings* ifoi)
   // 
   // (see modvir function in jobcore.c for Eqs. 12 and 13)
 
-  ifoi->amod.c1 = .25*sin(2.*ifoi->egam)*(1+sqr(sin(ifoi->ephi)));
-  ifoi->amod.c2 = -.5*cos(2.*ifoi->egam)*sin(ifoi->ephi);
-  ifoi->amod.c3 = .5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi);
-  ifoi->amod.c4 = -cos(2.*ifoi->egam)*cos(ifoi->ephi);
-  ifoi->amod.c5 = .75*sin(2.*ifoi->egam)*sqr(cos(ifoi->ephi));
-  ifoi->amod.c6 = cos(2.*ifoi->egam)*sin(ifoi->ephi);
-  ifoi->amod.c7 = .5*sin(2.*ifoi->egam)*(1.+sqr(sin(ifoi->ephi)));
-  ifoi->amod.c8 = cos(2.*ifoi->egam)*cos(ifoi->ephi);
-  ifoi->amod.c9 = .5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi);
-
+  for (Detector_settings* ifoi = ifo; ifoi < ifo + nifo; ++ifoi)
+  {
+    ifoi->amod.c1 = .25*sin(2.*ifoi->egam)*(1 + sqr(sin(ifoi->ephi)));
+    ifoi->amod.c2 = -.5*cos(2.*ifoi->egam)*sin(ifoi->ephi);
+    ifoi->amod.c3 = .5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi);
+    ifoi->amod.c4 = -cos(2.*ifoi->egam)*cos(ifoi->ephi);
+    ifoi->amod.c5 = .75*sin(2.*ifoi->egam)*sqr(cos(ifoi->ephi));
+    ifoi->amod.c6 = cos(2.*ifoi->egam)*sin(ifoi->ephi);
+    ifoi->amod.c7 = .5*sin(2.*ifoi->egam)*(1. + sqr(sin(ifoi->ephi)));
+    ifoi->amod.c8 = cos(2.*ifoi->egam)*cos(ifoi->ephi);
+    ifoi->amod.c9 = .5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi);
+  }
 } // rogcvir

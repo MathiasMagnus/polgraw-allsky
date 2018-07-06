@@ -28,7 +28,6 @@ int main (int argc, char* argv[])
     FFT_plans fft_plans;        // Optimized FFT plans
     FFT_arrays fft_arr;         // FFT arrays
     cl_mem F_d;                 // F-statistic array
-    int i;
 
     struct stat buffer;         // Output data handling
 
@@ -44,6 +43,9 @@ int main (int argc, char* argv[])
 	// Detector network settings
 	detectors_settings(ifo, &sett, &opts);
 
+	// Amplitude modulation functions for each detector
+	rogcvir(sett.nifo, ifo);
+
 	// Setup output buffer
 	setup_output(&buffer, &opts);
 
@@ -55,9 +57,6 @@ int main (int argc, char* argv[])
 
     // Array initialization
     init_arrays(ifo, &sett, &cl_handles, &opts, &aux_arr, &F_d, &fft_arr);
-
-    // Amplitude modulation functions for each detector
-    for (i = 0; i<sett.nifo; i++) rogcvir(&ifo[i]);
 
     // Set search range from range file  
     set_search_range(&sett, &opts, &s_range);
