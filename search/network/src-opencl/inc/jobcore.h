@@ -30,22 +30,20 @@ void search(Detector_settings* ifo,
 /// <todo>Make sky position dependent setup a callback function and make it awaitable through an event.</todo>
 /// <todo>Make multiple <c>xa_d, xb_d</c> buffers for each detector, cause currently there's a race</todo>
 ///
-real_t* job_core(const int pm,                  // hemisphere
-                 const int mm,                  // grid 'sky position'
-                 const int nn,                  // other grid 'sky position'
-                 const int id,                  // device id
-                 Detector_settings* ifo,        // detector settings
-                 Search_settings *sett,         // search settings
-                 Command_line_opts *opts,       // cmd opts
-                 Search_range *s_range,         // range for searching
-                 FFT_plans *plans,              // plans for fftw
-                 FFT_arrays *fft_arr,           // arrays for fftw
-                 Aux_arrays *aux,               // auxiliary arrays
-                 int *sgnlc,                    // reference to array with the parameters of the candidate signal
-                                                // (used below to write to the file)
-                 int *FNum,                     // candidate signal number
-                 OpenCL_handles* cl_handles,    // handles to OpenCL resources
-                 BLAS_handles* blas_handles);   // handle for scaling
+Search_results job_core(const int pm,                  // hemisphere
+                        const int mm,                  // grid 'sky position'
+                        const int nn,                  // other grid 'sky position'
+                        const int id,                  // device id
+                        Detector_settings* ifo,        // detector settings
+                        Search_settings *sett,         // search settings
+                        Command_line_opts *opts,       // cmd opts
+                        Search_range *s_range,         // range for searching
+                        FFT_plans *plans,              // plans for fftw
+                        FFT_arrays *fft_arr,           // arrays for fftw
+                        Aux_arrays *aux,               // auxiliary arrays
+                        int *FNum,                     // candidate signal number
+                        OpenCL_handles* cl_handles,    // handles to OpenCL resources
+                        BLAS_handles* blas_handles);   // handle for scaling
 
 /// <summary>Calculates sky-position dependant quantities.</summary>
 ///
@@ -297,37 +295,23 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
                                        const cl_uint num_events_in_wait_list,
                                        const cl_event* event_wait_list);
 
-/// <summary>Looks for </summary>
+/// <summary>Looks for peaks above treshold <c>trl</c> and persists them.</summary>
 ///
-cl_event find_peaks(const cl_int idet,
-                    const cl_int id,
-                    const cl_int nmin,
-                    const cl_int nmax,
-                    const cl_mem F_d,
-                    Search_results* results,
-                    OpenCL_handles* cl_handles,
-                    const cl_uint num_events_in_wait_list,
-                    const cl_event* event_wait_list);
-
-/// <summary>Saves the designated array into a file with the specified name.</summary>
-///
-void save_array(HOST_COMPLEX_TYPE *arr, int N, const char* file);
-
-/// <summary>Prints the first 'n' values of a host side real array.</summary>
-///
-void print_real_array(real_t* arr, size_t count, const char* msg);
-
-/// <summary>Prints the first 'n' values of a host side complex array.</summary>
-///
-void print_complex_array(complex_t* arr, size_t count, const char* msg);
-
-/// <summary>Prints the first 'n' values of a device side real array.</summary>
-///
-void print_real_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg);
-
-/// <summary>Prints the first 'n' values of a device side complex array.</summary>
-///
-void print_complex_buffer(cl_command_queue queue, cl_mem buf, size_t count, const char* msg);
+void find_peaks(const cl_int idet,
+                const cl_int id,
+                const cl_int nmin,
+                const cl_int nmax,
+                const real_t trl,
+                const real_t sgnl0,
+                const Search_settings *sett,
+                const cl_mem F_d,
+                Search_results* results,
+                real_t* sgnlt,
+                OpenCL_handles* cl_handles,
+                const cl_uint num_events_in_wait_list,
+                const cl_event* event_wait_list,
+                cl_event* peak_map_event,
+                cl_event* peak_unmap_event);
 
 double FStat (double *, int, int, int);
 void FStat_gpu(FLOAT_TYPE *F_d, int N, int nav, FLOAT_TYPE *mu_d, FLOAT_TYPE *mu_t_d);

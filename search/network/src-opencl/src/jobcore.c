@@ -68,164 +68,134 @@ void search(Detector_settings* ifo,
             int* Fnum,
             cl_mem F_d)
 {
-    cl_int CL_err = CL_SUCCESS;
-    int pm, mm, nn;    // hemisphere, sky positions 
-    int sgnlc;         // number of candidates
-    FLOAT_TYPE *sgnlv;    // array with candidates data
+#ifdef _WIN32
+  int low_state;
+#endif // WIN32
+  FILE* state = NULL;
 
+  // Copy amod coefficients to device
+  copy_amod_coeff(ifo, sett->nifo, cl_handles, aux);
+
+  if (opts->checkp_flag)
+  {
+#ifdef _WIN32
+    _sopen_s(&low_state, opts->qname,
+             _O_RDWR | _O_CREAT,   // Allowed operations
+             _SH_DENYNO,           // Allowed sharing
+             _S_IREAD | _S_IWRITE);// Permission settings
+
+    state = _fdopen(low_state, "w");
+#else
+    state = fopen(opts->qname, "w");
+#endif // WIN32
+  }
+
+  // Loop over hemispheres //
+  for (int pm = s_range->pst; pm <= s_range->pmr[1]; ++pm)
+  {
     char outname[512];
-#ifdef _WIN32
-    int low_state;
-#endif // WIN32
-    FILE *state;
+    sprintf(outname, "%s/triggers_%03d_%03d%s_%d.bin",
+            opts->prefix,
+            opts->ident,
+            opts->band,
+            opts->label,
+            pm);
 
-#if TIMERS>0
-    struct timespec tstart = get_current_time(), tend;
-#endif
+    Search_results** results = (Search_results**)malloc((s_range->mr[1] - s_range->mst) * sizeof(Search_results*));
 
-    // Copy amod coefficients to device
-    copy_amod_coeff(ifo, sett->nifo, cl_handles, aux);
-
-    int cand_buffer_count = 0;
-
-    //allocate vector for FStat_gpu
-    int nav_blocks = (sett->nmax - sett->nmin) / NAV;     //number of nav-blocks
-    int blocks = (sett->nmax - sett->nmin) / BLOCK_SIZE;  //number of blocks for Fstat-smoothing
-
-    aux->mu_t_d = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE, blocks * sizeof(real_t), NULL, &CL_err);
-    aux->mu_d = clCreateBuffer(cl_handles->ctx, CL_MEM_READ_WRITE, nav_blocks * sizeof(real_t), NULL, &CL_err);
-
-    state = NULL;
-    if (opts->checkp_flag)
-#ifdef _WIN32
+    // Two main loops over sky positions //
+    for (int mm = s_range->mst; mm <= s_range->mr[1]; ++mm)
     {
-        _sopen_s(&low_state, opts->qname,
-            _O_RDWR | _O_CREAT,   // Allowed operations
-            _SH_DENYNO,           // Allowed sharing
-            _S_IREAD | _S_IWRITE);// Permission settings
+      results[mm] = (Search_results*)malloc((s_range->nr[1] - s_range->nst) * sizeof(Search_results));
 
-        state = _fdopen(low_state, "w");
-    }
-#else
-        state = fopen(opts->qname, "w");
-#endif // WIN32
-
-    // Loop over hemispheres //
-    for (pm = s_range->pst; pm <= s_range->pmr[1]; ++pm)
-    {
-        sprintf(outname, "%s/triggers_%03d_%03d%s_%d.bin",
-                opts->prefix,
-                opts->ident,
-                opts->band,
-                opts->label,
-                pm);
-
-        // Two main loops over sky positions //
-        for (mm = s_range->mst; mm <= s_range->mr[1]; ++mm)
+      #pragma omp parallel
+      for (int nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
+      {
+        if (opts->checkp_flag)
         {
-            #pragma omp parallel
-            for (nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
-            {
-                if (opts->checkp_flag)
-                {
 #ifdef _WIN32
-                    if (_chsize(low_state, 0))
-                    {
-                        printf("Failed to resize file");
-                        exit(EXIT_FAILURE);
-                    }
+          if (_chsize(low_state, 0))
+          {
+            printf("Failed to resize file");
+            exit(EXIT_FAILURE);
+          }
 #else
-                    if (ftruncate(fileno(state), 0))
-                    {
-                        printf("Failed to resize file");
-                        exit(EXIT_FAILURE);
-                    }
-#endif // WIN32
-                    fprintf(state, "%d %d %d %d %d\n", pm, mm, nn, s_range->sst, *Fnum);
-                    fseek(state, 0, SEEK_SET);
-                }
+          if (ftruncate(fileno(state), 0))
+          {
+            printf("Failed to resize file");
+            exit(EXIT_FAILURE);
+          }
+#endif // _WIN32
+          fprintf(state, "%d %d %d %d %d\n", pm, mm, nn, s_range->sst, *Fnum);
+          fseek(state, 0, SEEK_SET);
+        }
 
-                // Loop over spindowns is inside job_core() //
-                sgnlv = job_core(pm,            // hemisphere
-                                 mm,            // grid 'sky position'
-                                 nn,            // other grid 'sky position'
-					             omp_get_thread_num(),
-                                 ifo,           // detector settings
-                                 sett,          // search settings
-                                 opts,          // cmd opts
-                                 s_range,       // range for searching
-                                 plans,         // fftw plans 
-                                 fft_arr,       // arrays for fftw
-                                 aux,           // auxiliary arrays
-                                 F_d,           // F-statistics array
-                                 &sgnlc,        // reference to array with the parameters
-                                                // of the candidate signal
-                                                // (used below to write to the file)
-                                 Fnum,          // Candidate signal number
-                                 cl_handles,    // handles to OpenCL resources
-                                 blas_handles   // handle for scaling
-                );
+        // Loop over spindowns is inside job_core() //
+        results[mm][nn] = job_core(pm,            // hemisphere
+                                   mm,            // grid 'sky position'
+                                   nn,            // other grid 'sky position'
+                                   omp_get_thread_num(),
+                                   ifo,           // detector settings
+                                   sett,          // search settings
+                                   opts,          // cmd opts
+                                   s_range,       // range for searching
+                                   plans,         // fftw plans 
+                                   fft_arr,       // arrays for fftw
+                                   aux,           // auxiliary arrays
+                                   Fnum,          // Candidate signal number
+                                   cl_handles,    // handles to OpenCL resources
+                                   blas_handles); // handle for scaling
 
-                // Get back to regular spin-down range
-                s_range->sst = s_range->spndr[0];
+        // Get back to regular spin-down range
+        s_range->sst = s_range->spndr[0];
+      } // for nn
+      s_range->nst = s_range->nr[0];
+    } // for mm
+    s_range->mst = s_range->mr[0];
 
-                // Add trigger parameters to a file //
+	Search_results combined_results =
+      combine_results(s_range->mr[1] - s_range->mst,
+                      s_range->nr[1] - s_range->nst,
+                      results);
 
-                // if any signals found (Fstat>Fc)
-                if (sgnlc)
-                {
-                    FILE* fc = fopen(outname, "w");
-                    if (fc == NULL) perror("Failed to open output file.");
+	// Add trigger parameters to a file //
 
-                    size_t count = fwrite((void *)(sgnlv), sizeof(FLOAT_TYPE), sgnlc*NPAR, fc);
-                    if (count < sgnlc*NPAR) perror("Failed to write output file.");
+    // if any signals found (Fstat>Fc)
+    if (sgnlc)
+    {
+		FILE* fc = fopen(outname, "w");
+		if (fc == NULL) perror("Failed to open output file.");
 
-                    int close = fclose(fc);
-                    if (close == EOF) perror("Failed to close output file.");
+		size_t count = fwrite((void *)(sgnlv), sizeof(FLOAT_TYPE), sgnlc*NPAR, fc);
+		if (count < sgnlc*NPAR) perror("Failed to write output file.");
 
-                } // if sgnlc
-                sgnlc = 0;
-            } // for nn
-            s_range->nst = s_range->nr[0];
-        } // for mm
-        s_range->mst = s_range->mr[0];
-    } // for pm
+		int close = fclose(fc);
+		if (close == EOF) perror("Failed to close output file.");
+	} // if sgnlc
+	sgnlc = 0;
+  } // for pm
 
-    if (opts->checkp_flag)
-        fclose(state);
+  if (opts->checkp_flag)
+    fclose(state);
 
-    // cublasDestroy(scale);
+}
 
-#if TIMERS>0
-    tend = get_current_time();
-    // printf("tstart = %d . %d\ntend = %d . %d\n", tstart.tv_sec, tstart.tv_usec, tend.tv_sec, tend.tv_usec);
-    double time_elapsed = get_time_difference(tstart, tend);
-    printf("Time elapsed: %e s\n", time_elapsed);
-#endif
-
-} // end of search
-
-real_t* job_core(const int pm,                  // hemisphere
-                 const int mm,                  // grid 'sky position'
-                 const int nn,                  // other grid 'sky position'
-                 const int id,                  // device id
-                 Detector_settings* ifo,        // detector settings
-                 Search_settings *sett,         // search settings
-                 Command_line_opts *opts,       // cmd opts
-                 Search_range *s_range,         // range for searching
-                 FFT_plans *plans,              // plans for fftw
-                 FFT_arrays *fft_arr,           // arrays for fftw
-                 Aux_arrays *aux,               // auxiliary arrays
-                 int *sgnlc,                    // reference to array with the parameters of the candidate signal
-                                                // (used below to write to the file)
-                 int *FNum,                     // candidate signal number
-                 OpenCL_handles* cl_handles,    // handles to OpenCL resources
-                 BLAS_handles* blas_handles)    // handle for scaling
+Search_results job_core(const int pm,                  // hemisphere
+                        const int mm,                  // grid 'sky position'
+                        const int nn,                  // other grid 'sky position'
+                        const int id,                  // device id
+                        Detector_settings* ifo,        // detector settings
+                        Search_settings *sett,         // search settings
+                        Command_line_opts *opts,       // cmd opts
+                        Search_range *s_range,         // range for searching
+                        FFT_plans *plans,              // plans for fftw
+                        FFT_arrays *fft_arr,           // arrays for fftw
+                        Aux_arrays *aux,               // auxiliary arrays
+                        int *FNum,                     // candidate signal number
+                        OpenCL_handles* cl_handles,    // handles to OpenCL resources
+                        BLAS_handles* blas_handles)    // handle for scaling
 {
-  // return values
-  real_t* sgnlv = NULL;
-  *sgnlc = 0; // Redundant, already zeroed out externally.
-              // Will be removed once return value is struct.
+  Search_results results = { 0, NULL };
 
   // Allocate storage for events to synchronize pipeline
   cl_event *modvir_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
@@ -370,7 +340,7 @@ real_t* job_core(const int pm,                  // hemisphere
                       cl_handles, 2, zero_pad_events,             // sync
                       fw2_fft_events);                            // sync
 
-    (*FNum)++; // TODO: revisit this variable
+    (*FNum)++; // TODO: revisit this variable, needs atomic at least
 
     cl_event compute_Fstat_event =
 	  compute_Fstat_gpu(0, id, sett->nmin, sett->nmax,
@@ -392,56 +362,18 @@ real_t* job_core(const int pm,                  // hemisphere
             FStat(F + sett->nmin, sett->nmax - sett->nmin, NAVFSTAT, 0);
 #endif
 
-        for (int i = sett->nmin; i<sett->nmax; i++)
-		{
-			real_t Fc = F[i];
-
-            if (Fc > opts->trl) { // if F-stat exceeds trl (critical value)
-                                           // Find local maximum for neighboring signals 
-                int ii = i;
-
-                while (++i < sett->nmax && F[i] > opts->trl) {
-                    if (F[i] >= Fc) {
-                        ii = i;
-                        Fc = F[i];
-                    } // if F[i] 
-                } // while i 
-
-                  // Candidate signal frequency
-                sgnlt[0] = 2.*M_PI*ii / ((double)sett->fftpad*sett->nfft) + sgnl0;
-                // Signal-to-noise ratio
-                sgnlt[4] = sqrt(2.*(Fc - sett->nd));
-
-                (*sgnlc)++; // increase found number
-
-                            // Add new parameters to output array 
-                sgnlv = (FLOAT_TYPE *)realloc(sgnlv, NPAR*(*sgnlc) * sizeof(FLOAT_TYPE));
-
-                for (int j = 0; j<NPAR; ++j) // save new parameters
-                    sgnlv[NPAR*(*sgnlc - 1) + j] = (FLOAT_TYPE)sgnlt[j];
+    cl_event peak_map_event, peak_unmap_event;
+    find_peaks(0, id, sett->nmin, sett->nmax, opts->trl, sgnl0, sett, aux->F_d[id], // input
+               &results, sgnlt,                                                     // output
+               cl_handles, 1, normalize_Fstat_event,                                // sync
+               peak_map_event, peak_unmap_event);                                   // sync
+  } // for ss 
 
 #ifdef VERBOSE
-                printf("\nSignal %d: %d %d %d %d %d \tsnr=%.2f\n",
-                    *sgnlc, pm, mm, nn, ss, ii, sgnlt[4]);
-#endif 
-
-            } // if Fc > trl 
-
-        } // for i
-
-    } // for ss 
-
-
-#ifndef VERBOSE
     printf("Number of signals found: %d\n", *sgnlc);
-#endif 
-
-#if TIMERS>2
-    printf("\nTotal spindown loop time: %e s, mean spindown time: %e s (%d runs)\n",
-        spindown_timer, spindown_timer / spindown_counter, spindown_counter);
 #endif
 
-    return sgnlv;
+  return results;
 
 } // jobcore
 
@@ -993,8 +925,6 @@ void time_to_frequency(const cl_int idet,
 #endif
 }
 
-/// <summary>Compute F-statistics.</summary>
-/// 
 cl_event compute_Fstat_gpu(const cl_int idet,
                            const cl_int id,
                            const cl_int nmin,
@@ -1078,6 +1008,84 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
   checkErr(CL_err, "clEnqueueNDRangeKernel(FStatSimple)");
 
   return exec;
+}
+
+void find_peaks(const cl_int idet,
+                const cl_int id,
+                const cl_int nmin,
+                const cl_int nmax,
+                const real_t trl,
+                const real_t sgnl0,
+                const Search_settings *sett,
+                const cl_mem F_d,
+                Search_results* results,
+                real_t* sgnlt,
+                OpenCL_handles* cl_handles,
+                const cl_uint num_events_in_wait_list,
+                const cl_event* event_wait_list,
+	            cl_event* peak_map_event,
+                cl_event* peak_unmap_event)
+{
+  cl_int CL_err = CL_SUCCESS;
+
+  real_t* F = clEnqueueMapBuffer(cl_handles->read_queues[id][0],
+                                 F_d,
+                                 CL_TRUE,
+                                 CL_MAP_READ,
+                                 0,
+                                 (nmax - nmin) * sizeof(real_t),
+                                 num_events_in_wait_list,
+                                 event_wait_list,
+                                 peak_map_event,
+                                 &CL_err);
+  checkErr(CL_err, "clEnqueueMapBuffer(F_d)");
+
+  for (int i = nmin; i < nmax; i++)
+  {
+    real_t Fc = F[i];
+
+    if (Fc > trl) // if F-stat exceeds trl (critical value)
+    {             // Find local maximum for neighboring signals
+      int ii = i;
+
+      while (++i < nmax && F[i] > trl)
+      {
+        if (F[i] >= Fc)
+        {
+          ii = i;
+          Fc = F[i];
+        } // if F[i] 
+      } // while i 
+
+      // Candidate signal frequency
+      sgnlt[0] = 2.*M_PI*ii / ((real_t)sett->fftpad*sett->nfft) + sgnl0;
+      // Signal-to-noise ratio
+      sgnlt[4] = sqrt(2.*(Fc - sett->nd));
+
+      // Add new parameters to output array
+	  results->sgnlc++; // increase found number
+      results->sgnlv = (real_t *)realloc(results->sgnlv, NPAR*(results->sgnlc) * sizeof(real_t));
+
+      for (int j = 0; j < NPAR; ++j) // save new parameters
+        results->sgnlv[NPAR*(results->sgnlc - 1) + j] = (real_t)sgnlt[j];
+
+#ifdef VERBOSE
+			printf("\nSignal %d: %d %d %d %d %d \tsnr=%.2f\n",
+				*sgnlc, pm, mm, nn, ss, ii, sgnlt[4]);
+#endif 
+    }
+  }
+
+  CL_err = clEnqueueUnmapMemObject(cl_handles->read_queues[id][0],
+                                   F_d,
+                                   F,
+                                   0,
+                                   NULL,
+                                   peak_unmap_event);
+  checkErr(CL_err, "clEnqueueUnMapMemObject(F_d)");
+
+  CL_err = clWaitForEvents(1, &peak_unmap_event);
+  checkErr(CL_err, "clWaitForEvents(peak_unmap_event)");
 }
 
 #ifdef GPUFSTAT
