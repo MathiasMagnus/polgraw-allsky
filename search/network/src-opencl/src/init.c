@@ -1284,34 +1284,37 @@ void init_openmp(cl_uint count)
 }
 
 void read_checkpoints(Command_line_opts *opts,
-              Search_range *s_range, 
-              int *FNum) {
+                      Search_range *s_range, 
+                      int *FNum) {
 
   if(opts->checkp_flag) {
 
     // filename of checkpoint state file, depending on the hemisphere
     if(opts->hemi)
       sprintf(opts->qname, "state_%03d_%04d%s_%d.dat",  
-          opts->ident, opts->band, opts->label, opts->hemi);
+              opts->ident, opts->band, opts->label, opts->hemi);
     else
       sprintf(opts->qname, "state_%03d_%04d%s.dat", 
-          opts->ident, opts->band, opts->label);
+              opts->ident, opts->band, opts->label);
 
     FILE *state;
     if((state = fopen(opts->qname, "rb")) != NULL) {
 
       // Scan the state file to get last recorded parameters
-      if((fscanf(state, "%d %d %d %d %d", &s_range->pst, &s_range->mst,
-         &s_range->nst, &s_range->sst, FNum)) == EOF) {
+      if((fscanf(state, "%d %d %d %d %d",
+                 &s_range->pst,
+                 &s_range->mst,
+                 &s_range->nst,
+                 &s_range->sst, FNum)) == EOF)
+      {
 
-    // This means that state file is empty (=end of the calculations)
-    fprintf (stderr, "State file empty: nothing to do...\n");
-    fclose (state);
-    return;
-
+        // This means that state file is empty (=end of the calculations)
+        fprintf(stderr, "State file empty: nothing to do...\n");
+        fclose(state);
+        return;
       }
 
-      fclose (state);
+    fclose(state);
 
       // No state file - start from the beginning
     } else {

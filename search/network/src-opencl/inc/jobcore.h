@@ -313,6 +313,21 @@ void find_peaks(const cl_int idet,
                 cl_event* peak_map_event,
                 cl_event* peak_unmap_event);
 
+/// <summary>Saves all the signal candidates to disk.</summary>
+///
+void save_and_free_results(const Command_line_opts* opts,
+                           const Search_range* s_range,
+                           const Search_results*** results);
+
+/// <summary>Combines the search results of a hemisphere to be saved on disk.</summary>
+///
+Search_results combine_results(const Search_range* s_range,
+                               const Search_results** results);
+
+/// <summary>Initializes search results with empty data where checkpoint file contained data.</summary>
+///
+Search_results*** init_results(const Search_range* s_range);
+
 double FStat (double *, int, int, int);
 void FStat_gpu(FLOAT_TYPE *F_d, int N, int nav, FLOAT_TYPE *mu_d, FLOAT_TYPE *mu_t_d);
 

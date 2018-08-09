@@ -68,46 +68,36 @@ void search(Detector_settings* ifo,
             int* Fnum,
             cl_mem F_d)
 {
-#ifdef _WIN32
-  int low_state;
-#endif // WIN32
-  FILE* state = NULL;
+//#ifdef _WIN32
+//  int low_state;
+//#endif // WIN32
+//  FILE* state = NULL;
 
   // Copy amod coefficients to device
   copy_amod_coeff(ifo, sett->nifo, cl_handles, aux);
 
-  if (opts->checkp_flag)
-  {
-#ifdef _WIN32
-    _sopen_s(&low_state, opts->qname,
-             _O_RDWR | _O_CREAT,   // Allowed operations
-             _SH_DENYNO,           // Allowed sharing
-             _S_IREAD | _S_IWRITE);// Permission settings
+//  if (opts->checkp_flag)
+//  {
+//#ifdef _WIN32
+//    _sopen_s(&low_state, opts->qname,
+//             _O_RDWR | _O_CREAT,   // Allowed operations
+//             _SH_DENYNO,           // Allowed sharing
+//             _S_IREAD | _S_IWRITE);// Permission settings
+//
+//    state = _fdopen(low_state, "w");
+//#else
+//    state = fopen(opts->qname, "w");
+//#endif // WIN32
+//  }
 
-    state = _fdopen(low_state, "w");
-#else
-    state = fopen(opts->qname, "w");
-#endif // WIN32
-  }
+  Search_results*** results = init_results(s_range);
 
   // Loop over hemispheres //
   for (int pm = s_range->pst; pm <= s_range->pmr[1]; ++pm)
   {
-    char outname[512];
-    sprintf(outname, "%s/triggers_%03d_%03d%s_%d.bin",
-            opts->prefix,
-            opts->ident,
-            opts->band,
-            opts->label,
-            pm);
-
-    Search_results** results = (Search_results**)malloc((s_range->mr[1] - s_range->mst) * sizeof(Search_results*));
-
     // Two main loops over sky positions //
     for (int mm = s_range->mst; mm <= s_range->mr[1]; ++mm)
     {
-      results[mm] = (Search_results*)malloc((s_range->nr[1] - s_range->nst) * sizeof(Search_results));
-
       #pragma omp parallel
       for (int nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
       {
@@ -131,20 +121,20 @@ void search(Detector_settings* ifo,
         }
 
         // Loop over spindowns is inside job_core() //
-        results[mm][nn] = job_core(pm,            // hemisphere
-                                   mm,            // grid 'sky position'
-                                   nn,            // other grid 'sky position'
-                                   omp_get_thread_num(),
-                                   ifo,           // detector settings
-                                   sett,          // search settings
-                                   opts,          // cmd opts
-                                   s_range,       // range for searching
-                                   plans,         // fftw plans 
-                                   fft_arr,       // arrays for fftw
-                                   aux,           // auxiliary arrays
-                                   Fnum,          // Candidate signal number
-                                   cl_handles,    // handles to OpenCL resources
-                                   blas_handles); // handle for scaling
+        results[pm][mm][nn] = job_core(pm,            // hemisphere
+                                       mm,            // grid 'sky position'
+                                       nn,            // other grid 'sky position'
+                                       omp_get_thread_num(),
+                                       ifo,           // detector settings
+                                       sett,          // search settings
+                                       opts,          // cmd opts
+                                       s_range,       // range for searching
+                                       plans,         // fftw plans 
+                                       fft_arr,       // arrays for fftw
+                                       aux,           // auxiliary arrays
+                                       Fnum,          // Candidate signal number
+                                       cl_handles,    // handles to OpenCL resources
+                                       blas_handles); // handle for scaling
 
         // Get back to regular spin-down range
         s_range->sst = s_range->spndr[0];
@@ -152,31 +142,12 @@ void search(Detector_settings* ifo,
       s_range->nst = s_range->nr[0];
     } // for mm
     s_range->mst = s_range->mr[0];
-
-	Search_results combined_results =
-      combine_results(s_range->mr[1] - s_range->mst,
-                      s_range->nr[1] - s_range->nst,
-                      results);
-
-	// Add trigger parameters to a file //
-
-    // if any signals found (Fstat>Fc)
-    if (sgnlc)
-    {
-		FILE* fc = fopen(outname, "w");
-		if (fc == NULL) perror("Failed to open output file.");
-
-		size_t count = fwrite((void *)(sgnlv), sizeof(FLOAT_TYPE), sgnlc*NPAR, fc);
-		if (count < sgnlc*NPAR) perror("Failed to write output file.");
-
-		int close = fclose(fc);
-		if (close == EOF) perror("Failed to close output file.");
-	} // if sgnlc
-	sgnlc = 0;
   } // for pm
 
-  if (opts->checkp_flag)
-    fclose(state);
+  save_and_free_results(opts, s_range, results);
+
+//  if (opts->checkp_flag)
+//    fclose(state);
 
 }
 
@@ -1086,6 +1057,113 @@ void find_peaks(const cl_int idet,
 
   CL_err = clWaitForEvents(1, &peak_unmap_event);
   checkErr(CL_err, "clWaitForEvents(peak_unmap_event)");
+}
+
+void save_and_free_results(const Command_line_opts* opts,
+                           const Search_range* s_range,
+                           const Search_results*** results)
+{
+  // Loop over hemispheres //
+  for (int pm = s_range->pmr[0]; pm <= s_range->pmr[1]; ++pm)
+  {
+    char outname[512];
+    sprintf(outname, "%s/triggers_%03d_%03d%s_%d.bin",
+        opts->prefix,
+        opts->ident,
+        opts->band,
+        opts->label,
+        pm);
+
+    Search_results result = combine_results(s_range, results[pm]);
+
+    // if any signals found (Fstat>Fc)
+    if (result.sgnlc)
+    {
+      FILE* fc = fopen(outname, "w");
+      if (fc == NULL) perror("Failed to open output file.");
+
+      size_t count = fwrite((void *)(result.sgnlv),
+                            sizeof(FLOAT_TYPE),
+                            result.sgnlc*NPAR,
+                            fc);
+      if (count < result.sgnlc*NPAR) perror("Failed to write output file.");
+
+      int close = fclose(fc);
+      if (close == EOF) perror("Failed to close output file.");
+    } // if sgnlc
+
+    free(result.sgnlv);
+  }
+
+  // Free resources
+  for (int pm = s_range->pmr[0]; pm <= s_range->pmr[1]; ++pm)
+  {
+    for (int mm = s_range->mr[0]; mm <= s_range->mr[1]; ++mm)
+    {
+      for (int nn = s_range->nr[0]; nn <= s_range->nr[1]; ++nn)
+      {
+        free(results[pm][mm][nn].sgnlv);
+      }
+      free(results[pm][mm]);
+    }
+    free(results[pm]);
+  }
+  free(results);
+}
+
+Search_results combine_results(const Search_range* s_range,
+                               const Search_results** results)
+{
+  Search_results result = { 0, NULL };
+
+  // Two main loops over sky positions //
+  for (int mm = s_range->mr[0]; mm <= s_range->mr[1]; ++mm)
+  {
+    for (int nn = s_range->nr[0]; nn <= s_range->nr[1]; ++nn)
+    {
+        // Add new parameters to output array
+        size_t old_sgnlc = result.sgnlc;
+        result.sgnlc += results[mm][nn].sgnlc;
+
+        result.sgnlv = (real_t *)realloc(result.sgnlv,
+                                         (result.sgnlc) * NPAR * sizeof(real_t));
+        memcpy(result.sgnlv + (old_sgnlc * NPAR),
+               results[mm][nn].sgnlv,
+               results[mm][nn].sgnlc * NPAR * sizeof(real_t));
+    } // for nn
+
+  } // for mm
+
+  return result;
+}
+
+Search_results*** init_results(const Search_range* s_range)
+{
+  Search_results*** results = (Search_results***)malloc((s_range->pmr[1] - s_range->pmr[0]) * sizeof(Search_results**));
+
+  for (int pm = s_range->pmr[0]; pm <= s_range->pmr[1]; ++pm)
+  {
+    results[pm] = (Search_results**)malloc((s_range->mr[1] - s_range->mr[0]) * sizeof(Search_results*));
+    
+    for (int mm = s_range->mr[0]; mm <= s_range->mr[1]; ++mm)
+    {
+      results[pm][mm] = (Search_results*)malloc((s_range->nr[1] - s_range->nr[0]) * sizeof(Search_results));
+    }
+  }
+
+  for (int pm = s_range->pst; pm >= s_range->pmr[0]; --pm)
+  {
+    for (int mm = s_range->mst; mm >= s_range->mr[0]; --mm)
+    {
+      for (int nn = s_range->nst; nn > s_range->nr[0]; --nn)
+      {
+        results[pm][mm][nn].sgnlc = 0;
+        results[pm][mm][nn].sgnlv = NULL;
+      }
+    }
+  }
+
+  return results;
 }
 
 #ifdef GPUFSTAT
