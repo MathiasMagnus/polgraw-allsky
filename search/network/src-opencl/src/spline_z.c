@@ -227,16 +227,16 @@ void spline_interpolate_cpu(const size_t arr_len,
   save_numbered_complex_buffer(cl_handles->exec_queues[0], xDatmb_d, N, n, "ifo_sig_xDatmb");
 #endif
 
-	blas_scale(N, 1. / sig2,
-		       xDatma_d,
-		       xDatmb_d,
-		       blas_handles,
-		       cl_handles,
-		       2, spline_unmap_events + 3, // it is enough to wait on the last 2 of the unmaps: xDatma, xDatmb
-		       spline_blas_events);
+  blas_scale(N, 1. / sig2,
+             xDatma_d,
+             xDatmb_d,
+             blas_handles,
+             cl_handles,
+             2, spline_unmap_events + 3, // it is enough to wait on the last 2 of the unmaps: xDatma, xDatmb
+             spline_blas_events);
 #ifdef TESTING
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, N, n, "rescaled_ifo_sig_xDatma");
-	save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, N, n, "rescaled_ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, N, n, "rescaled_ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, N, n, "rescaled_ifo_sig_xDatmb");
 #endif
 }
 

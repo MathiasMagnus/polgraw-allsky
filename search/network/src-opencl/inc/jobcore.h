@@ -65,8 +65,8 @@ void sky_positions(const int pm,                  // hemisphere
 
 /// <summary>Copies amplitude modulation coefficients to constant memory.</summary>
 ///
-void copy_amod_coeff(Detector_settings* ifo,
-                     cl_int nifo,
+void copy_amod_coeff(const Detector_settings* ifo,
+                     const cl_int nifo,
                      OpenCL_handles* cl_handles,
                      Aux_arrays* aux);
 
@@ -194,7 +194,7 @@ void calc_mxx(const cl_uint nifo,
 	          cl_mem mbb_d,
 	          OpenCL_handles* cl_handles,
 	          const cl_uint num_events_in_wait_list,
-	          const cl_event* event_wait_list,
+	          const cl_event** event_wait_list,
 	          cl_event* mxx_fill_events,
 	          cl_event* axpy_events);
 
@@ -230,7 +230,7 @@ cl_event phase_mod_1_gpu(const cl_int idet,
 /// <summary>The purpose of this function was undocumented.</summary>
 /// <todo>Merge phase_mod_1 and phase_mod_2 via zeroing out result arrays initially.</todo>
 ///
-cl_event phase_mod_1_gpu(const cl_int idet,
+cl_event phase_mod_2_gpu(const cl_int idet,
                          const cl_int id,
                          const cl_int N,
                          const real_t het1,

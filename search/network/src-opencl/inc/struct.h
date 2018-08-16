@@ -151,16 +151,17 @@ typedef struct _fft_plans {
 /* Auxiluary arrays  */ 
 typedef struct _aux_arrays {
 
-  cl_mem sinmodf_d, cosmodf_d; // Earth position
-  cl_mem t2_d  ;                // time^2
-  cl_mem **tshift_d;
   cl_mem ifo_amod_d;             // constant buffer of detector settings
-  cl_mem diag_d, ldiag_d, udiag_d, B_d; //used in spline interpolation
-  cl_mem mu_d, mu_t_d; //arrays for smoothing F-stat
-  cl_mem maa_d, mbb_d;
-  cl_mem aadot_d, bbdot_d;     // dot-products of xx_d
-  cl_mem *aadots_d, *bbdots_d; // array of sub-buffers pointing into xxdot_d
-  cl_mem *F_d;                 // F-statistics
+  cl_mem sinmodf_d, cosmodf_d;   // Earth position
+  cl_mem **tshift_d;
+  cl_mem *aadot_d, *bbdot_d;     // dot-products of xx_d
+  cl_mem **aadots_d, **bbdots_d; // array of sub-buffers pointing into xxdot_d
+  cl_mem *maa_d, *mbb_d;
+  cl_mem *F_d;                   // F-statistics
+
+  //cl_mem t2_d;                   // time^2
+  //cl_mem diag_d, ldiag_d, udiag_d, B_d; //used in spline interpolation
+  //cl_mem mu_d, mu_t_d;           // arrays for smoothing F-stat
 
 } Aux_arrays;
 

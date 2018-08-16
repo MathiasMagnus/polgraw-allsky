@@ -72,10 +72,7 @@ void search(Detector_settings* ifo,
 //  int low_state;
 //#endif // WIN32
 //  FILE* state = NULL;
-
-  // Copy amod coefficients to device
-  copy_amod_coeff(ifo, sett->nifo, cl_handles, aux);
-
+//
 //  if (opts->checkp_flag)
 //  {
 //#ifdef _WIN32
@@ -90,6 +87,9 @@ void search(Detector_settings* ifo,
 //#endif // WIN32
 //  }
 
+  // Copy amod coefficients to device
+  copy_amod_coeff(ifo, sett->nifo, cl_handles, aux);
+
   Search_results*** results = init_results(s_range);
 
   // Loop over hemispheres //
@@ -101,24 +101,24 @@ void search(Detector_settings* ifo,
       #pragma omp parallel
       for (int nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
       {
-        if (opts->checkp_flag)
-        {
-#ifdef _WIN32
-          if (_chsize(low_state, 0))
-          {
-            printf("Failed to resize file");
-            exit(EXIT_FAILURE);
-          }
-#else
-          if (ftruncate(fileno(state), 0))
-          {
-            printf("Failed to resize file");
-            exit(EXIT_FAILURE);
-          }
-#endif // _WIN32
-          fprintf(state, "%d %d %d %d %d\n", pm, mm, nn, s_range->sst, *Fnum);
-          fseek(state, 0, SEEK_SET);
-        }
+//        if (opts->checkp_flag)
+//        {
+//#ifdef _WIN32
+//          if (_chsize(low_state, 0))
+//          {
+//            printf("Failed to resize file");
+//            exit(EXIT_FAILURE);
+//          }
+//#else
+//          if (ftruncate(fileno(state), 0))
+//          {
+//            printf("Failed to resize file");
+//            exit(EXIT_FAILURE);
+//          }
+//#endif // _WIN32
+//          fprintf(state, "%d %d %d %d %d\n", pm, mm, nn, s_range->sst, *Fnum);
+//          fseek(state, 0, SEEK_SET);
+//        }
 
         // Loop over spindowns is inside job_core() //
         results[pm][mm][nn] = job_core(pm,            // hemisphere
@@ -228,54 +228,47 @@ Search_results job_core(const int pm,                  // hemisphere
                       sett->oms, sett->N, sett->nfft, sett->interpftpad,           // input
                       ifo[n].sig.xDat_d, ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
                       ifo[n].sig.DetSSB_d,                                         // input
-                      fft_arr->xa_d[n][id], fft_arr->xb_d[n][id],                  // output
+                      fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],                  // output
                       ifo[n].sig.shft_d[id], ifo[n].sig.shftf_d[id],               // output
-                      aux->tshift_d[n][id],                                        // output
+                      aux->tshift_d[id][n],                                        // output
                       cl_handles, 1, &modvir_events[n]);                           // sync
 
 	fft_interpolate_gpu(n, id, sett->nfft, sett->Ninterp, sett->nyqst, plans,    // input
-		                fft_arr->xa_d, fft_arr->xb_d,                            // input / output
+		                fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],              // input / output
 		                cl_handles, 1, &tshift_pmod_events[n],                   // sync
 		                fw_fft_events, resample_postfft_events, inv_fft_events); // sync
 
-	spline_interpolate_cpu(fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2,		 // input
-		                   fft_arr->xa_d, fft_arr->xb_d, ifo[n].sig.shftf_d,					 // input
-		                   ifo[n].sig.xDatma_d, ifo[n].sig.xDatmb_d,							 // output
-		                   blas_handles, cl_handles, 2, inv_fft_events[n],						 // sync
+	spline_interpolate_cpu(fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2,        // input
+		                   fft_arr->xa_d[id][n], fft_arr->xb_d[id][n], ifo[n].sig.shftf_d[id],   // input
+		                   ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id],                     // output
+		                   blas_handles, cl_handles, 2, inv_fft_events[n],                       // sync
 		                   spline_map_events[n], spline_unmap_events[n], spline_blas_events[n]); // sync
 
-	blas_dot(sett->N, ifo[n].sig.aa_d, ifo[n].sig.bb_d,      // input
-		     aux->aadots_d[n], aux->bbdots_d[n],             // output
-		     blas_handles, cl_handles, 1, &modvir_events[n], // sync
-		     blas_dot_events[n]);                            // sync
+	blas_dot(sett->N, ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
+		     aux->aadots_d[id][n], aux->bbdots_d[id][n],        // output
+		     blas_handles, cl_handles, 1, &modvir_events[n],    // sync
+		     blas_dot_events[n]);                               // sync
 
   } // end of detector loop  
 
   calc_mxx(sett->nifo,                              // input
-           aux->aadot_d, aux->bbdot_d, ifo,         // input
-           aux->maa_d, aux->mbb_d,                  // output
+           aux->aadot_d[id], aux->bbdot_d[id], ifo, // input
+           aux->maa_d[id], aux->mbb_d[id],          // output
            cl_handles, sett->nifo, blas_dot_events, // sync
 	       mxx_fill_events, axpy_events);           // sync
 
     
-  int smin, smax;
+  int smin, smax; // if spindown parameter is taken into account, smin != smax
   spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
                  s_range, opts,                           // input
                  &smin, &smax);                           // output
 
-  printf("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
+  printf("\n>>%d\t%d\t[%d..%d]\n", mm, nn, smin, smax);
 
   // Spindown loop
-  //
-  // if spindown parameter is taken into account, smin != smax
   for (int ss = smin; ss <= smax; ++ss)
   {
-#ifdef VERBOSE
-    //print a 'dot' every new spindown
-    printf("."); fflush(stdout);
-#endif 
-    
-	// Spindown parameter
+    // Spindown parameter
     sgnlt[1] = ss*sett->M[5] + nn*sett->M[9] + mm*sett->M[13];
 
 	real_t het1 = fmod(ss*sett->M[4], sett->M[0]);
@@ -286,28 +279,28 @@ Search_results job_core(const int pm,                  // hemisphere
 
 	// spline_interpolate_cpu is the last operation we should wait on for args to be ready
 	phase_mod_events[0] = 
-      phase_mod_1_gpu(0, id, sett->N, het1, sgnlt[1],                                  // input
-                      ifo[0].sig.xDatma_d, ifo[0].sig.xDatmb_d, ifo[0].sig.shft_d[id], // input
-                      fft_arr->xa_d[0][id], fft_arr->xb_d[0][id],                      // output
-                      cl_handles, 5, spline_unmap_events[0]);                          // sync
+      phase_mod_1_gpu(0, id, sett->N, het1, sgnlt[1],                                          // input
+                      ifo[0].sig.xDatma_d[id], ifo[0].sig.xDatmb_d[id], ifo[0].sig.shft_d[id], // input
+                      fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],                              // output
+                      cl_handles, 5, spline_unmap_events[0]);                                  // sync
 
     for (int n = 1; n<sett->nifo; ++n)
     {
-      // xY_d[0] is intentional, we're summing into the first xY_d arrays from xDatmY_d
+      // xY_d[id][0] is intentional, we're summing into the first xY_d arrays from xDatmY_d
       phase_mod_events[n] =
-        phase_mod_2_gpu(n, id, sett->N, het1, sgnlt[1],                                  // input
-                        ifo[n].sig.xDatma_d, ifo[n].sig.xDatmb_d, ifo[n].sig.shft_d[id], // input
-                        fft_arr->xa_d[0][id], fft_arr->xb_d[0][id],                      // output
-                        cl_handles, 1, phase_mod_events[n - 1]);                         // sync
+        phase_mod_2_gpu(n, id, sett->N, het1, sgnlt[1],                                          // input
+                        ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id], ifo[n].sig.shft_d[id], // input
+                        fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],                              // output
+                        cl_handles, 1, phase_mod_events + (n - 1));                              // sync
     }
 
 	zero_pad(0, id, sett,                                      // input
-             fft_arr->xa_d[0][id], fft_arr->xb_d[0][id],       // input / output
+             fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],       // input / output
              cl_handles, 1, &phase_mod_events[sett->nifo - 1], // sync
              zero_pad_events);                                 // sync
 
 	time_to_frequency(0, id, sett, plans,                         // input
-                      fft_arr->xa_d[0][id], fft_arr->xb_d[0][id], // input / output
+                      fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], // input / output
                       cl_handles, 2, zero_pad_events,             // sync
                       fw2_fft_events);                            // sync
 
@@ -315,7 +308,7 @@ Search_results job_core(const int pm,                  // hemisphere
 
     cl_event compute_Fstat_event =
 	  compute_Fstat_gpu(0, id, sett->nmin, sett->nmax,
-                        fft_arr->xa_d, fft_arr->xb_d, aux->maa_d, aux->mbb_d,
+                        fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], aux->maa_d[id], aux->mbb_d[id],
                         aux->F_d[id],
                         cl_handles, 2, fw2_fft_events);
 
@@ -336,8 +329,8 @@ Search_results job_core(const int pm,                  // hemisphere
     cl_event peak_map_event, peak_unmap_event;
     find_peaks(0, id, sett->nmin, sett->nmax, opts->trl, sgnl0, sett, aux->F_d[id], // input
                &results, sgnlt,                                                     // output
-               cl_handles, 1, normalize_Fstat_event,                                // sync
-               peak_map_event, peak_unmap_event);                                   // sync
+               cl_handles, 1, &normalize_Fstat_event,                               // sync
+               &peak_map_event, &peak_unmap_event);                                 // sync
   } // for ss 
 
 #ifdef VERBOSE
@@ -408,32 +401,33 @@ void sky_positions(const int pm,                  // hemisphere
   *het0 = fmod(nn*M[8] + mm * M[12], M[0]);
 }
 
-void copy_amod_coeff(Detector_settings* ifo,
-                     cl_int nifo,
+void copy_amod_coeff(const Detector_settings* ifo,
+                     const cl_int nifo,
                      OpenCL_handles* cl_handles,
                      Aux_arrays* aux)
 {
-    cl_int CL_err = CL_SUCCESS;
+  cl_int CL_err = CL_SUCCESS;
 
-    Ampl_mod_coeff* tmp = clEnqueueMapBuffer(cl_handles->exec_queues[0],
-                                             aux->ifo_amod_d,
-                                             CL_TRUE,
-                                             CL_MAP_WRITE_INVALIDATE_REGION,
-                                             0,
-                                             nifo * sizeof(Ampl_mod_coeff),
-                                             0,
-                                             NULL,
-                                             NULL,
-                                             &CL_err);
+  Ampl_mod_coeff* tmp =
+    clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
+                       aux->ifo_amod_d,
+                       CL_TRUE,
+                       CL_MAP_WRITE_INVALIDATE_REGION,
+                       0,
+                       nifo * sizeof(Ampl_mod_coeff),
+                       0,
+                       NULL,
+                       NULL,
+                       &CL_err);
 
-    for (size_t i = 0; i < nifo; ++i) tmp[i] = ifo[i].amod;
+  for (size_t i = 0; i < nifo; ++i) tmp[i] = ifo[i].amod;
 
-    cl_event unmap_event;
-    clEnqueueUnmapMemObject(cl_handles->exec_queues[0], aux->ifo_amod_d, tmp, 0, NULL, &unmap_event);
-
-    clWaitForEvents(1, &unmap_event);
-
-    clReleaseEvent(unmap_event);
+  cl_event unmap_event;
+  clEnqueueUnmapMemObject(cl_handles->exec_queues[0][0], aux->ifo_amod_d, tmp, 0, NULL, &unmap_event);
+  
+  clWaitForEvents(1, &unmap_event);
+  
+  clReleaseEvent(unmap_event);
 }
 
 cl_event modvir_gpu(const cl_int idet,
@@ -566,9 +560,9 @@ void fft_interpolate_gpu(const cl_int idet,
 {
 	// Forward FFT
 	clfftStatus CLFFT_status = CLFFT_SUCCESS;
-	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][0], &xa_d, NULL, NULL);
+	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues[id] + idet, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][0], &xa_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
-	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][1], &xb_d, NULL, NULL);
+	CLFFT_status = clfftEnqueueTransform(plans->pl_int, CLFFT_FORWARD, 1, cl_handles->exec_queues[id] + idet, num_events_in_wait_list, event_wait_list, &fw_fft_events[idet][1], &xb_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
 
 #ifdef TESTING
@@ -584,9 +578,9 @@ void fft_interpolate_gpu(const cl_int idet,
 		                     cl_handles, 2, fw_fft_events[idet]); // sync
 
 	// Backward fft (len Ninterp = nfft*interpftpad)
-	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues[id][idet], 1, &resample_postfft_events[idet], &inv_fft_events[idet][0], &xa_d, NULL, NULL);
+	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues[id] + idet, 1, &resample_postfft_events[idet], &inv_fft_events[idet][0], &xa_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
-	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues[id][idet], 1, &resample_postfft_events[idet], &inv_fft_events[idet][1], &xb_d, NULL, NULL);
+	clfftEnqueueTransform(plans->pl_inv, CLFFT_BACKWARD, 1, cl_handles->exec_queues[id] + idet, 1, &resample_postfft_events[idet], &inv_fft_events[idet][1], &xb_d, NULL, NULL);
 	checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_BACKWARD)");
 
 	// scale fft with clblas not needed (as opposed fftw), clFFT already scales
@@ -683,7 +677,7 @@ void calc_mxx(const cl_uint nifo,
 	          cl_mem mbb_d,
 	          OpenCL_handles* cl_handles,
 	          const cl_uint num_events_in_wait_list,
-	          const cl_event* event_wait_list,
+	          const cl_event** event_wait_list,
 	          cl_event* mxx_fill_events,
 	          cl_event* axpy_events)
 {
@@ -695,20 +689,25 @@ void calc_mxx(const cl_uint nifo,
 	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], maa_d, &pattern, sizeof(real_t), 0, sizeof(complex_t), 0, NULL, &mxx_fill_events[0]); checkErr(CL_err, "clEnqueueFillBuffer(maa_d");
 	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[0], mbb_d, &pattern, sizeof(real_t), 0, sizeof(complex_t), 0, NULL, &mxx_fill_events[1]); checkErr(CL_err, "clEnqueueFillBuffer(mbb_d");
 
-	cl_event input_wait_events[4] = { event_wait_list[0],
-									  event_wait_list[1],
-									  mxx_fill_events[0],
-									  mxx_fill_events[1] };
+    cl_event* input_wait_events = (cl_event*)malloc((nifo * 2 + 2) * sizeof(cl_event));
+
+    int i;
+    for (i = 1; i < nifo; ++i)
+    {
+        input_wait_events[i * 2 + 0] = event_wait_list[i][0];
+        input_wait_events[i * 2 + 1] = event_wait_list[i][1];
+    }
+    input_wait_events[nifo * 2 + 0] = mxx_fill_events[0];
+    input_wait_events[nifo * 2 + 1] = mxx_fill_events[1];
 
 #ifdef COMP_FLOAT
-	status[0] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, aadot_d, 0, 1, maa_d, 0, 1, 1, cl_handles->exec_queues, 4, input_wait_events, &axpy_events[0]); checkErrBLAS(status[1], "clblasDaxpy()");
-	status[1] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, bbdot_d, 0, 1, mbb_d, 0, 1, 1, cl_handles->exec_queues, 4, input_wait_events, &axpy_events[1]); checkErrBLAS(status[0], "clblasDaxpy()");
+	status[0] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, aadot_d, 0, 1, maa_d, 0, 1, 1, cl_handles->exec_queues, (nifo * 2 + 2), input_wait_events, &axpy_events[0]); checkErrBLAS(status[1], "clblasDaxpy()");
+	status[1] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, bbdot_d, 0, 1, mbb_d, 0, 1, 1, cl_handles->exec_queues, (nifo * 2 + 2), input_wait_events, &axpy_events[1]); checkErrBLAS(status[0], "clblasDaxpy()");
 #else
-	status[0] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, aadot_d, 0, 1, maa_d, 0, 1, 1, cl_handles->exec_queues, 4, input_wait_events, &axpy_events[0]); checkErrBLAS(status[1], "clblasDaxpy()");
-	status[1] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, bbdot_d, 0, 1, mbb_d, 0, 1, 1, cl_handles->exec_queues, 4, input_wait_events, &axpy_events[1]); checkErrBLAS(status[0], "clblasDaxpy()");
+	status[0] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, aadot_d, 0, 1, maa_d, 0, 1, 1, cl_handles->exec_queues, (nifo * 2 + 2), input_wait_events, &axpy_events[0]); checkErrBLAS(status[1], "clblasDaxpy()");
+	status[1] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, bbdot_d, 0, 1, mbb_d, 0, 1, 1, cl_handles->exec_queues, (nifo * 2 + 2), input_wait_events, &axpy_events[1]); checkErrBLAS(status[0], "clblasDaxpy()");
 #endif // COMP_FLOAT
 
-	int i;
 	for (i = 1; i < nifo; ++i)
 	{
 #ifdef COMP_FLOAT
