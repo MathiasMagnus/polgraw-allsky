@@ -85,7 +85,7 @@ void search(
   char outname[512];
   int /*fd,*/ status;
 #ifdef _WIN32
-  int low_state;
+  int low_state = 0; // Value init silences warning C4701
 #endif // WIN32
   FILE *state;
 

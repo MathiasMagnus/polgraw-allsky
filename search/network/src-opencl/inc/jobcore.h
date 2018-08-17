@@ -21,8 +21,7 @@ void search(Detector_settings* ifo,
             FFT_plans* plans,
             FFT_arrays* fft_arr,
             Aux_arrays* aux,
-            int* Fnum,
-            cl_mem F_d);
+            int* Fnum);
 
 /// <summary>Main job function.</summary>
 /// <remarks>The output is stored in single or double precision. (<c>real_t</c> defined in struct.h)</remarks>
@@ -154,23 +153,11 @@ cl_event resample_postfft_gpu(const cl_int idet,
 	                          const cl_uint num_events_in_wait_list,
 	                          const cl_event* event_wait_list);
 
-/// <summary>Scales vectors with a constant.</summary>
-/// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
-/// <remarks>Storage for the events must be provided by the caller.</remarks>
-///
-void blas_scale(const cl_uint n,
-	            const real_t a,
-	            cl_mem xa_d,
-	            cl_mem xb_d,
-	            BLAS_handles* blas_handles,
-	            OpenCL_handles* cl_handles,
-	            const cl_uint num_events_in_wait_list,
-	            const cl_event* event_wait_list,
-	            cl_event* blas_exec);
-
 /// <summary>Calculates the inner product of both <c>x</c> and <c>y</c>.</summary>
 ///
-void blas_dot(const cl_uint n,
+void blas_dot(const cl_int idet,
+              const cl_int id,
+              const cl_uint n,
 	          const cl_mem aa_d,
               const cl_mem bb_d,
 	          cl_mem aadot_d,
@@ -187,6 +174,7 @@ void blas_dot(const cl_uint n,
 ///       scalar axpy on device, but mapping/unmapping and summing on host.</todo>
 ///
 void calc_mxx(const cl_uint nifo,
+              const cl_int id,
 	          const cl_mem aadot_d,
 	          const cl_mem bbdot_d,
 	          const Detector_settings* ifo,
@@ -317,7 +305,7 @@ void find_peaks(const cl_int idet,
 ///
 void save_and_free_results(const Command_line_opts* opts,
                            const Search_range* s_range,
-                           const Search_results*** results);
+                           Search_results*** results);
 
 /// <summary>Combines the search results of a hemisphere to be saved on disk.</summary>
 ///

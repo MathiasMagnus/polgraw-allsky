@@ -27,7 +27,6 @@ int main (int argc, char* argv[])
     BLAS_handles blas_handles;  // Optimized BLAS plans
     FFT_plans fft_plans;        // Optimized FFT plans
     FFT_arrays fft_arr;         // FFT arrays
-    cl_mem F_d;                 // F-statistic array
 
     struct stat buffer;         // Output data handling
 
@@ -50,13 +49,13 @@ int main (int argc, char* argv[])
 	setup_output(&buffer, &opts);
 
     // Initialize OpenCL
-    init_opencl(&cl_handles, &cl_sett, &sett);
+    init_opencl(&cl_handles, &cl_sett);
 
 	// Initialize OpenMP
 	init_openmp(cl_handles.dev_count);
 
     // Array initialization
-    init_arrays(ifo, &sett, &cl_handles, &opts, &aux_arr, &F_d, &fft_arr);
+    init_arrays(ifo, &sett, &cl_handles, &opts, &aux_arr, &fft_arr);
 
     // Set search range from range file  
     set_search_range(&sett, &opts, &s_range);
@@ -72,7 +71,7 @@ int main (int argc, char* argv[])
     read_checkpoints(&opts, &s_range, &Fnum);
 
     // main search job
-    search(ifo, &sett, &opts, &s_range, &cl_handles, &blas_handles, &fft_plans, &fft_arr, &aux_arr, &Fnum, F_d);
+    search(ifo, &sett, &opts, &s_range, &cl_handles, &blas_handles, &fft_plans, &fft_arr, &aux_arr, &Fnum);
 
     // state file zeroed at the end of the run
     FILE *state;
@@ -93,7 +92,7 @@ int main (int argc, char* argv[])
 
     // Cleanup & memory free 
     cleanup(ifo, &sett, &opts, &s_range, &cl_handles, &blas_handles,
-            &fft_plans, &fft_arr, &aux_arr, F_d);
+            &fft_plans, &fft_arr, &aux_arr);
 
     return 0;//EXIT_SUCCESS;
 }

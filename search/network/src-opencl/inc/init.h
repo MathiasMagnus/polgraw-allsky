@@ -76,8 +76,7 @@ void init_arrays(Detector_settings* ifo,
                  OpenCL_handles* cl_handles,
 		         Command_line_opts* opts, 
 		         Aux_arrays* aux_arr,
-                 FFT_arrays* fft_arr,
-		         cl_mem* F_d);
+                 FFT_arrays* fft_arr);
 
 /// <summary>Initialize interferometer arrays.</summary>
 ///
@@ -86,17 +85,17 @@ void init_ifo_arrays(Search_settings* sett,
                      Command_line_opts* opts,
 	                 Detector_settings* ifo);
 
+/// <summary>Initialize auxiliary arrays.</summary>
+///
+void init_aux_arrays(Search_settings* sett,
+                     OpenCL_handles* cl_handles,
+                     Aux_arrays* aux_arr);
+
 /// <summary>Initialize FFT arrays.</summary>
 ///
 void init_fft_arrays(Search_settings* sett,
                      OpenCL_handles* cl_handles,
                      FFT_arrays* fft_arr);
-
-/// <summary>Initialize auxiliary arrays.</summary>
-///
-void init_aux_arrays(Search_settings* sett,
-                     OpenCL_handles* cl_handles,
-	                 Aux_arrays* aux_arr);
 
 void add_signal(
 		Search_settings *sett,
@@ -140,8 +139,7 @@ void cleanup(Detector_settings* ifo,
              BLAS_handles* blas_handles,
 	         FFT_plans *plans,
 	         FFT_arrays *fft_arr,
-	         Aux_arrays *aux,
-	         cl_mem F_d);
+	         Aux_arrays *aux);
 
 /// <summary>Cleanup auxiliary and F-statistics arrays.</summary>
 ///
@@ -150,13 +148,26 @@ void cleanup_arrays(Detector_settings* ifo,
                     OpenCL_handles* cl_handles,
                     Command_line_opts* opts,
                     Aux_arrays* aux_arr,
-                    FFT_arrays* fft_arr,
-                    cl_mem* F_d);
+                    FFT_arrays* fft_arr);
 
 /// <summary>Release and free FFT arrays.</summary>
 ///
 void cleanup_fft_arrays(FFT_arrays* fft_arr,
+                        int nifo,
 	                    cl_uint count);
+
+/// <summary>Initialize interferometer arrays.</summary>
+///
+void init_ifo_arrays(Search_settings* sett,
+    OpenCL_handles* cl_handles,
+    Command_line_opts* opts,
+    Detector_settings* ifo);
+
+/// <summary>Initialize auxiliary arrays.</summary>
+///
+void init_aux_arrays(Search_settings* sett,
+    OpenCL_handles* cl_handles,
+    Aux_arrays* aux_arr);
 
 /// <summary>Frees OpenCL resources.</summary>
 ///
@@ -195,8 +206,7 @@ void cleanup_blas(Search_settings* sett,
 ///
 void cleanup_fft(Search_settings* sett,
 	             OpenCL_handles* cl_handles,
-	             FFT_plans* plans,
-	             FFT_arrays* fft_arr);
+	             FFT_plans* plans);
 
 // Coincidences specific functions 
 void handle_opts_coinc(

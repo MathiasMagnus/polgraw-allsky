@@ -500,8 +500,8 @@ void add_signal(
 		Aux_arrays *aux_arr,
 		Search_range *s_range) {
 
-  int i, j, n, gsize, reffr; 
-  double h0, cof; 
+  int i, j, n, gsize = 0, reffr = 0; // value init silences warning C4701 
+  double h0 = 0., cof;               // value init silences warning C4701
   double sinaadd, cosaadd, sindadd, cosdadd, phaseadd, shiftadd, signadd; 
   double nSource[3], sgnlo[10], sgnlol[4];
   

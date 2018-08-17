@@ -94,7 +94,7 @@ void gpu_interp(cl_mem cu_y,                // buffer of complex_t
                 cl_mem cu_du,               // buffer of complex_t
                 cl_mem cu_B,                // buffer of complex_t
                 OpenCL_handles* cl_handles) // handles to OpenCL resources
-{
+{/*
     N-=1; // N is number of intervals here
   
     // allocate and compute vector B=z (replaced on gtsv)
@@ -127,10 +127,12 @@ void gpu_interp(cl_mem cu_y,                // buffer of complex_t
                     cu_y,
                     N,
                     new_N,
-                    cl_handles);
+                    cl_handles);*/
 }
 
-void spline_interpolate_cpu(const size_t arr_len,
+void spline_interpolate_cpu(const cl_int idet,
+                            const cl_int id,
+                            const size_t arr_len,
 	                        const size_t N,
 	                        const int interpftpad,
 	                        const real_t sig2,
@@ -150,7 +152,7 @@ void spline_interpolate_cpu(const size_t arr_len,
   cl_int CL_err;
   void *xa, *xb, *shftf, *xDatma, *xDatmb;
 
-  xa = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+  xa = clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
 			              xa_d,
 			              CL_FALSE,
 			              CL_MAP_READ,
@@ -162,7 +164,7 @@ void spline_interpolate_cpu(const size_t arr_len,
 			              &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xa_d)");
 
-  xb = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+  xb = clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
 			              xb_d,
 	                      CL_FALSE,
 			              CL_MAP_READ,
@@ -174,7 +176,7 @@ void spline_interpolate_cpu(const size_t arr_len,
 			              &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xb_d)");
 
-  shftf = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+  shftf = clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
 			                 shftf_d,
 	                         CL_FALSE,
 			                 CL_MAP_READ,
@@ -186,7 +188,7 @@ void spline_interpolate_cpu(const size_t arr_len,
 			                 &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.shftf_d)");
 
-  xDatma = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+  xDatma = clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
                               xDatma_d,
 	                          CL_FALSE,
                               CL_MAP_WRITE,
@@ -198,7 +200,7 @@ void spline_interpolate_cpu(const size_t arr_len,
                               &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatma_d)");
 
-  xDatmb = clEnqueueMapBuffer(cl_handles->exec_queues[0],
+  xDatmb = clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
                               xDatmb_d,
 	                          CL_FALSE,
                               CL_MAP_WRITE,
@@ -212,14 +214,14 @@ void spline_interpolate_cpu(const size_t arr_len,
 
   // Wait for maps and do actual interpolation
   clWaitForEvents(5, spline_map_events);
-  splintpad(xa, shftf, N, interpftpad, xDatma);
-  splintpad(xb, shftf, N, interpftpad, xDatmb);
+  splintpad(xa, shftf, (int)N, interpftpad, xDatma); // cast silences warn on interface of old/new code
+  splintpad(xb, shftf, (int)N, interpftpad, xDatmb); // cast silences warn on interface of old/new code
   
-  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xa_d, xa, 0, NULL, &spline_unmap_events[0]);         checkErr(CL_err, "clEnqueueUnMapMemObject(xa_d)");
-  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xb_d, xb, 0, NULL, &spline_unmap_events[1]);         checkErr(CL_err, "clEnqueueUnMapMemObject(xb_d)");
-  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], shftf_d, shftf, 0, NULL, &spline_unmap_events[2]);   checkErr(CL_err, "clEnqueueUnMapMemObject(shftf_d)");
-  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xDatma_d, xDatma, 0, NULL, &spline_unmap_events[3]); checkErr(CL_err, "clEnqueueUnMapMemObject(xDatma_d)");
-  CL_err = clEnqueueUnmapMemObject(cl_handles->exec_queues[0], xDatmb_d, xDatmb, 0, NULL, &spline_unmap_events[4]); checkErr(CL_err, "clEnqueueUnMapMemObject(xDatmb_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->write_queues[id][idet], xa_d, xa, 0, NULL, &spline_unmap_events[0]);         checkErr(CL_err, "clEnqueueUnMapMemObject(xa_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->write_queues[id][idet], xb_d, xb, 0, NULL, &spline_unmap_events[1]);         checkErr(CL_err, "clEnqueueUnMapMemObject(xb_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->write_queues[id][idet], shftf_d, shftf, 0, NULL, &spline_unmap_events[2]);   checkErr(CL_err, "clEnqueueUnMapMemObject(shftf_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->write_queues[id][idet], xDatma_d, xDatma, 0, NULL, &spline_unmap_events[3]); checkErr(CL_err, "clEnqueueUnMapMemObject(xDatma_d)");
+  CL_err = clEnqueueUnmapMemObject(cl_handles->write_queues[id][idet], xDatmb_d, xDatmb, 0, NULL, &spline_unmap_events[4]); checkErr(CL_err, "clEnqueueUnMapMemObject(xDatmb_d)");
 
 #ifdef TESTING
   clWaitForEvents(5, spline_unmap_events);
@@ -227,7 +229,7 @@ void spline_interpolate_cpu(const size_t arr_len,
   save_numbered_complex_buffer(cl_handles->exec_queues[0], xDatmb_d, N, n, "ifo_sig_xDatmb");
 #endif
 
-  blas_scale(N, 1. / sig2,
+  blas_scale(idet, id, N, 1. / sig2,
              xDatma_d,
              xDatmb_d,
              blas_handles,
@@ -240,33 +242,52 @@ void spline_interpolate_cpu(const size_t arr_len,
 #endif
 }
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
+void blas_scale(const cl_int idet,
+                const cl_int id,
+                const size_t n,
+                const real_t a,
+                cl_mem xa_d,
+                cl_mem xb_d,
+                BLAS_handles* blas_handles,
+                OpenCL_handles* cl_handles,
+                const cl_uint num_events_in_wait_list,
+                const cl_event* event_wait_list,
+                cl_event* blas_exec)
+{
+  clblasStatus status[2];
+
+#ifdef COMP_FLOAT
+  status[0] = clblasSscal(n * 2, a, xa_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasSscal(xa_d)");
+  status[1] = clblasSscal(n * 2, a, xb_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasSscal(xb_d)");
+#else
+  status[0] = clblasDscal(n * 2, a, xa_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasDscal(xa_d)");
+  status[1] = clblasDscal(n * 2, a, xb_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasDscal(xb_d)");
+#endif // COMP_FLOAT
+}
+
 void computeB_gpu(cl_mem y,
                   cl_mem B,
                   cl_int N,
                   OpenCL_handles* cl_handles)
 {
-    cl_int CL_err = CL_SUCCESS;
-
-    clSetKernelArg(cl_handles->kernels[ComputeB], 0, sizeof(cl_mem), &y);
-    clSetKernelArg(cl_handles->kernels[ComputeB], 1, sizeof(cl_mem), &B);
-    clSetKernelArg(cl_handles->kernels[ComputeB], 2, sizeof(cl_int), &N);
-
-    cl_event exec;
-    size_t size_N = (size_t)(N - 1); // Helper variable to make pointer types match. Cast to silence warning
-                                     // Subtract 
-    
-    // TODO: introduce offsets to preserve leading and trailing zeroes
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[ComputeB], 1, NULL, &size_N, NULL, 0, NULL, &exec);
-
-    clWaitForEvents(1, &exec);
-
-    clReleaseEvent(exec);
+//    cl_int CL_err = CL_SUCCESS;
+//
+//    clSetKernelArg(cl_handles->kernels[id][ComputeB], 0, sizeof(cl_mem), &y);
+//    clSetKernelArg(cl_handles->kernels[id][ComputeB], 1, sizeof(cl_mem), &B);
+//    clSetKernelArg(cl_handles->kernels[id][ComputeB], 2, sizeof(cl_int), &N);
+//
+//    cl_event exec;
+//    size_t size_N = (size_t)(N - 1); // Helper variable to make pointer types match. Cast to silence warning
+//                                     // Subtract 
+//    
+//    // TODO: introduce offsets to preserve leading and trailing zeroes
+//    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][0], cl_handles->kernels[id][ComputeB], 1, NULL, &size_N, NULL, 0, NULL, &exec);
+//
+//    clWaitForEvents(1, &exec);
+//
+//    clReleaseEvent(exec);
 }
 
-/// <summary>Multiplies the tridiagonal matrix specified by <c>{dl, d, du}</c> with dense vector <c>x</c>.</summary>
-///
 void tridiagMul_gpu(cl_mem dl,
                     cl_mem d,
                     cl_mem du,
@@ -274,30 +295,28 @@ void tridiagMul_gpu(cl_mem dl,
                     cl_int length,
                     OpenCL_handles* cl_handles)
 {
-    cl_int CL_err = CL_SUCCESS;
-
-    cl_mem y = clCreateBuffer(cl_handles->ctx, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, length * sizeof(complex_t), NULL, &CL_err);
-
-    clSetKernelArg(cl_handles->kernels[TriDiagMul], 0, sizeof(cl_mem), &dl);
-    clSetKernelArg(cl_handles->kernels[TriDiagMul], 1, sizeof(cl_mem), &d);
-    clSetKernelArg(cl_handles->kernels[TriDiagMul], 2, sizeof(cl_mem), &du);
-    clSetKernelArg(cl_handles->kernels[TriDiagMul], 3, sizeof(cl_mem), &x);
-    clSetKernelArg(cl_handles->kernels[TriDiagMul], 4, sizeof(cl_mem), &y);
-
-    cl_event events[2];
-    size_t size_length = (size_t)length; // Helper variable to make pointer types match. Cast to silence warning
-
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TriDiagMul], 1, NULL, &size_length, NULL, 0, NULL, &events[0]);
-    CL_err = clEnqueueCopyBuffer(cl_handles->write_queues[0], y, x, 0, 0, length * sizeof(complex_t), 1, &events[0], &events[1]);
-
-    clWaitForEvents(2, events);
-
-    for (size_t i = 0 ; i < 2; ++i) clReleaseEvent(events[i]);
-    clReleaseMemObject(y);
+//    cl_int CL_err = CL_SUCCESS;
+//
+//    cl_mem y = clCreateBuffer(cl_handles->ctx, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, length * sizeof(complex_t), NULL, &CL_err);
+//
+//    clSetKernelArg(cl_handles->kernels[TriDiagMul], 0, sizeof(cl_mem), &dl);
+//    clSetKernelArg(cl_handles->kernels[TriDiagMul], 1, sizeof(cl_mem), &d);
+//    clSetKernelArg(cl_handles->kernels[TriDiagMul], 2, sizeof(cl_mem), &du);
+//    clSetKernelArg(cl_handles->kernels[TriDiagMul], 3, sizeof(cl_mem), &x);
+//    clSetKernelArg(cl_handles->kernels[TriDiagMul], 4, sizeof(cl_mem), &y);
+//
+//    cl_event events[2];
+//    size_t size_length = (size_t)length; // Helper variable to make pointer types match. Cast to silence warning
+//
+//    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[TriDiagMul], 1, NULL, &size_length, NULL, 0, NULL, &events[0]);
+//    CL_err = clEnqueueCopyBuffer(cl_handles->write_queues[0], y, x, 0, 0, length * sizeof(complex_t), 1, &events[0], &events[1]);
+//
+//    clWaitForEvents(2, events);
+//
+//    for (size_t i = 0 ; i < 2; ++i) clReleaseEvent(events[i]);
+//    clReleaseMemObject(y);
 }
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
 void interpolate_gpu(cl_mem new_x,
                      cl_mem new_y,
                      cl_mem z,
@@ -306,20 +325,20 @@ void interpolate_gpu(cl_mem new_x,
                      cl_int new_N,
                      OpenCL_handles* cl_handles)
 {
-    cl_int CL_err = CL_SUCCESS;
-
-    clSetKernelArg(cl_handles->kernels[Interpolate], 0, sizeof(cl_mem), &new_x);
-    clSetKernelArg(cl_handles->kernels[Interpolate], 1, sizeof(cl_mem), &new_y);
-    clSetKernelArg(cl_handles->kernels[Interpolate], 2, sizeof(cl_mem), &z);
-    clSetKernelArg(cl_handles->kernels[Interpolate], 3, sizeof(cl_mem), &y);
-    clSetKernelArg(cl_handles->kernels[Interpolate], 4, sizeof(cl_int), &N);
-    clSetKernelArg(cl_handles->kernels[Interpolate], 5, sizeof(cl_int), &new_N);
-
-    cl_event exec;
-    size_t size_new_N = (size_t)new_N; // Helper variable to make pointer types match. Cast to silence warning
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Interpolate], 1, NULL, &size_new_N, NULL, 0, NULL, &exec);
-
-    clWaitForEvents(1, &exec);
-
-    clReleaseEvent(exec);
+//    cl_int CL_err = CL_SUCCESS;
+//
+//    clSetKernelArg(cl_handles->kernels[Interpolate], 0, sizeof(cl_mem), &new_x);
+//    clSetKernelArg(cl_handles->kernels[Interpolate], 1, sizeof(cl_mem), &new_y);
+//    clSetKernelArg(cl_handles->kernels[Interpolate], 2, sizeof(cl_mem), &z);
+//    clSetKernelArg(cl_handles->kernels[Interpolate], 3, sizeof(cl_mem), &y);
+//    clSetKernelArg(cl_handles->kernels[Interpolate], 4, sizeof(cl_int), &N);
+//    clSetKernelArg(cl_handles->kernels[Interpolate], 5, sizeof(cl_int), &new_N);
+//
+//    cl_event exec;
+//    size_t size_new_N = (size_t)new_N; // Helper variable to make pointer types match. Cast to silence warning
+//    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0], cl_handles->kernels[Interpolate], 1, NULL, &size_new_N, NULL, 0, NULL, &exec);
+//
+//    clWaitForEvents(1, &exec);
+//
+//    clReleaseEvent(exec);
 }

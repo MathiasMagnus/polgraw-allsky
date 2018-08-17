@@ -701,8 +701,7 @@ void init_arrays(Detector_settings* ifo,
                  OpenCL_handles* cl_handles,
                  Command_line_opts* opts,
                  Aux_arrays *aux_arr,
-	             FFT_arrays* fft_arr,
-                 cl_mem* F_d)
+	             FFT_arrays* fft_arr)
 {
 	init_ifo_arrays(sett, cl_handles, opts, ifo);
 
@@ -1078,20 +1077,17 @@ void init_aux_arrays(Search_settings* sett,
   //                     &aux_arr->B_d,
   //                     sett->Ninterp);
 
-  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 0, sizeof(cl_mem), &aux_arr->sinmodf_d);
-  checkErr(CL_err, "clSetKernelArg(0)");
-  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 1, sizeof(cl_mem), &aux_arr->cosmodf_d);
-  checkErr(CL_err, "clSetKernelArg(1)");
-  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 2, sizeof(real_t), &sett->omr);
-  checkErr(CL_err, "clSetKernelArg(2)");
-  CL_err = clSetKernelArg(cl_handles->kernels[ComputeSinCosModF], 3, sizeof(cl_int), &sett->N);
-  checkErr(CL_err, "clSetKernelArg(3)");
+  // Device id=0 calculates the single sinmod/cosmod instance which will be shared between devices
+  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 0, sizeof(cl_mem), &aux_arr->sinmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 0)");
+  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 1, sizeof(cl_mem), &aux_arr->cosmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 1)");
+  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 2, sizeof(real_t), &sett->omr);          checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 2)");
+  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 3, sizeof(cl_int), &sett->N);            checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 3)");
 
   cl_event exec;
   size_t size_N = (size_t)sett->N; // Variable so pointer can be given to API
 
-  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0],
-                                  cl_handles->kernels[ComputeSinCosModF],
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0][0],
+                                  cl_handles->kernels[0][ComputeSinCosModF],
                                   1,
                                   NULL,
                                   &size_N,
@@ -1202,18 +1198,18 @@ void init_blas(Search_settings* sett,
   clblasStatus status = clblasSetup();
   checkErrBLAS(status, "clblasSetup()");
 
-  blas_handles->aaScratch_d = (cl_mem**)malloc(sett->nifo * sizeof(cl_mem*));
-  blas_handles->bbScratch_d = (cl_mem**)malloc(sett->nifo * sizeof(cl_mem*));
+  blas_handles->aaScratch_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem));
+  blas_handles->bbScratch_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem));
 
-  for (int i = 0; i < sett->nifo; ++i)
+  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
   {
-    blas_handles->aaScratch_d[i] = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-    blas_handles->bbScratch_d[i] = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
+    blas_handles->aaScratch_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem*));
+    blas_handles->bbScratch_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem*));
     
-    for (cl_uint j = 0; j < cl_handles->dev_count; ++j)
+    for (int idet = 0; idet < sett->nifo; ++idet)
     {
       cl_int CL_err = CL_SUCCESS;
-      blas_handles->aaScratch_d[i][j] =
+      blas_handles->aaScratch_d[id][idet] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                        sett->N * sizeof(real_t),
@@ -1221,7 +1217,7 @@ void init_blas(Search_settings* sett,
                        &CL_err);
 	  checkErr(CL_err, "clCreateBuffer(blas_handles->aaScratch_d)");
 
-      blas_handles->bbScratch_d[i][j] =
+      blas_handles->bbScratch_d[id][idet] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                        sett->N * sizeof(real_t),
@@ -1240,6 +1236,13 @@ void init_fft(Search_settings* sett,
            nfft_size = (size_t)sett->nfft,
 		   Ninterp_size = (size_t)sett->Ninterp;
 
+    // Commandqueues of various devices are not contigous in memory. Make such a copy
+    cl_command_queue* dev_queues = (cl_command_queue*)malloc(cl_handles->dev_count * sizeof(cl_command_queue));
+    for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+    {
+        dev_queues[id] = cl_handles->exec_queues[id][0];
+    }
+
 	clfftSetupData fftSetup;
 	clfftStatus CLFFT_status = clfftSetup(&fftSetup);
 	checkErrFFT(CLFFT_status, "clffftSetup");
@@ -1256,8 +1259,8 @@ void init_fft(Search_settings* sett,
     checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
     CLFFT_status = clfftBakePlan(plans->plan,
-                                 1u,//cl_handles->dev_count,
-                                 cl_handles->exec_queues,
+                                 cl_handles->dev_count,
+                                 dev_queues,
                                  NULL,
                                  NULL);
     checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
@@ -1274,8 +1277,8 @@ void init_fft(Search_settings* sett,
     checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
     CLFFT_status = clfftBakePlan(plans->pl_int,
-                           1u,//cl_handles->dev_count,
-                           cl_handles->exec_queues,
+                           cl_handles->dev_count,
+                           dev_queues,
                            NULL,
                            NULL);
     checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
@@ -1294,8 +1297,8 @@ void init_fft(Search_settings* sett,
 	checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
 	CLFFT_status = clfftBakePlan(plans->pl_inv,
-		                         1u,//cl_handles->dev_count,
-		                         cl_handles->exec_queues,
+		                         cl_handles->dev_count,
+                                 dev_queues,
 		                         NULL,
 		                         NULL);
 	checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
@@ -1367,39 +1370,45 @@ void cleanup(Detector_settings* ifo,
              BLAS_handles* blas_handles,
              FFT_plans *plans,
              FFT_arrays *fft_arr,
-             Aux_arrays *aux,
-             cl_mem F_d)
+             Aux_arrays *aux)
 {
-	for (int i = 0; i<sett->nifo; i++)
-    {
-        free(ifo[i].sig.xDat);
-        free(ifo[i].sig.DetSSB);
+    cleanup_fft(sett, cl_handles, plans);
 
-        clReleaseMemObject(ifo[i].sig.xDatma_d);
-        clReleaseMemObject(ifo[i].sig.xDatmb_d);
+    cleanup_blas(sett, cl_handles, blas_handles);
 
-        clReleaseMemObject(ifo[i].sig.aa_d);
-        clReleaseMemObject(ifo[i].sig.bb_d);
+    cleanup_arrays(ifo, sett, cl_handles, opts, aux, fft_arr);
 
-        clReleaseMemObject(ifo[i].sig.shft_d);
-        clReleaseMemObject(ifo[i].sig.shftf_d);
-    }
+    cleanup_opencl(cl_handles);
 
-    clReleaseMemObject(aux->cosmodf_d);
-    clReleaseMemObject(aux->sinmodf_d);
-//    clReleaseMemObject(aux->t2_d);
-
-    clReleaseMemObject(F_d);
-
-    clReleaseMemObject(fft_arr->xa_d);
-
-    free(sett->M);
-
-    clfftDestroyPlan(&plans->plan);
-    clfftDestroyPlan(&plans->pl_int);
-    clfftDestroyPlan(&plans->pl_inv);
-
-	clblasTeardown();
+	//for (int i = 0; i<sett->nifo; i++)
+    //{
+    //    free(ifo[i].sig.xDat);
+    //    free(ifo[i].sig.DetSSB);
+    //
+    //    clReleaseMemObject(ifo[i].sig.xDatma_d);
+    //    clReleaseMemObject(ifo[i].sig.xDatmb_d);
+    //
+    //    clReleaseMemObject(ifo[i].sig.aa_d);
+    //    clReleaseMemObject(ifo[i].sig.bb_d);
+    //
+    //    clReleaseMemObject(ifo[i].sig.shft_d);
+    //    clReleaseMemObject(ifo[i].sig.shftf_d);
+    //}
+    //
+    //clReleaseMemObject(aux->cosmodf_d);
+    //clReleaseMemObject(aux->sinmodf_d);
+    //
+    //clReleaseMemObject(F_d);
+    //
+    //clReleaseMemObject(fft_arr->xa_d);
+    //
+    //free(sett->M);
+    //
+    //clfftDestroyPlan(&plans->plan);
+    //clfftDestroyPlan(&plans->pl_int);
+    //clfftDestroyPlan(&plans->pl_inv);
+    //
+	//clblasTeardown();
 
 } // end of cleanup & memory free
 
@@ -1408,17 +1417,16 @@ void cleanup_arrays(Detector_settings* ifo,
                     OpenCL_handles* cl_handles,
                     Command_line_opts* opts,
                     Aux_arrays* aux_arr,
-                    FFT_arrays* fft_arr,
-                    cl_mem* F_d)
+                    FFT_arrays* fft_arr)
 {
 	cleanup_fft_arrays(fft_arr, sett->nifo, cl_handles->dev_count);
 }
 
 void cleanup_fft_arrays(FFT_arrays* fft_arr,
-                        int n,
+                        int nifo,
                         cl_uint count)
 {
-  for (int i = 0 ; i < n; ++i)
+  for (int i = 0 ; i < nifo; ++i)
   {
     for (cl_uint j = 0; j < count; ++j)
     {
@@ -1517,26 +1525,35 @@ void cleanup_blas(Search_settings* sett,
 	              OpenCL_handles* cl_handles,
 	              BLAS_handles* blas_handles)
 {
-	for (cl_uint i = 0; i < cl_handles->dev_count; ++i)
-	{
-		cl_int CL_err = CL_SUCCESS;
-		CL_err = clReleaseMemObject(blas_handles->aaScratch_d[i]); checkErr(CL_err, "clReleaseMemObject(blas_handles->aaScratch_d)");
-		CL_err = clReleaseMemObject(blas_handles->bbScratch_d[i]); checkErr(CL_err, "clReleaseMemObject(blas_handles->bbScratch_d)");
-	}
+    cl_int CL_err = CL_SUCCESS;
+
+    for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+    {
+        for (int idet = 0; idet < sett->nifo; ++idet)
+        {
+            CL_err = clReleaseMemObject(blas_handles->aaScratch_d[id][idet]); checkErr(CL_err, "clReleaseMemObject(blas_handles->aaScratch_d)");
+            CL_err = clReleaseMemObject(blas_handles->bbScratch_d[id][idet]); checkErr(CL_err, "clReleaseMemObject(blas_handles->bbScratch_d)");
+        }
+
+        free(blas_handles->aaScratch_d[id]);
+        free(blas_handles->bbScratch_d[id]);
+    }
+
+    free(blas_handles->aaScratch_d);
+    free(blas_handles->bbScratch_d);
 
 	clblasTeardown();
 }
 
 void cleanup_fft(Search_settings* sett,
 	             OpenCL_handles* cl_handles,
-	             FFT_plans* plans,
-	             FFT_arrays* fft_arr)
+	             FFT_plans* plans)
 {
 	clfftStatus status = CLFFT_SUCCESS;
 
-	status = clfftDestroyPlan(plans->plan);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
-	status = clfftDestroyPlan(plans->pl_int); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
-	status = clfftDestroyPlan(plans->pl_inv); checkErrFFT(status, "clfftDestroyPlan(plans->pl_inv)");
+	status = clfftDestroyPlan(&plans->plan);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
+	status = clfftDestroyPlan(&plans->pl_int); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
+	status = clfftDestroyPlan(&plans->pl_inv); checkErrFFT(status, "clfftDestroyPlan(plans->pl_inv)");
 
 	clfftTeardown();
 }
