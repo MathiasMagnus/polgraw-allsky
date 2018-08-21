@@ -666,13 +666,13 @@ void calc_mxx(const cl_uint nifo,
 
 	real_t pattern = 0;
 
-	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][0], maa_d, &pattern, sizeof(real_t), 0, sizeof(complex_t), 0, NULL, &mxx_fill_events[0]); checkErr(CL_err, "clEnqueueFillBuffer(maa_d");
-	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][0], mbb_d, &pattern, sizeof(real_t), 0, sizeof(complex_t), 0, NULL, &mxx_fill_events[1]); checkErr(CL_err, "clEnqueueFillBuffer(mbb_d");
+	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][0], maa_d, &pattern, sizeof(real_t), 0, sizeof(real_t), 0, NULL, &mxx_fill_events[0]); checkErr(CL_err, "clEnqueueFillBuffer(maa_d)");
+	CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][0], mbb_d, &pattern, sizeof(real_t), 0, sizeof(real_t), 0, NULL, &mxx_fill_events[1]); checkErr(CL_err, "clEnqueueFillBuffer(mbb_d)");
 
     cl_event* input_wait_events = (cl_event*)malloc((nifo * 2 + 2) * sizeof(cl_event));
 
     cl_uint i;
-    for (i = 1; i < nifo; ++i)
+    for (i = 0; i < nifo; ++i)
     {
         input_wait_events[i * 2 + 0] = event_wait_list[i][0];
         input_wait_events[i * 2 + 1] = event_wait_list[i][1];
