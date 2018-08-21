@@ -250,11 +250,11 @@ Search_results job_core(const int pm,                  // hemisphere
 
   } // end of detector loop  
 
-  calc_mxx(sett->nifo, id,                          // input
-           aux->aadot_d[id], aux->bbdot_d[id], ifo, // input
-           aux->maa_d[id], aux->mbb_d[id],          // output
-           cl_handles, sett->nifo, blas_dot_events, // sync
-	       mxx_fill_events, axpy_events);           // sync
+  calc_mxx(sett->nifo, id,                            // input
+           aux->aadots_d[id], aux->bbdots_d[id], ifo, // input
+           aux->maa_d[id], aux->mbb_d[id],            // output
+           cl_handles, sett->nifo, blas_dot_events,   // sync
+	       mxx_fill_events, axpy_events);             // sync
 
     
   int smin, smax; // if spindown parameter is taken into account, smin != smax
@@ -637,21 +637,21 @@ void blas_dot(const cl_int idet,
 	          const cl_event* event_wait_list,
 	          cl_event* blas_exec)
 {
-    clblasStatus status[2];    
+  clblasStatus status[2] = { clblasSuccess, clblasSuccess };
 
 #ifdef COMP_FLOAT
-    status[1] = clblasSdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasSetup()");
-	status[0] = clblasSdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasSetup()");
+  status[1] = clblasSdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[0], "clblasDdot()");
+  status[0] = clblasSdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[1], "clblasDdot()");
 #else
-    status[0] = clblasDdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[1], "clblasSetup()");
-	status[1] = clblasDdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[0], "clblasSetup()");
+  status[0] = clblasDdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasDdot()");
+  status[1] = clblasDdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasDdot()");
 #endif // COMP_FLOAT
 }
 
 void calc_mxx(const cl_uint nifo,
               const cl_int id,
-	          const cl_mem aadot_d,
-	          const cl_mem bbdot_d,
+	          const cl_mem* aadots_d,
+	          const cl_mem* bbdots_d,
 	          const Detector_settings* ifo,
 	          cl_mem maa_d,
 	          cl_mem mbb_d,
@@ -661,8 +661,8 @@ void calc_mxx(const cl_uint nifo,
 	          cl_event* mxx_fill_events,
 	          cl_event* axpy_events)
 {
-	cl_int CL_err;
-	clblasStatus status[2];
+	cl_int CL_err = CL_SUCCESS;
+	clblasStatus status[2] = { clblasSuccess, clblasSuccess };
 
 	real_t pattern = 0;
 
@@ -681,23 +681,25 @@ void calc_mxx(const cl_uint nifo,
     input_wait_events[nifo * 2 + 1] = mxx_fill_events[1];
 
 #ifdef COMP_FLOAT
-	status[0] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, aadot_d, 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[0]); checkErrBLAS(status[1], "clblasDaxpy()");
-	status[1] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, bbdot_d, 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[1]); checkErrBLAS(status[0], "clblasDaxpy()");
+	status[0] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, aadots_d[0], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[0]); checkErrBLAS(status[0], "clblasDaxpy()");
+	status[1] = clblasSaxpy(1, 1 / ifo[0].sig.sig2, bbdots_d[0], 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[1]); checkErrBLAS(status[1], "clblasDaxpy()");
 #else
-	status[0] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, aadot_d, 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[0]); checkErrBLAS(status[1], "clblasDaxpy()");
-	status[1] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, bbdot_d, 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[1]); checkErrBLAS(status[0], "clblasDaxpy()");
+	status[0] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, aadots_d[0], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[0]); checkErrBLAS(status[0], "clblasDaxpy()");
+    status[1] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, bbdots_d[0], 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[1]); checkErrBLAS(status[1], "clblasDaxpy()");
 #endif // COMP_FLOAT
 
 	for (i = 1; i < nifo; ++i)
 	{
 #ifdef COMP_FLOAT
-		status[0] = clblasSaxpy(1, 1 / ifo[i].sig.sig2, aadot_d, i, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 0], &axpy_events[i * 2 + 0]); checkErrBLAS(status[1], "clblasDaxpy()");
-		status[1] = clblasSaxpy(1, 1 / ifo[i].sig.sig2, bbdot_d, i, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[0], "clblasDaxpy()");
+		status[0] = clblasSaxpy(1, 1 / ifo[i].sig.sig2, aadots_d[i], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 0], &axpy_events[i * 2 + 0]); checkErrBLAS(status[0], "clblasDaxpy()");
+		status[1] = clblasSaxpy(1, 1 / ifo[i].sig.sig2, bbdots_d[i], 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[1], "clblasDaxpy()");
 #else
-		status[0] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, aadot_d, i, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 0], &axpy_events[i * 2 + 0]); checkErrBLAS(status[1], "clblasDaxpy()");
-		status[1] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, bbdot_d, i, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[0], "clblasDaxpy()");
+		status[0] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, aadots_d[i], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 0], &axpy_events[i * 2 + 0]); checkErrBLAS(status[0], "clblasDaxpy()");
+		status[1] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, bbdots_d[i], 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[1], "clblasDaxpy()");
 #endif // COMP_FLOAT
 	}
+
+    free(input_wait_events);
 }
 
 void spindown_range(const int mm,                  // grid 'sky position'

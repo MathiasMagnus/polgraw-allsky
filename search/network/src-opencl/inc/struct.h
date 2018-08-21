@@ -154,7 +154,7 @@ typedef struct _aux_arrays {
   cl_mem ifo_amod_d;             // constant buffer of detector settings
   cl_mem sinmodf_d, cosmodf_d;   // Earth position
   cl_mem **tshift_d;
-  cl_mem *aadot_d, *bbdot_d;     // dot-products of xx_d
+  //cl_mem *aadot_d, *bbdot_d;     // dot-products of xx_d
   cl_mem **aadots_d, **bbdots_d; // array of sub-buffers pointing into xxdot_d
   cl_mem *maa_d, *mbb_d;
   cl_mem *F_d;                   // F-statistics

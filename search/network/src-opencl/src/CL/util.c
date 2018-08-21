@@ -36,7 +36,7 @@ void checkErrFFT(clfftStatus stat, const char * name)
 ///
 void checkErrBLAS(clblasStatus stat, const char * name)
 {
-    if (stat != CLFFT_SUCCESS)
+    if (stat != clblasSuccess)
     {
         printf("ERROR: %s (%i)\n", name, stat);
 
