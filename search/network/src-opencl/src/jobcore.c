@@ -927,7 +927,7 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
                                        const cl_event* event_wait_list)
 {
   cl_int CL_err = CL_SUCCESS;
-  cl_uint N = nfft / nav;
+  //cl_uint N = nfft / nav;
   size_t max_wgs;             // maximum supported wgs on the device (limited by register count)
   cl_ulong local_size;        // local memory size in bytes
   cl_uint ssi;                // shared size in num gentypes
@@ -946,7 +946,7 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
   clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 2, sizeof(cl_uint), &ssi);
   clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 3, sizeof(cl_uint), &nav);
 
-  size_t gsi = N;
+  size_t gsi = nfft;
   size_t wgs = gsi < max_wgs ? gsi : max_wgs;
 
   // Check preconditions of kernel before launch
