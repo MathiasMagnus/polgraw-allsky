@@ -120,23 +120,29 @@ void search(Detector_settings* ifo,
 //        }
 
         // Loop over spindowns is inside job_core() //
-        results[pm][mm][nn] = job_core(pm,            // hemisphere
-                                       mm,            // grid 'sky position'
-                                       nn,            // other grid 'sky position'
-                                       omp_get_thread_num(),
-                                       ifo,           // detector settings
-                                       sett,          // search settings
-                                       opts,          // cmd opts
-                                       s_range,       // range for searching
-                                       plans,         // fftw plans 
-                                       fft_arr,       // arrays for fftw
-                                       aux,           // auxiliary arrays
-                                       Fnum,          // Candidate signal number
-                                       cl_handles,    // handles to OpenCL resources
-                                       blas_handles); // handle for scaling
+        results[pm - s_range->pmr[0]]
+               [mm - s_range->mr[0]]
+               [nn - s_range->nr[0]] = job_core(pm,            // hemisphere
+                                                mm,            // grid 'sky position'
+                                                nn,            // other grid 'sky position'
+                                                omp_get_thread_num(),
+                                                ifo,           // detector settings
+                                                sett,          // search settings
+                                                opts,          // cmd opts
+                                                s_range,       // range for searching
+                                                plans,         // fftw plans 
+                                                fft_arr,       // arrays for fftw
+                                                aux,           // auxiliary arrays
+                                                Fnum,          // Candidate signal number
+                                                cl_handles,    // handles to OpenCL resources
+                                                blas_handles); // handle for scaling
 
         // Get back to regular spin-down range
-        s_range->sst = s_range->spndr[0];
+        //
+        // NOTE: without checkpoint support, writing this shared variable breaks concurrency
+        //
+        // s_range->sst = s_range->spndr[0];
+
       } // for nn
       s_range->nst = s_range->nr[0];
     } // for mm
@@ -262,8 +268,6 @@ Search_results job_core(const int pm,                  // hemisphere
                  s_range, opts,                           // input
                  &smin, &smax);                           // output
 
-  printf("\n>>%d\t%d\t[%d..%d]\n", mm, nn, smin, smax);
-
   // Spindown loop
   for (int ss = smin; ss <= smax; ++ss)
   {
@@ -312,9 +316,9 @@ Search_results job_core(const int pm,                  // hemisphere
                         cl_handles, 2, fw2_fft_events);
 
 	cl_event normalize_Fstat_event =
-		normalize_FStat_gpu_wg_reduce(0, id, sett->nfft, NAVFSTAT,          // input
-                                      aux->F_d[id],                         // input / output
-                                      cl_handles, 1, &compute_Fstat_event); // sync
+		normalize_FStat_gpu_wg_reduce(0, id, sett->nmin, sett->nmax, NAVFSTAT, // input
+                                      aux->F_d[id],                            // input / output
+                                      cl_handles, 1, &compute_Fstat_event);    // sync
 
 #if 0
 	cl_int CL_err = CL_SUCCESS;
@@ -332,8 +336,10 @@ Search_results job_core(const int pm,                  // hemisphere
                &peak_map_event, &peak_unmap_event);                                 // sync
   } // for ss 
 
-#ifdef VERBOSE
-    printf("Number of signals found: %d\n", *sgnlc);
+  printf("\n>>%zu\t%d\t%d\t[%d..%d]\n", results.sgnlc, mm, nn, smin, smax);
+
+#ifndef VERBOSE
+    printf("Number of signals found: %zu\n", results.sgnlc);
 #endif
 
   return results;
@@ -919,7 +925,8 @@ cl_event compute_Fstat_gpu(const cl_int idet,
 
 cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
                                        const cl_int id,
-                                       const cl_uint nfft,
+                                       const cl_int nmin,
+                                       const cl_int nmax,
                                        const cl_uint nav,
                                        cl_mem F_d,
                                        OpenCL_handles* cl_handles,
@@ -927,27 +934,35 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
                                        const cl_event* event_wait_list)
 {
   cl_int CL_err = CL_SUCCESS;
-  //cl_uint N = nfft / nav;
   size_t max_wgs;             // maximum supported wgs on the device (limited by register count)
   cl_ulong local_size;        // local memory size in bytes
-  cl_uint ssi;                // shared size in num gentypes
 
-  CL_err = clGetKernelWorkGroupInfo(cl_handles->kernels[id][NormalizeFStatWG], cl_handles->devs[id], CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &max_wgs, NULL);
+  CL_err = clGetKernelWorkGroupInfo(cl_handles->kernels[id][NormalizeFStatWG],
+                                    cl_handles->devs[id],
+                                    CL_KERNEL_WORK_GROUP_SIZE,
+                                    sizeof(size_t),
+                                    &max_wgs,
+                                    NULL);
   checkErr(CL_err, "clGetKernelWorkGroupInfo(FStatSimple, CL_KERNEL_WORK_GROUP_SIZE)");
 
-   CL_err = clGetDeviceInfo(cl_handles->devs[id], CL_DEVICE_LOCAL_MEM_SIZE, sizeof(cl_ulong), &local_size, NULL);
-   checkErr(CL_err, "clGetDeviceInfo(FStatSimple, CL_DEVICE_LOCAL_MEM_SIZE)");
+  CL_err = clGetDeviceInfo(cl_handles->devs[id],
+                           CL_DEVICE_LOCAL_MEM_SIZE,
+                           sizeof(cl_ulong),
+                           &local_size,
+                           NULL);
+  checkErr(CL_err, "clGetDeviceInfo(FStatSimple, CL_DEVICE_LOCAL_MEM_SIZE)");
 
-  // How long is the array of local memory
-  ssi = (cl_uint)(local_size / sizeof(real_t)); // Assume integer is enough to store gentype count (well, it better)
+  // How long is the array of local memory (shared size in num gentypes)
+  cl_uint ssi = (cl_uint)(local_size / sizeof(real_t)); // Assume integer is enough to store gentype count (well, it better)
 
   clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 0, sizeof(cl_mem), &F_d);
   clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 1, ssi * sizeof(real_t), NULL);
   clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 2, sizeof(cl_uint), &ssi);
   clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 3, sizeof(cl_uint), &nav);
 
-  size_t gsi = nfft;
-  size_t wgs = gsi < max_wgs ? gsi : max_wgs;
+  size_t gsi = ((nmax - nmin)/nav)*nav; // truncate nmax-nmin to the nearest multiple of nav
+  size_t wgs = gsi < max_wgs ? gsi : max_wgs; // std::min
+  size_t off = nmin;
 
   // Check preconditions of kernel before launch
   assert(ssi <= nav);
@@ -956,7 +971,7 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
   assert(!(gsi % nav));
 
   cl_event exec;
-  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][NormalizeFStatWG], 1, NULL, &gsi, &wgs, num_events_in_wait_list, event_wait_list, &exec);
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][NormalizeFStatWG], 1, &off, &gsi, &wgs, num_events_in_wait_list, event_wait_list, &exec);
   checkErr(CL_err, "clEnqueueNDRangeKernel(FStatSimple)");
 
   return exec;
@@ -1055,7 +1070,7 @@ void save_and_free_results(const Command_line_opts* opts,
         opts->label,
         pm);
 
-    Search_results result = combine_results(s_range, results[pm]);
+    Search_results result = combine_results(s_range, results[pm - s_range->pmr[0]]);
 
     // if any signals found (Fstat>Fc)
     if (result.sgnlc)
@@ -1083,11 +1098,14 @@ void save_and_free_results(const Command_line_opts* opts,
     {
       for (int nn = s_range->nr[0]; nn <= s_range->nr[1]; ++nn)
       {
-        free(results[pm][mm][nn].sgnlv);
+        free(results[pm - s_range->pmr[0]]
+                    [mm - s_range->mr[0]]
+                    [nn - s_range->nr[0]].sgnlv);
       }
-      free(results[pm][mm]);
+      free(results[pm - s_range->pmr[0]]
+                  [mm - s_range->mr[0]]);
     }
-    free(results[pm]);
+    free(results[pm - s_range->pmr[0]]);
   }
   free(results);
 }
@@ -1102,15 +1120,18 @@ Search_results combine_results(const Search_range* s_range,
   {
     for (int nn = s_range->nr[0]; nn <= s_range->nr[1]; ++nn)
     {
+        Search_results* select = &results[mm - s_range->mr[0]]
+                                         [nn - s_range->nr[0]];
+
         // Add new parameters to output array
         size_t old_sgnlc = result.sgnlc;
-        result.sgnlc += results[mm][nn].sgnlc;
+        result.sgnlc += select->sgnlc;
 
-        result.sgnlv = (real_t *)realloc(result.sgnlv,
+        result.sgnlv = (real_t*)realloc(result.sgnlv,
                                          (result.sgnlc) * NPAR * sizeof(real_t));
         memcpy(result.sgnlv + (old_sgnlc * NPAR),
-               results[mm][nn].sgnlv,
-               results[mm][nn].sgnlc * NPAR * sizeof(real_t));
+               select->sgnlv,
+               select->sgnlc * NPAR * sizeof(real_t));
     } // for nn
 
   } // for mm
@@ -1120,15 +1141,18 @@ Search_results combine_results(const Search_range* s_range,
 
 Search_results*** init_results(const Search_range* s_range)
 {
-  Search_results*** results = (Search_results***)malloc((s_range->pmr[1] - s_range->pmr[0]) * sizeof(Search_results**));
+  // NOTE 1: Search ranges are inclusive (no empty range possible), hence +1 is needed.
+  Search_results*** results = (Search_results***)malloc((s_range->pmr[1] - s_range->pmr[0] + 1) * sizeof(Search_results**));
 
   for (int pm = s_range->pmr[0]; pm <= s_range->pmr[1]; ++pm)
   {
-    results[pm] = (Search_results**)malloc((s_range->mr[1] - s_range->mr[0]) * sizeof(Search_results*));
+    // NOTE 2: When using coordinates to index into the arrays, subtract the base coordinate value.
+    results[pm -  s_range->pmr[0]] = (Search_results**)malloc((s_range->mr[1] - s_range->mr[0] + 1) * sizeof(Search_results*));
     
     for (int mm = s_range->mr[0]; mm <= s_range->mr[1]; ++mm)
     {
-      results[pm][mm] = (Search_results*)malloc((s_range->nr[1] - s_range->nr[0]) * sizeof(Search_results));
+      results[pm - s_range->pmr[0]]
+             [mm - s_range->mr[0]] = (Search_results*)malloc((s_range->nr[1] - s_range->nr[0] + 1) * sizeof(Search_results));
     }
   }
 
@@ -1138,8 +1162,11 @@ Search_results*** init_results(const Search_range* s_range)
     {
       for (int nn = s_range->nst; nn > s_range->nr[0]; --nn)
       {
-        results[pm][mm][nn].sgnlc = 0;
-        results[pm][mm][nn].sgnlv = NULL;
+        Search_results* select =  &results[pm - s_range->pmr[0]]
+                                          [mm - s_range->mr[0]]
+                                          [nn - s_range->nr[0]];
+        select->sgnlc = 0;
+        select->sgnlv = NULL;
       }
     }
   }

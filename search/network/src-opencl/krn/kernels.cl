@@ -322,10 +322,10 @@ __kernel void normalize_Fstat_wg_reduce(__global real_t* F,
                                         unsigned int nav)
 {
     size_t lid = get_local_id(0),
-           gsi = get_global_size(0),
            lsi = get_local_size(0),
-           grp = get_group_id(0);
-
+           grp = get_group_id(0),
+		   off = get_global_offset(0);
+		   
     // Outer pass responsible for handling nav potentially being larger than what shared can hold
     //
     // NOTE: note 'P' starting from 0. Unlike the inner pass loop, this HAS to execute at least once.
@@ -333,7 +333,7 @@ __kernel void normalize_Fstat_wg_reduce(__global real_t* F,
     {
         event_t copy;
         async_work_group_copy(shared,
-                              F + grp * nav + P * ssi,
+                              (F + off) + grp * nav + P * ssi,
                               ssi,
                               copy);
         wait_group_events(1, &copy);
@@ -362,7 +362,7 @@ __kernel void normalize_Fstat_wg_reduce(__global real_t* F,
 
     for (size_t P = 0; P < nav / lsi; ++P)
     {
-        F[grp * nav + P * lsi + lid] /= mu;
+        F[off + grp * nav + P * lsi + lid] /= mu;
     }
 }
 

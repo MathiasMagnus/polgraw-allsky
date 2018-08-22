@@ -1419,18 +1419,18 @@ void cleanup_fft_arrays(FFT_arrays* fft_arr,
                         int nifo,
                         cl_uint count)
 {
-  for (int i = 0 ; i < nifo; ++i)
-  {
-    for (cl_uint j = 0; j < count; ++j)
+    for (cl_uint id = 0; id < count; ++id)
     {
-      cl_int CL_err = CL_SUCCESS;
-      
-      CL_err = clReleaseMemObject(fft_arr->xa_d[i][j]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xa_d[i][j])");
-      CL_err = clReleaseMemObject(fft_arr->xb_d[i][j]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xb_d[i][j])");
+      for (int n = 0; n < nifo; ++n)
+      {
+        cl_int CL_err = CL_SUCCESS;
+        
+        CL_err = clReleaseMemObject(fft_arr->xa_d[id][n]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xa_d[i][j])");
+        CL_err = clReleaseMemObject(fft_arr->xb_d[id][n]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xb_d[i][j])");
     }
 
-    free(fft_arr->xa_d[i]);
-    free(fft_arr->xb_d[i]);
+    free(fft_arr->xa_d[id]);
+    free(fft_arr->xb_d[id]);
   }
 
   free(fft_arr->xa_d);
