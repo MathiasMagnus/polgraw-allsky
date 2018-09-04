@@ -108,7 +108,7 @@ __kernel void resample_postfft(__global complex_t *xa_d,
     xb_d[i].x = xb_d[j].x;
     xb_d[i].y = xb_d[j].y;
 
-	barrier(CLK_GLOBAL_MEM_FENCE);
+	mem_fence(CLK_GLOBAL_MEM_FENCE);
 
 	xa_d[j].x = 0;
 	xa_d[j].y = 0;
@@ -219,7 +219,7 @@ __kernel void phase_mod_1(__global complex_t* xa,
 
     if (idx < N)
     {
-	    // _tmp1[n][i]
+	    // _tmp1[0][i]
 		//        |     aux->t2[i]
 		//        |         |
 		//        |         |    (double)(2*i)*ifo[n].sig.shft[i]
@@ -254,9 +254,9 @@ __kernel void phase_mod_2(__global complex_t* xa,
 		//        |         |
 		//        |         |    (double)(2*i)*ifo[n].sig.shft[i]
 		//        |         |           |
-		real_t tmp10i = idx*idx + 2*idx*shft[idx];
+		real_t tmp1ni = idx*idx + 2*idx*shft[idx];
 
-		real_t phase = idx*het1 + sgnlt1*tmp10i;
+		real_t phase = idx*het1 + sgnlt1*tmp1ni;
 		complex_t exph = cbuild(cos(phase), -sin(phase));
 
 		xa[idx] += cmulcc(xar[idx], exph);
