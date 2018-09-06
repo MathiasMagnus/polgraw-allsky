@@ -85,6 +85,10 @@ void save_complex_array(complex_t* arr, size_t count, const char* name);
 ///
 void save_real_buffer(cl_command_queue queue, cl_mem buf, int count, const char* name);
 
+/// <summary>Saves values of a device side real array to disk.</summary>
+///
+void save_real_buffer_with_offset(cl_command_queue queue, cl_mem buf, int off, int count, const char* name);
+
 /// <summary>Saves values of a device side complex array to disk.</summary>
 ///
 void save_complex_buffer(cl_command_queue queue, cl_mem buf, int count, const char* name);
@@ -96,5 +100,9 @@ void save_numbered_real_buffer(cl_command_queue queue, cl_mem buf, int count, si
 /// <summary>Saves values of a device side complex array to disk.</summary>
 ///
 void save_numbered_complex_buffer(cl_command_queue queue, cl_mem buf, int count, size_t n, const char* name);
+
+/// <summary>Saves values of a device side real array to disk.</summary>
+///
+void save_numbered_real_buffer_with_offset(cl_command_queue queue, cl_mem buf, int off, int count, size_t n, const char* name);
 
 #endif

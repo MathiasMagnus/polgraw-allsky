@@ -121,7 +121,8 @@ if (BUILD_TESTING)
 				 pre_fft_post_zero_xb
 				 post_fft_phasemod_xa
 				 post_fft_phasemod_xb
-				 Fstat)
+				 Fstat
+				 Fstat_norm)
 
   set (CL_Data_Files)
   set (C_Data_Files)

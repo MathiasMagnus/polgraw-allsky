@@ -544,30 +544,36 @@ void save_complex_array(complex_t* arr, size_t count, const char* name)
 ///
 void save_real_buffer(cl_command_queue queue, cl_mem buf, int count, const char* name)
 {
-	cl_int CL_err;
-	cl_event map, unmap;
+    save_real_buffer_with_offset(queue, buf, 0, count, name);
+}
 
-	real_t* temp =
-		(real_t*)clEnqueueMapBuffer(queue,
-			buf,
-			CL_TRUE,
-			CL_MAP_READ,
-			0, count * sizeof(real_t),
-			0, NULL,
-			&map,
-			&CL_err);
-	checkErr(CL_err, "clEnqueueMapBufffer");
+void save_real_buffer_with_offset(cl_command_queue queue, cl_mem buf, int off, int count, const char* name)
+{
+    cl_int CL_err;
+    cl_event map, unmap;
 
-	CL_err = clWaitForEvents(1, &map);
-	checkErr(CL_err, "clWaitForEvents");
+    real_t* temp =
+        (real_t*)clEnqueueMapBuffer(queue,
+            buf,
+            CL_TRUE,
+            CL_MAP_READ,
+            off * sizeof(real_t),
+            count * sizeof(real_t),
+            0, NULL,
+            &map,
+            &CL_err);
+    checkErr(CL_err, "clEnqueueMapBufffer");
 
-	save_real_array(temp, count, name);
+    CL_err = clWaitForEvents(1, &map);
+    checkErr(CL_err, "clWaitForEvents");
 
-	CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
-	checkErr(CL_err, "clEnqueueUnmapMemObject");
+    save_real_array(temp, count, name);
 
-	clReleaseEvent(map);
-	clReleaseEvent(unmap);
+    CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
+    checkErr(CL_err, "clEnqueueUnmapMemObject");
+
+    clReleaseEvent(map);
+    clReleaseEvent(unmap);
 }
 
 /// <summary>Saves values of a device side complex array to disk.</summary>
@@ -604,8 +610,13 @@ void save_complex_buffer(cl_command_queue queue, cl_mem buf, int count, const ch
 ///
 void save_numbered_real_buffer(cl_command_queue queue, cl_mem buf, int count, size_t n, const char* name)
 {
+    save_numbered_real_buffer_with_offset(queue, buf, 0, count, n, name);
+}
+
+void save_numbered_real_buffer_with_offset(cl_command_queue queue, cl_mem buf, int off, int count, size_t n, const char* name)
+{
     char num_filename[1024],
-         num_str[10];
+        num_str[10];
 
     sprintf(num_str, "%zu", n);
 
@@ -613,7 +624,7 @@ void save_numbered_real_buffer(cl_command_queue queue, cl_mem buf, int count, si
     strcat(num_filename, ".");
     strcat(num_filename, num_str);
 
-    save_real_buffer(queue, buf, count, num_filename);
+    save_real_buffer_with_offset(queue, buf, off, count, num_filename);
 }
 
 /// <summary>Saves values of a device side complex array to disk.</summary>

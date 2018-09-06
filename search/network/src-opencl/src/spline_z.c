@@ -225,8 +225,8 @@ void spline_interpolate_cpu(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(5, spline_unmap_events);
-  save_numbered_complex_buffer(cl_handles->exec_queues[0], xDatma_d, N, n, "ifo_sig_xDatma");
-  save_numbered_complex_buffer(cl_handles->exec_queues[0], xDatmb_d, N, n, "ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatma_d, N, idet, "ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatmb_d, N, idet, "ifo_sig_xDatmb");
 #endif
 
   blas_scale(idet, id, N, 1. / sig2,
@@ -237,8 +237,9 @@ void spline_interpolate_cpu(const cl_int idet,
              2, spline_unmap_events + 3, // it is enough to wait on the last 2 of the unmaps: xDatma, xDatmb
              spline_blas_events);
 #ifdef TESTING
-  save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatma_d, N, n, "rescaled_ifo_sig_xDatma");
-  save_numbered_complex_buffer(cl_handles->exec_queues[0], ifo[n].sig.xDatmb_d, N, n, "rescaled_ifo_sig_xDatmb");
+  clWaitForEvents(2, spline_blas_events);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatma_d, N, idet, "rescaled_ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatmb_d, N, idet, "rescaled_ifo_sig_xDatmb");
 #endif
 }
 

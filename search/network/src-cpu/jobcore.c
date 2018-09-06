@@ -341,6 +341,9 @@ int job_core(int pm,                   // Hemisphere
   // Loop for each detector 
   for(n=0; n<sett->nifo; ++n) { 
 
+    memset(fftw_arr->xa, 0, fftw_arr->arr_len * sizeof(complex_t));
+    memset(fftw_arr->xb, 0, fftw_arr->arr_len * sizeof(complex_t));
+
     /* Amplitude modulation functions aa and bb 
      * for each detector (in signal sub-struct 
      * of _detector, ifo[n].sig.aa, ifo[n].sig.bb) 
@@ -349,10 +352,10 @@ int job_core(int pm,                   // Hemisphere
     modvir(sinalt, cosalt, sindelt, cosdelt,
 	   sett->N, &ifo[n], aux);
 #ifdef TESTING
-    save_numbered_real_array(aux->sinmodf, sett->N, n, "aux_sinmodf");
-    save_numbered_real_array(aux->cosmodf, sett->N, n, "aux_cosmodf");
-    save_numbered_real_array(ifo[n].sig.aa, sett->N, n, "ifo_sig_aa");
-    save_numbered_real_array(ifo[n].sig.bb, sett->N, n, "ifo_sig_bb");
+    //save_numbered_real_array(aux->sinmodf, sett->N, n, "aux_sinmodf");
+    //save_numbered_real_array(aux->cosmodf, sett->N, n, "aux_cosmodf");
+    //save_numbered_real_array(ifo[n].sig.aa, sett->N, n, "ifo_sig_aa");
+    //save_numbered_real_array(ifo[n].sig.bb, sett->N, n, "ifo_sig_bb");
 #endif
 	
     // Calculate detector positions with respect to baricenter
@@ -372,8 +375,8 @@ int job_core(int pm,                   // Hemisphere
       _tmp1[n][i] = aux->t2[i] + (double)(2*i)*ifo[n].sig.shft[i];
     }
 #ifdef TESTING
-	save_numbered_real_array(ifo[n].sig.shft, sett->N, n, "ifo_sig_shft");
-	save_numbered_real_array(ifo[n].sig.shftf, sett->N, n, "ifo_sig_shftf");
+	//save_numbered_real_array(ifo[n].sig.shft, sett->N, n, "ifo_sig_shft");
+	//save_numbered_real_array(ifo[n].sig.shftf, sett->N, n, "ifo_sig_shftf");
 #endif    
     for(i=0; i<sett->N; ++i) {
       // Phase modulation 
@@ -427,8 +430,8 @@ int job_core(int pm,                   // Hemisphere
 #endif
     }
 #ifdef TESTING
-    save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_time");
-    save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_time");
+    //save_numbered_complex_array(fftw_arr->xa, sett->nfft/*fftw_arr->arr_len*/, n, "xa_time");
+    //save_numbered_complex_array(fftw_arr->xb, sett->nfft/*fftw_arr->arr_len*/, n, "xb_time");
 #endif
 #ifdef _MSC_VER
     fftw_execute_dft(plans->pl_int, (fftw_complex*)(fftw_arr->xa), (fftw_complex*)(fftw_arr->xa));  //forward fft (len nfft)
@@ -438,13 +441,13 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->pl_int, fftw_arr->xb, fftw_arr->xb);  //forward fft (len nfft)
 #endif
 #ifdef TESTING
-	save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_fourier");
-	save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_fourier");
+	//save_numbered_complex_array(fftw_arr->xa, sett->nfft/*fftw_arr->arr_len*/, n, "xa_fourier");
+	//save_numbered_complex_array(fftw_arr->xb, sett->nfft/*fftw_arr->arr_len*/, n, "xb_fourier");
 #endif
     // move frequencies from second half of spectrum; 
     // and zero frequencies higher than nyquist
     // loop length: nfft - nyqst = nfft - nfft/2 - 1 = nfft/2 - 1
-
+    
     for(i=nyqst + sett->Ninterp - sett->nfft, j=nyqst; i<sett->Ninterp; ++i, ++j) {
 #ifdef _MSC_VER
     fftw_arr->xa[i] = fftw_arr->xa[j];
@@ -465,8 +468,8 @@ int job_core(int pm,                   // Hemisphere
 #endif 
     }
 #ifdef TESTING
-	save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_fourier_resampled");
-	save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_fourier_resampled");
+	save_numbered_complex_array(fftw_arr->xa, sett->Ninterp/*fftw_arr->arr_len*/, n, "xa_fourier_resampled");
+	save_numbered_complex_array(fftw_arr->xb, sett->Ninterp/*fftw_arr->arr_len*/, n, "xb_fourier_resampled");
 #endif
     // Backward fft (len Ninterp = nfft*interpftpad)
 #ifdef _MSC_VER
@@ -487,8 +490,8 @@ int job_core(int pm,                   // Hemisphere
 #endif
     }
 #ifdef TESTING
-	save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_time_resampled");
-	save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_time_resampled");
+	//save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_time_resampled");
+	//save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_time_resampled");
 #endif
     //  struct timeval tstart = get_current_time(), tend;
 
@@ -498,11 +501,11 @@ int job_core(int pm,                   // Hemisphere
     splintpad(fftw_arr->xb, ifo[n].sig.shftf, sett->N, 
 	      sett->interpftpad, ifo[n].sig.xDatmb);
 #ifdef TESTING
-    save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "ifo_sig_xDatma");
-    save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "ifo_sig_xDatmb");
+    //save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "ifo_sig_xDatma");
+    //save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "ifo_sig_xDatmb");
 #endif
   } // end of detector loop 
-
+  
   // square sums of modulation factors 
   double aa = 0., bb = 0.; 
 
@@ -525,8 +528,8 @@ int job_core(int pm,                   // Hemisphere
 #endif
     }
 #ifdef TESTING
-    save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "rescaled_ifo_sig_xDatma");
-    save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "rescaled_ifo_sig_xDatmb");
+    //save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "rescaled_ifo_sig_xDatma");
+    //save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "rescaled_ifo_sig_xDatmb");
 #endif
     aa += aatemp/ifo[n].sig.sig2; 
     bb += bbtemp/ifo[n].sig.sig2;   
@@ -569,14 +572,15 @@ int job_core(int pm,                   // Hemisphere
       smax = (int)trunc(-(nn*sett->M[9] + mm*sett->M[13] + sett->Smax)/sett->M[5]);
   } 
 
-  printf ("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
+  //printf ("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
+  printf("\n>>%d\t%d\t%d\t[%d..%d]\n", *sgnlc, mm, nn, smin, smax);
  
   // No-spindown calculations
   if(opts->s0_flag) smin = smax;
   // if spindown parameter is taken into account, smin != smax
-
+  //exit(0);
   /* Spindown loop  */
-
+  
   for(ss=smin; ss<=smax; ++ss) {
 
 #if TIMERS>2
@@ -681,11 +685,11 @@ int job_core(int pm,                   // Hemisphere
     }
 #endif
 #ifdef TESTING
-    save_numbered_real_array(ifo[0].sig.shft, sett->N, 0, "pre_fft_phasemod_ifo_sig_shft");
-    save_numbered_complex_array(ifo[0].sig.xDatma, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatma");
-    save_numbered_complex_array(ifo[0].sig.xDatmb, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatmb");
-    save_numbered_complex_array(fftw_arr->xa, sett->N, 0, "pre_fft_phasemod_xa");
-    save_numbered_complex_array(fftw_arr->xb, sett->N, 0, "pre_fft_phasemod_xb");
+    //save_numbered_real_array(ifo[0].sig.shft, sett->N, 0, "pre_fft_phasemod_ifo_sig_shft");
+    //save_numbered_complex_array(ifo[0].sig.xDatma, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatma");
+    //save_numbered_complex_array(ifo[0].sig.xDatmb, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatmb");
+    //save_numbered_complex_array(fftw_arr->xa, sett->N, 0, "pre_fft_phasemod_xa");
+    //save_numbered_complex_array(fftw_arr->xb, sett->N, 0, "pre_fft_phasemod_xb");
 #endif
     
     for(n=1; n<sett->nifo; ++n) {
@@ -770,11 +774,11 @@ int job_core(int pm,                   // Hemisphere
       }
 #endif
 #ifdef TESTING
-      save_numbered_real_array(ifo[n].sig.shft, sett->N, n, "pre_fft_phasemod_ifo_sig_shft");
-      save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatma");
-      save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatmb");
-      save_numbered_complex_array(fftw_arr->xa, sett->N, n, "pre_fft_phasemod_xa");
-      save_numbered_complex_array(fftw_arr->xb, sett->N, n, "pre_fft_phasemod_xb");
+      //save_numbered_real_array(ifo[n].sig.shft, sett->N, n, "pre_fft_phasemod_ifo_sig_shft");
+      //save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatma");
+      //save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatmb");
+      //save_numbered_complex_array(fftw_arr->xa, sett->N, n, "pre_fft_phasemod_xa");
+      //save_numbered_complex_array(fftw_arr->xb, sett->N, n, "pre_fft_phasemod_xb");
 #endif 
     } // nifo
 
@@ -786,11 +790,11 @@ int job_core(int pm,                   // Hemisphere
         fftw_arr->xa[i] = fftw_arr->xb[i] = 0.;
 #endif
 #ifdef TESTING
-    // Wasteful because testing infrastructure is not more complex
-    save_numbered_complex_array(fftw_arr->xa, sett->Ninterp, 0, "pre_fft_post_zero_xa");
-    save_numbered_complex_array(fftw_arr->xb, sett->Ninterp, 0, "pre_fft_post_zero_xb");
-    save_numbered_complex_array(fftw_arr->xa, sett->Ninterp, 1, "pre_fft_post_zero_xa");
-    save_numbered_complex_array(fftw_arr->xb, sett->Ninterp, 1, "pre_fft_post_zero_xb");
+    //// Wasteful because testing infrastructure is not more complex
+    //save_numbered_complex_array(fftw_arr->xa, sett->fftpad*sett->nfft/*sett->Ninterp*/, 0, "pre_fft_post_zero_xa");
+    //save_numbered_complex_array(fftw_arr->xb, sett->fftpad*sett->nfft/*sett->Ninterp*/, 0, "pre_fft_post_zero_xb");
+    //save_numbered_complex_array(fftw_arr->xa, sett->fftpad*sett->nfft/*sett->Ninterp*/, 1, "pre_fft_post_zero_xa");
+    //save_numbered_complex_array(fftw_arr->xb, sett->fftpad*sett->nfft/*sett->Ninterp*/, 1, "pre_fft_post_zero_xb");
 #endif
     // Perform FFT
 #ifdef _MSC_VER
@@ -801,11 +805,11 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->plan, fftw_arr->xb, fftw_arr->xb);
 #endif
 #ifdef TESTING
-    // Wasteful because testing infrastructure is not more complex
-    save_numbered_complex_array(fftw_arr->xa, sett->nfftf, 0, "post_fft_phasemod_xa");
-    save_numbered_complex_array(fftw_arr->xb, sett->nfftf, 0, "post_fft_phasemod_xb");
-    save_numbered_complex_array(fftw_arr->xa, sett->nfftf, 1, "post_fft_phasemod_xa");
-    save_numbered_complex_array(fftw_arr->xb, sett->nfftf, 1, "post_fft_phasemod_xb");
+    //// Wasteful because testing infrastructure is not more complex
+    //save_numbered_complex_array(fftw_arr->xa, sett->nfftf, 0, "post_fft_phasemod_xa");
+    //save_numbered_complex_array(fftw_arr->xb, sett->nfftf, 0, "post_fft_phasemod_xb");
+    //save_numbered_complex_array(fftw_arr->xa, sett->nfftf, 1, "post_fft_phasemod_xa");
+    //save_numbered_complex_array(fftw_arr->xb, sett->nfftf, 1, "post_fft_phasemod_xb");
 #endif    
     (*FNum)++;
 
@@ -815,8 +819,8 @@ int job_core(int pm,                   // Hemisphere
 	(sqr(creal(fftw_arr->xb[i])) + sqr(cimag(fftw_arr->xb[i])))/bb;
     }
 #ifdef TESTING
-    save_numbered_real_array(F, sett->nmax - sett->nmin, 0, "Fstat");
-    save_numbered_real_array(F, sett->nmax - sett->nmin, 1, "Fstat");
+    //save_numbered_real_array(F + sett->nmin, sett->nmax - sett->nmin, 0, "Fstat");
+    //save_numbered_real_array(F + sett->nmin, sett->nmax - sett->nmin, 1, "Fstat");
 #endif 
 #if 0
     FILE *f1 = fopen("fraw-1.dat", "w");
@@ -824,13 +828,17 @@ int job_core(int pm,                   // Hemisphere
       fprintf(f1, "%d   %lf   %lf\n", i, F[i], 2.*M_PI*i/((double) sett->fftpad*sett->nfft) + sgnl0);
     fclose(f1);
 #endif 
-    
 #ifndef NORMTOMAX
     //#define NAVFSTAT 4096
     // Normalize F-statistics 
     if(!(opts->white_flag))  // if the noise is not white noise
       FStat(F + sett->nmin, sett->nmax - sett->nmin, NAVFSTAT, 0);
 
+#ifdef TESTING
+    //save_numbered_real_array(F + sett->nmin, sett->nmax - sett->nmin, 0, "Fstat_norm");
+    //save_numbered_real_array(F + sett->nmin, sett->nmax - sett->nmin, 1, "Fstat_norm");
+    //exit(0);
+#endif 
       // f1 = fopen("fnorm-4096-1.dat", "w");
       //for(i=sett->nmin; i<sett->nmax; i++)
       //fprintf(f1, "%d   %lf   %lf\n", i, F[i], 2.*M_PI*i/((double) sett->fftpad*sett->nfft) + sgnl0);

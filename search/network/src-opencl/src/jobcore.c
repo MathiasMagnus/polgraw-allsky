@@ -253,20 +253,20 @@ Search_results job_core(const int pm,                  // hemisphere
 		     aux->aadots_d[id][n], aux->bbdots_d[id][n],               // output
 		     blas_handles, cl_handles, 1, &modvir_events[n],           // sync
 		     blas_dot_events[n]);                                      // sync
-
-  } // end of detector loop  
+  } // end of detector loop
 
   calc_mxx(sett->nifo, id,                            // input
            aux->aadots_d[id], aux->bbdots_d[id], ifo, // input
            aux->maa_d[id], aux->mbb_d[id],            // output
            cl_handles, sett->nifo, blas_dot_events,   // sync
 	       mxx_fill_events, axpy_events);             // sync
-
     
   int smin, smax; // if spindown parameter is taken into account, smin != smax
   spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
                  s_range, opts,                           // input
                  &smin, &smax);                           // output
+
+  printf("\n>>%zu\t%d\t%d\t[%d..%d]\n", results.sgnlc, mm, nn, smin, smax);
 
   // Spindown loop
   for (int ss = smin; ss <= smax; ++ss)
@@ -286,7 +286,7 @@ Search_results job_core(const int pm,                  // hemisphere
                       ifo[0].sig.xDatma_d[id], ifo[0].sig.xDatmb_d[id], ifo[0].sig.shft_d[id], // input
                       fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],                              // output
                       cl_handles, 5, spline_unmap_events[0]);                                  // sync
-
+    
     for (int n = 1; n<sett->nifo; ++n)
     {
       // xY_d[id][0] is intentional, we're summing into the first xY_d arrays from xDatmY_d
@@ -299,7 +299,7 @@ Search_results job_core(const int pm,                  // hemisphere
 
 	zero_pad(0, id, sett,                                      // input
              fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],       // input / output
-             cl_handles, 1, &phase_mod_events[sett->nifo - 1], // sync
+             cl_handles, sett->nifo, phase_mod_events,         // sync
              zero_pad_events);                                 // sync
 
 	time_to_frequency(0, id, sett, plans,                         // input
@@ -319,7 +319,6 @@ Search_results job_core(const int pm,                  // hemisphere
 		normalize_FStat_gpu_wg_reduce(0, id, sett->nmin, sett->nmax, NAVFSTAT, // input
                                       aux->F_d[id],                            // input / output
                                       cl_handles, 1, &compute_Fstat_event);    // sync
-
 #if 0
 	cl_int CL_err = CL_SUCCESS;
 
@@ -334,9 +333,9 @@ Search_results job_core(const int pm,                  // hemisphere
                &results, sgnlt,                                                     // output
                cl_handles, 1, &normalize_Fstat_event,                               // sync
                &peak_map_event, &peak_unmap_event);                                 // sync
-  } // for ss 
 
-  printf("\n>>%zu\t%d\t%d\t[%d..%d]\n", results.sgnlc, mm, nn, smin, smax);
+    clReleaseEvent(peak_map_event); clReleaseEvent(peak_unmap_event);
+  } // for ss 
 
 #ifndef VERBOSE
     printf("Number of signals found: %zu\n", results.sgnlc);
@@ -538,8 +537,8 @@ cl_event tshift_pmod_gpu(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(1, &exec);
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, 2 * nfft, idet, "xa_time");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, 2 * nfft, idet, "xb_time");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, /*2 **/ nfft, idet, "xa_time");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, /*2 **/ nfft, idet, "xb_time");
   save_numbered_real_buffer(cl_handles->read_queues[id][idet], shft_d, N, idet, "ifo_sig_shft");
   save_numbered_real_buffer(cl_handles->read_queues[id][idet], shftf_d, N, idet, "ifo_sig_shftf");
 #endif
@@ -617,14 +616,14 @@ cl_event resample_postfft_gpu(const cl_int idet,
 
     cl_event exec;
     size_t resample_length = (size_t)Ninterp - (nyqst + nfft); // Helper variable to make pointer types match. Cast to silence warning
-
+    
     CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
 	checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[ResamplePostFFT])");
 
 #ifdef TESTING
 	clWaitForEvents(1, &exec);
-	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->Ninterp, idet, "xa_fourier_resampled");
-	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->Ninterp, idet, "xb_fourier_resampled");
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, Ninterp, idet, "xa_fourier_resampled");
+	save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, Ninterp, idet, "xb_fourier_resampled");
 #endif
 
 	return exec;
@@ -768,11 +767,11 @@ cl_event phase_mod_1_gpu(const cl_int idet,
 #ifdef TESTING
   CL_err = clWaitForEvents(1, &exec); checkErr(CL_err, "clWaitForEvents(PhaseMod1)");
   
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.shft_d, N, idet, "pre_fft_phasemod_ifo_sig_shft");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatma_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatma");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatmb_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatmb");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, N, idet, "pre_fft_phasemod_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, N, idet, "pre_fft_phasemod_xb");
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], shft, N, idet, "pre_fft_phasemod_ifo_sig_shft");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xar, N, idet, "pre_fft_phasemod_ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xbr, N, idet, "pre_fft_phasemod_ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa, N, idet, "pre_fft_phasemod_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb, N, idet, "pre_fft_phasemod_xb");
 #endif
 
   return exec;
@@ -811,12 +810,12 @@ cl_event phase_mod_2_gpu(const cl_int idet,
 
 #ifdef TESTING
   CL_err = clWaitForEvents(1, &exec); checkErr(CL_err, "clWaitForEvents(PhaseMod1)");
-
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.shft_d, N, idet, "pre_fft_phasemod_ifo_sig_shft");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatma_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatma");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], ifo[0].sig.xDatmb_d, N, idet, "pre_fft_phasemod_ifo_sig_xDatmb");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xa_d, N, idet, "pre_fft_phasemod_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], fft_arr->xb_d, N, idet, "pre_fft_phasemod_xb");
+  
+  save_numbered_real_buffer(cl_handles->read_queues[id][idet], shft, N, idet, "pre_fft_phasemod_ifo_sig_shft");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xar, N, idet, "pre_fft_phasemod_ifo_sig_xDatma");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xbr, N, idet, "pre_fft_phasemod_ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa, N, idet, "pre_fft_phasemod_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb, N, idet, "pre_fft_phasemod_xb");
 #endif
 
   return exec;
@@ -841,18 +840,18 @@ void zero_pad(const cl_int idet,
 #endif
 
   // Zero pad from offset until the end
-  CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][idet], xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &zero_pad_events[0]);
+  CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][idet], xa_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), num_events_in_wait_list, event_wait_list, &zero_pad_events[0]);
   checkErr(CL_err, "clEnqueueFillBuffer");
-  CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][idet], xb_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), 0, NULL, &zero_pad_events[1]);
+  CL_err = clEnqueueFillBuffer(cl_handles->write_queues[id][idet], xb_d, &pattern, sizeof(complex_t), sett->N * sizeof(complex_t), (sett->fftpad*sett->nfft - sett->N) * sizeof(complex_t), num_events_in_wait_list, event_wait_list, &zero_pad_events[1]);
   checkErr(CL_err, "clEnqueueFillBuffer");
 
 #ifdef TESTING
   clWaitForEvents(2, zero_pad_events);
   // Wasteful
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->Ninterp, 0, "pre_fft_post_zero_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->Ninterp, 0, "pre_fft_post_zero_xb");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->Ninterp, 1, "pre_fft_post_zero_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->Ninterp, 1, "pre_fft_post_zero_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 0, "pre_fft_post_zero_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 0, "pre_fft_post_zero_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 1, "pre_fft_post_zero_xa");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 1, "pre_fft_post_zero_xb");
 #endif
 }
 
@@ -869,9 +868,9 @@ void time_to_frequency(const cl_int idet,
 {
   clfftStatus CLFFT_status = CLFFT_SUCCESS;
 
-  clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, &cl_handles->exec_queues[id][idet], 0, NULL, &fw2_fft_events[0], &xa_d, NULL, NULL);
+  clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &fw2_fft_events[0], &xa_d, NULL, NULL);
   checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
-  clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, &cl_handles->exec_queues[id][idet], 0, NULL, &fw2_fft_events[1], &xb_d, NULL, NULL);
+  clfftEnqueueTransform(plans->plan, CLFFT_FORWARD, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &fw2_fft_events[1], &xb_d, NULL, NULL);
   checkErrFFT(CLFFT_status, "clfftEnqueueTransform(CLFFT_FORWARD)");
 
 #ifdef TESTING
@@ -899,15 +898,15 @@ cl_event compute_Fstat_gpu(const cl_int idet,
   cl_int CL_err = CL_SUCCESS;
   cl_int N = nmax - nmin;
 
-  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 0, sizeof(cl_mem), &xa_d);
-  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 1, sizeof(cl_mem), &xb_d);
-  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 2, sizeof(cl_mem), &F_d);
-  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 3, sizeof(cl_mem), &maa_d);
-  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 4, sizeof(cl_mem), &mbb_d);
-  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 5, sizeof(cl_int), &N);
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 0, sizeof(cl_mem), &xa_d);  checkErr(CL_err, "clSetKernelArg(&xa_d)");
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 1, sizeof(cl_mem), &xb_d);  checkErr(CL_err, "clSetKernelArg(&xb_d)");
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 2, sizeof(cl_mem), &F_d);   checkErr(CL_err, "clSetKernelArg(&F_d)");
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 3, sizeof(cl_mem), &maa_d); checkErr(CL_err, "clSetKernelArg(&maa_d)");
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 4, sizeof(cl_mem), &mbb_d); checkErr(CL_err, "clSetKernelArg(&mbb_d)");
+  clSetKernelArg(cl_handles->kernels[id][ComputeFStat], 5, sizeof(cl_int), &N);     checkErr(CL_err, "clSetKernelArg(&N)");
 
   cl_event exec;
-  size_t size_N = (size_t)N,
+  size_t size_N = (size_t)(nmax - nmin),
          size_nmin = (size_t)nmin; // Helper variable to make pointer types match. Cast to silence warning
 
   CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][ComputeFStat], 1, &size_nmin, &size_N, NULL, num_events_in_wait_list, event_wait_list, &exec);
@@ -916,8 +915,8 @@ cl_event compute_Fstat_gpu(const cl_int idet,
 #ifdef TESTING
   // Wasteful
   clWaitForEvents(1, &exec);
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], F_d, sett->nmax - sett->nmin, 0, "Fstat");
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], F_d, sett->nmax - sett->nmin, 1, "Fstat");
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 0, "Fstat");
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 1, "Fstat");
 #endif
 
 	return exec;
@@ -935,7 +934,6 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
 {
   cl_int CL_err = CL_SUCCESS;
   size_t max_wgs;             // maximum supported wgs on the device (limited by register count)
-  cl_ulong local_size;        // local memory size in bytes
 
   CL_err = clGetKernelWorkGroupInfo(cl_handles->kernels[id][NormalizeFStatWG],
                                     cl_handles->devs[id],
@@ -945,34 +943,34 @@ cl_event normalize_FStat_gpu_wg_reduce(const cl_int idet,
                                     NULL);
   checkErr(CL_err, "clGetKernelWorkGroupInfo(FStatSimple, CL_KERNEL_WORK_GROUP_SIZE)");
 
-  CL_err = clGetDeviceInfo(cl_handles->devs[id],
-                           CL_DEVICE_LOCAL_MEM_SIZE,
-                           sizeof(cl_ulong),
-                           &local_size,
-                           NULL);
-  checkErr(CL_err, "clGetDeviceInfo(FStatSimple, CL_DEVICE_LOCAL_MEM_SIZE)");
+  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 0, sizeof(cl_mem), &F_d);       checkErr(CL_err, "clSetKernelArg(&F_d)");
+  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 1, nav * sizeof(real_t), NULL); checkErr(CL_err, "clSetKernelArg(&shared)");
+  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 2, sizeof(cl_uint), &nav);      checkErr(CL_err, "clSetKernelArg(&nav)");
 
-  // How long is the array of local memory (shared size in num gentypes)
-  cl_uint ssi = (cl_uint)(local_size / sizeof(real_t)); // Assume integer is enough to store gentype count (well, it better)
-
-  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 0, sizeof(cl_mem), &F_d);
-  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 1, ssi * sizeof(real_t), NULL);
-  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 2, sizeof(cl_uint), &ssi);
-  clSetKernelArg(cl_handles->kernels[id][NormalizeFStatWG], 3, sizeof(cl_uint), &nav);
-
-  size_t gsi = ((nmax - nmin)/nav)*nav; // truncate nmax-nmin to the nearest multiple of nav
-  size_t wgs = gsi < max_wgs ? gsi : max_wgs; // std::min
+  size_t wgs = nav < max_wgs ? nav : max_wgs; // std::min
+  size_t gsi = wgs * ((nmax - nmin) / nav); // gsi = multiply wgs (processing one nav bunch) with the number of navs
   size_t off = nmin;
 
   // Check preconditions of kernel before launch
-  assert(ssi <= nav);
-  assert(wgs <= ssi);
+  assert(nav <= 4096); // PRECONDITION: Assumption that nav number of doubles even fit into local memory and no multi-pass needed for fetching data from global
+                       //
+                       // NOTE: According to the OpenCL 1.2 spec, Table 4.3 on Device Queries, page 43: CL_DEVICE_LOCAL_MEM_SIZE must be at least 32kB for devices
+                       //       of type other than CL_DEVICE_TYPE_CUSTOM.
+  assert(wgs <= nav);
+  assert(nav % wgs == 0);
   assert(((wgs != 0) && !(wgs & (wgs - 1)))); // Method 9. @ https://www.exploringbinary.com/ten-ways-to-check-if-an-integer-is-a-power-of-two-in-c/
-  assert(!(gsi % nav));
+  //assert(gsi % nav == 0);
 
   cl_event exec;
   CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][NormalizeFStatWG], 1, &off, &gsi, &wgs, num_events_in_wait_list, event_wait_list, &exec);
   checkErr(CL_err, "clEnqueueNDRangeKernel(FStatSimple)");
+
+#ifdef TESTING
+  // Wasteful
+  clWaitForEvents(1, &exec);
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 0, "Fstat_norm");
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 1, "Fstat_norm");
+#endif
 
   return exec;
 }
@@ -1006,12 +1004,12 @@ void find_peaks(const cl_int idet,
                                  peak_map_event,
                                  &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(F_d)");
-
+  real_t Fc;
   for (int i = nmin; i < nmax; i++)
   {
-    real_t Fc = F[i];
+    //real_t Fc = F[i];
 
-    if (Fc > trl) // if F-stat exceeds trl (critical value)
+    if (/*Fc*/(Fc = F[i]) > trl) // if F-stat exceeds trl (critical value)
     {             // Find local maximum for neighboring signals
       int ii = i;
 
@@ -1029,17 +1027,28 @@ void find_peaks(const cl_int idet,
       // Signal-to-noise ratio
       sgnlt[4] = sqrt(2.*(Fc - sett->nd));
 
-      // Add new parameters to output array
-	  results->sgnlc++; // increase found number
-      results->sgnlv = (real_t *)realloc(results->sgnlv, NPAR*(results->sgnlc) * sizeof(real_t));
+      // Checking if signal is within a known instrumental line
+      _Bool veto = false;
+      for (int k = 0; k < sett->numlines_band; k++)
+        if (sgnlt[0] >= sett->lines[k][0] && sgnlt[0] <= sett->lines[k][1]) {
+          veto = true;
+          break;
+        }
 
-      for (int j = 0; j < NPAR; ++j) // save new parameters
-        results->sgnlv[NPAR*(results->sgnlc - 1) + j] = (real_t)sgnlt[j];
+      // If not vetoed, add new parameters to output array
+      if (!veto)
+      {
+        results->sgnlc++; // increase found number
+        results->sgnlv = (real_t *)realloc(results->sgnlv, NPAR*(results->sgnlc) * sizeof(real_t));
+
+        for (int j = 0; j < NPAR; ++j) // save new parameters
+          results->sgnlv[NPAR*(results->sgnlc - 1) + j] = (real_t)sgnlt[j];
 
 #ifdef VERBOSE
-			printf("\nSignal %d: %d %d %d %d %d \tsnr=%.2f\n",
-				*sgnlc, pm, mm, nn, ss, ii, sgnlt[4]);
+        printf("\nSignal %d: %d %d %d %d %d \tsnr=%.2f\n",
+               *sgnlc, pm, mm, nn, ss, ii, sgnlt[4]);
 #endif 
+      }
     }
   }
 
@@ -1120,8 +1129,8 @@ Search_results combine_results(const Search_range* s_range,
   {
     for (int nn = s_range->nr[0]; nn <= s_range->nr[1]; ++nn)
     {
-        Search_results* select = &results[mm - s_range->mr[0]]
-                                         [nn - s_range->nr[0]];
+        const Search_results* select = &results[mm - s_range->mr[0]]
+                                               [nn - s_range->nr[0]];
 
         // Add new parameters to output array
         size_t old_sgnlc = result.sgnlc;

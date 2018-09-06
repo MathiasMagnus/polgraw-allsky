@@ -143,9 +143,6 @@ __kernel void computeB(__global complex_t* y,
 
     if (idx < N - 1)
     {
-        //B[idx].x = 6 * (y[idx + 2].x - 2 * y[idx + 1].x + y[idx].x);
-        //B[idx].y = 6 * (y[idx + 2].y - 2 * y[idx + 1].y + y[idx].y);
-
 		B[idx] = 6 * (y[idx + 2] - 2 * y[idx + 1] + y[idx]);
     }
 }
@@ -191,12 +188,7 @@ __kernel void interpolate(__global real_t* new_x,
     
         //get index of interval
         int i = floor(x);
-        //compute value:
-        // S[i](x) = z[i+1]/6 * (x-x[i])**3 + z[i]/6 *	(x[i+1]-x)**3 + C[i]*(x-x[i]) + D[i]*(x[i+1]-x)
-        // C[i] = y[i+1] - z[i+1]/6
-        // D[i] = y[i] - z[i]/6
-        // x[i] = i
-        // x = new_x
+
         real_t dist1 = x - i;
         real_t dist2 = i + 1 - x;
 
@@ -273,157 +265,75 @@ __kernel void compute_Fstat(__global complex_t* xa,
                             __constant real_t* mbb_d,
                             int N)
 {
-    size_t i = get_global_id(0);
+  size_t i = get_global_id(0);
 
-    if (i < N)
-    {
-		complex_t xai = xa[i],
-		          xbi = xb[i];
-		real_t maa = maa_d[0],
-		       mbb = mbb_d[0];
+  complex_t xai = xa[i],
+            xbi = xb[i];
+  real_t maa = maa_d[0],
+         mbb = mbb_d[0];
 
-        F[i] = (pown(creal(xai), 2) + pown(cimag(xai), 2)) / maa +
-		       (pown(creal(xbi), 2) + pown(cimag(xbi), 2)) / mbb;
-    }
+  F[i] = (pown(creal(xai), 2) + pown(cimag(xai), 2)) / maa +
+         (pown(creal(xbi), 2) + pown(cimag(xbi), 2)) / mbb;
 }
 
-//__global__ void reduction_sum(double *in, double *out, int N) {
-//  extern __shared__ double sd_data[];
-//
-//  int tid = threadIdx.x;
-//  int i = blockIdx.x * blockDim.x + threadIdx.x;
-//
-//  sd_data[tid] = (i<N) ? in[i] : 0;
-//
-//  __syncthreads();
-//
-//  for (int s = blockDim.x/2; s>0; s>>=1) {
-//    if (tid < s) {
-//      sd_data[tid] += sd_data[tid + s];
-//    }
-//    __syncthreads();
-//  }
-//
-//  if (tid==0) out[blockIdx.x] = sd_data[0];
-//
-//}
-//
-//
-
 /// <summary>Compute F-statistics.</summary>
-/// <precondition>ssi less than or equal to nav</precondition>
-/// <precondition>lsi less than or equal to ssi</precondition>
+/// <precondition>lsi less than or equal to nav</precondition>
+/// <precondition>lsi be a divisor of nav</precondition>
 /// <precondition>lsi be an integer power of 2</precondition>
-/// <precondition>nav be a divisor of get_global_size(0)</precondition>
+/// <precondition>nav be a divisor of gsi</precondition>
 /// 
 __kernel void normalize_Fstat_wg_reduce(__global real_t* F,
                                         __local real_t* shared,
-                                        unsigned int ssi,
                                         unsigned int nav)
 {
     size_t lid = get_local_id(0),
            lsi = get_local_size(0),
            grp = get_group_id(0),
 		   off = get_global_offset(0);
-		   
-    // Outer pass responsible for handling nav potentially being larger than what shared can hold
-    //
-    // NOTE: note 'P' starting from 0. Unlike the inner pass loop, this HAS to execute at least once.
-    for (size_t P = 0; P < nav / ssi; ++P)
-    {
-        event_t copy;
-        async_work_group_copy(shared,
-                              (F + off) + grp * nav + P * ssi,
-                              ssi,
-                              copy);
+    
+    // Load all of nav into local memory
+    {   
+        event_t copy = async_work_group_copy(shared,
+                                             (F + off) + grp * nav,
+                                             nav,
+                                             0);   
         wait_group_events(1, &copy);
-
-        // Inner pass responsible for handling ssi potentially having more elements than lsi has threads
-        //
-        // NOTE: note 'p' starting from one. This is to handle the case where lsi == ssi, and no
-        //       multi-pass needs to be done.
-        for (size_t p = 1; p < ssi / lsi; ++p)
-        {
-            shared[lid] += shared[p * lsi + lid];
-
-            barrier(CLK_LOCAL_MEM_FENCE);
-        }
-
-        // Divide and conquer inside the work-group
-        for (size_t mid = lsi / 2; mid != 1; mid /= 2)
-        {
-            if (lid < mid) shared[lid] += shared[mid + lid];
-
-            barrier(CLK_LOCAL_MEM_FENCE);
-        }
     }
+
+    // Pass responsible for handling nav potentially having more elements than the work-group has threads
+    //
+    // ASSERT: lsi <= nav
+    // ASSERT: nav % lsi == 0
+    if (lsi != nav)
+    {
+        real_t mu = 0;
+
+        for (size_t p = 0; p < nav; p += lsi) mu += shared[p + lid];
+
+        shared[lid] = mu;
+    }
+
+    // Divide and conquer inside the work-group
+    //
+    // ASSERT: lsi is a power of 2
+    for (size_t mid = lsi / 2; mid != 0; mid = mid >> 1)
+    {
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if (lid < mid) shared[lid] += shared[mid + lid];
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     real_t mu = shared[0] / (2 * nav);
 
-    for (size_t P = 0; P < nav / lsi; ++P)
+    // Normalize in global
+    //
+    // ASSERT: gsi % nav == 0
+    for (size_t p = 0; p < nav; p += lsi)
     {
-        F[off + grp * nav + P * lsi + lid] /= mu;
+        F[off + grp * nav + p + lid] /= mu;
+
+        barrier(CLK_GLOBAL_MEM_FENCE);
     }
 }
-
-//
-//
-//// parameters are:
-//// [frequency, spindown, position1, position2, snr]
-//#define ADD_PARAMS_MACRO						\
-//  int p = atomicAdd(found, 1);						\
-//  params[p*NPAR + 0] = 2.0*M_PI*(idx)*fftpad*nfft+sgnl0;		\
-//  params[p*NPAR + 1] = sgnl1;						\
-//  params[p*NPAR + 2] = sgnl2;						\
-//  params[p*NPAR + 3] = sgnl3;						\
-//  params[p*NPAR + 4] = sqrt(2*(F[idx]-ndf));
-//
-//
-//__global__ void find_candidates(FLOAT_TYPE *F, FLOAT_TYPE *params, int *found, FLOAT_TYPE val,
-//                                int nmin, int nmax, double fftpad, double nfft, FLOAT_TYPE sgnl0, int ndf,
-//                                FLOAT_TYPE sgnl1, FLOAT_TYPE sgnl2, FLOAT_TYPE sgnl3) {
-//
-//  int idx = blockIdx.x * blockDim.x + threadIdx.x + nmin;
-//
-//  if (idx > nmin && idx < nmax && F[idx] >= val && F[idx] > F[idx+1] && F[idx] > F[idx-1]) {
-//    ADD_PARAMS_MACRO
-//      } else if (idx == nmin && F[idx] >= val && F[idx] > F[idx+1]) {
-//    ADD_PARAMS_MACRO
-//      } else if (idx == nmax-1 && F[idx] >= val && F[idx] > F[idx-1]) {
-//    ADD_PARAMS_MACRO
-//      }
-//}
-//
-//
-//
-////---------------------------------------------------------------
-//
-////second reduction used in fstat
-//__global__ void reduction_sum(FLOAT_TYPE *in, FLOAT_TYPE *out, int N) {
-//  extern __shared__ FLOAT_TYPE sf_data[];
-//
-//  int tid = threadIdx.x;
-//  int i = blockIdx.x * blockDim.x + threadIdx.x;
-//
-//  sf_data[tid] = (i<N) ? in[i] : 0;
-//
-//  __syncthreads();
-//
-//  for (int s = blockDim.x/2; s>0; s>>=1) {
-//    if (tid < s) {
-//      sf_data[tid] += sf_data[tid + s];
-//    }
-//    __syncthreads();
-//  }
-//
-//  if (tid==0) out[blockIdx.x] = 1.0f/sf_data[0];
-//}
-//
-//
-//__global__ void fstat_norm(FLOAT_TYPE *F, FLOAT_TYPE *mu, int N, int nav) {
-//  int i = blockIdx.x * blockDim.x + threadIdx.x;
-//  if (i < N) {
-//    int block = i/nav; //block index
-//    F[i] *= 2*nav * mu[block];
-//  }
-//}
