@@ -141,9 +141,9 @@ enum Kernel
 /* FFTW plans  */ 
 typedef struct _fft_plans {
 
-  clfftPlanHandle plan,    // main plan
-                  pl_int,  // interpolation forward
-                  pl_inv;  // interpolation backward
+  clfftPlanHandle *plan,    // main plan
+                  *pl_int,  // interpolation forward
+                  *pl_inv;  // interpolation backward
 
 } FFT_plans;
 
