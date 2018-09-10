@@ -35,10 +35,10 @@ spline(complex_t *y, int n, complex_t *y2)
 {
 #ifndef WIN32
     int i, k;
-    COMPLEX_TYPE invp, qn, un;
+    complex_t invp, qn, un;
 
-    static COMPLEX_TYPE *u = NULL;
-    if (!u) u = (COMPLEX_TYPE *)malloc((n - 1) * sizeof(COMPLEX_TYPE));
+    static complex_t *u = NULL;
+    if (!u) u = (complex_t *)malloc((n - 1) * sizeof(complex_t));
     //  u = (complex double *) calloc (n-1, sizeof (complex double));
 
     y2[0] = u[0] = 0.;
