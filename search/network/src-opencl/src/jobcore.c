@@ -187,7 +187,7 @@ Search_results job_core(const int pm,                  // hemisphere
 	       *axpy_events = (cl_event*)malloc(sett->nifo * 2 * sizeof(cl_event)),
            *phase_mod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
            *zero_pad_events = (cl_event*)malloc(2 * sizeof(cl_event)),
-	       *fw2_fft_events = (cl_event*)malloc(2 * sizeof(cl_event*));
+	       *fw2_fft_events = (cl_event*)malloc(2 * sizeof(cl_event));
   for (int n = 0; n < sett->nifo; ++n)
   {
 	fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
