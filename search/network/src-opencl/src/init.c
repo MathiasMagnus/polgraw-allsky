@@ -385,9 +385,18 @@ cl_device_id* select_devices(cl_platform_id platform,
     }
     else
     {
+        // Original
         result = (cl_device_id*)malloc(*count * sizeof(cl_device_id));
         CL_err = clGetDeviceIDs(platform, dev_type, *count, result, 0);
         checkErr(CL_err, "clGetDeviceIDs(devices)");
+
+        // Forced multi-device
+        //result = (cl_device_id*)malloc(2 * sizeof(cl_device_id));
+        //CL_err = clGetDeviceIDs(platform, dev_type, 1, &result[0], 0);
+        //checkErr(CL_err, "clGetDeviceIDs(devices)");
+        //CL_err = clGetDeviceIDs(platform, dev_type, 1, &result[1], 0);
+        //checkErr(CL_err, "clGetDeviceIDs(devices)");
+        //*count = 2;
 
 #ifdef WIN32
             printf_s( "Selected OpenCL device(s):\n" ); // TODO: don't throw away error code.
@@ -1543,11 +1552,12 @@ void cleanup_fft(Search_settings* sett,
 	             FFT_plans* plans)
 {
 	clfftStatus status = CLFFT_SUCCESS;
-
-	status = clfftDestroyPlan(&plans->plan);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
-	status = clfftDestroyPlan(&plans->pl_int); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
-	status = clfftDestroyPlan(&plans->pl_inv); checkErrFFT(status, "clfftDestroyPlan(plans->pl_inv)");
-
+    for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+    {
+        status = clfftDestroyPlan(&plans->plan[id]);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
+        status = clfftDestroyPlan(&plans->pl_int[id]); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
+        status = clfftDestroyPlan(&plans->pl_inv[id]); checkErrFFT(status, "clfftDestroyPlan(plans->pl_inv)");
+    }
 	clfftTeardown();
 }
 

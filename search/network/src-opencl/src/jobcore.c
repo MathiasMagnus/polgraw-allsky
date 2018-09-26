@@ -97,8 +97,9 @@ void search(Detector_settings* ifo,
     // Two main loops over sky positions //
     for (int mm = s_range->mst; mm <= s_range->mr[1]; ++mm)
     {
-      #pragma omp parallel
-      for (int nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
+      int nn;
+      #pragma omp parallel for
+      for (nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
       {
 //        if (opts->checkp_flag)
 //        {
