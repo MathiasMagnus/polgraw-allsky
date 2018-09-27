@@ -9,6 +9,7 @@
 
 // Polgraw includes
 #include <CL/util.h>        // checkErr
+#include <signal_params.h>
 #include <struct.h>
 #include <jobcore.h>
 #include <auxi.h>
@@ -199,11 +200,12 @@ Search_results job_core(const int pm,                  // hemisphere
 	blas_dot_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
   }
 
-  real_t sgnlt[NPAR], het0, sgnl0, ft, sinalt, cosalt, sindelt, cosdelt;
+  signal_params_t sgnlt[NPAR], sgnl_freq;
+  real_t het0, ft, sinalt, cosalt, sindelt, cosdelt;
 
   sky_positions(pm, mm, nn,                                   // input
 	            sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
-	            sgnlt, &het0, &sgnl0, &ft,                    // output
+	            sgnlt, &het0, &ft,                            // output
 	            &sinalt, &cosalt, &sindelt, &cosdelt);        // output
 
   // Stateful function (local variable with static storage duration)
@@ -272,18 +274,17 @@ Search_results job_core(const int pm,                  // hemisphere
   // Spindown loop
   for (int ss = smin; ss <= smax; ++ss)
   {
-    // Spindown parameter
-    sgnlt[1] = ss*sett->M[5] + nn*sett->M[9] + mm*sett->M[13];
+    sgnlt[spindown] = ss*sett->M[5] + nn*sett->M[9] + mm*sett->M[13];
 
 	real_t het1 = fmod(ss*sett->M[4], sett->M[0]);
 
     if (het1<0) het1 += sett->M[0];
 	
-	sgnl0 = het0 + het1; // are we reusing memory here? What does 'sgnl0' mean?
+    sgnl_freq = het0 + het1; // are we reusing memory here? What does 'sgnl0' mean?
 
 	// spline_interpolate_cpu is the last operation we should wait on for args to be ready
 	phase_mod_events[0] = 
-      phase_mod_1_gpu(0, id, sett->N, het1, sgnlt[1],                                          // input
+      phase_mod_1_gpu(0, id, sett->N, het1, sgnlt[spindown],                                          // input
                       ifo[0].sig.xDatma_d[id], ifo[0].sig.xDatmb_d[id], ifo[0].sig.shft_d[id], // input
                       fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],                              // output
                       cl_handles, 5, spline_unmap_events[0]);                                  // sync
@@ -292,7 +293,7 @@ Search_results job_core(const int pm,                  // hemisphere
     {
       // xY_d[id][0] is intentional, we're summing into the first xY_d arrays from xDatmY_d
       phase_mod_events[n] =
-        phase_mod_2_gpu(n, id, sett->N, het1, sgnlt[1],                                          // input
+        phase_mod_2_gpu(n, id, sett->N, het1, sgnlt[spindown],                                          // input
                         ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id], ifo[n].sig.shft_d[id], // input
                         fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],                              // output
                         cl_handles, 1, phase_mod_events + (n - 1));                              // sync
@@ -330,7 +331,7 @@ Search_results job_core(const int pm,                  // hemisphere
 #endif
 
     cl_event peak_map_event, peak_unmap_event;
-    find_peaks(0, id, sett->nmin, sett->nmax, opts->trl, sgnl0, sett, aux->F_d[id], // input
+    find_peaks(0, id, sett->nmin, sett->nmax, opts->trl, sgnl_freq, sett, aux->F_d[id], // input
                &results, sgnlt,                                                     // output
                cl_handles, 1, &normalize_Fstat_event,                               // sync
                &peak_map_event, &peak_unmap_event);                                 // sync
@@ -353,9 +354,8 @@ void sky_positions(const int pm,                  // hemisphere
 	               real_t oms,
 	               real_t sepsm,
 	               real_t cepsm,
-                   real_t* sgnlt,
+                   signal_params_t* sgnlt,
                    real_t* het0,
-                   real_t* sgnl0,
                    real_t* ft,
 	               real_t* sinalt,
 	               real_t* cosalt,
@@ -399,8 +399,8 @@ void sky_positions(const int pm,                  // hemisphere
 
   // calculate declination and right ascention
   // written in file as candidate signal sky positions
-  sgnlt[2] = asin(*sindelt);
-  sgnlt[3] = fmod(atan2(*sinalt, *cosalt) + 2.*M_PI, 2.*M_PI);
+  sgnlt[declination] = asin(*sindelt);
+  sgnlt[ascension] = fmod(atan2(*sinalt, *cosalt) + 2.*M_PI, 2.*M_PI);
 
   *het0 = fmod(nn*M[8] + mm * M[12], M[0]);
 }
@@ -981,7 +981,7 @@ void find_peaks(const cl_int idet,
                 const cl_int nmin,
                 const cl_int nmax,
                 const real_t trl,
-                const real_t sgnl0,
+                const signal_params_t sgnl_freq,
                 const Search_settings *sett,
                 const cl_mem F_d,
                 Search_results* results,
@@ -1023,15 +1023,13 @@ void find_peaks(const cl_int idet,
         } // if F[i] 
       } // while i 
 
-      // Candidate signal frequency
-      sgnlt[0] = 2.*M_PI*ii / ((real_t)sett->fftpad*sett->nfft) + sgnl0;
-      // Signal-to-noise ratio
-      sgnlt[4] = sqrt(2.*(Fc - sett->nd));
+      sgnlt[frequency] = 2.*M_PI*ii / ((real_t)sett->fftpad*sett->nfft) + sgnl_freq;
+      sgnlt[signal_to_noise] = sqrt(2.*(Fc - sett->nd));
 
       // Checking if signal is within a known instrumental line
       _Bool veto = false;
       for (int k = 0; k < sett->numlines_band; k++)
-        if (sgnlt[0] >= sett->lines[k][0] && sgnlt[0] <= sett->lines[k][1]) {
+        if (sgnlt[frequency] >= sett->lines[k][0] && sgnlt[frequency] <= sett->lines[k][1]) {
           veto = true;
           break;
         }

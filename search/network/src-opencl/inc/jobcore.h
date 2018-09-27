@@ -4,6 +4,7 @@
 // Polgraw includes
 #include <struct.h>     // Search_settings, Command_line_opts, Search_range, FFT_plans, FFT_arrays, Aux_arrays
 #include <floats.h>     // FLOAT_TYPE, HOST_COMPLEX_TYPE
+#include <signal_params.h>
 
 // clBLAS includes
 #include <clBLAS.h>
@@ -53,9 +54,8 @@ void sky_positions(const int pm,                  // hemisphere
 	               real_t oms,
 	               real_t sepsm,
 	               real_t cepsm,
-	               real_t* sgnlt,
+                   signal_params_t* sgnlt,
 	               real_t* het0,
-	               real_t* sgnl0,
 	               real_t* ft,
 	               real_t* sinalt,
 	               real_t* cosalt,
@@ -291,7 +291,7 @@ void find_peaks(const cl_int idet,
                 const cl_int nmin,
                 const cl_int nmax,
                 const real_t trl,
-                const real_t sgnl0,
+                const signal_params_t sgnl_freq,
                 const Search_settings *sett,
                 const cl_mem F_d,
                 Search_results* results,

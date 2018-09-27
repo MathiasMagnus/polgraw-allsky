@@ -14,7 +14,7 @@
 #include <math.h>
 
 
-#define NPAR 5 		// no. of trigger parameters //
+
 
 // Commented out due to not being in actual use but conflicting with minwindef.h on Windows
 //
