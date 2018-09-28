@@ -7,6 +7,9 @@
 //
 // 1.2+ OpenCL headers: tells the headers not to bitch about clCreateCommandQueue being renamed to clCreateCommandQueueWithProperties
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS 1
+//
+// Select API to use
+#define CL_TARGET_OPENCL_VERSION 120
 
 // Polgraw includes
 #include <init.h>       // all function declarations
@@ -320,11 +323,17 @@ void init_opencl(OpenCL_handles* cl_handles,
   cl_handles->read_queues  = create_command_queue_set(cl_handles->ctx);
 
   {
-    char* source = load_program_file(kernel_path);
+    //char* source = load_program_file(kernel_path);
+    //
+    //cl_handles->prog = build_program_source(cl_handles->ctx, source);
+    //
+    //free(source);
 
-    cl_handles->prog = build_program_source(cl_handles->ctx, source);
+    char** sources = load_kernel_sources();
 
-    free(source);
+    cl_handles->prog = build_program_with_sources(cl_handles->ctx, sources);
+
+    free_kernel_sources(sources);
   }
 
   cl_handles->kernels = create_kernels(cl_handles->prog,
@@ -475,7 +484,7 @@ cl_command_queue** create_command_queue_set(cl_context context)
     return result;
 }
 
-char* load_program_file(const char* filename)
+char* load_file(const char* filename)
 {
     long int size = 0;
     size_t res = 0;
@@ -538,21 +547,42 @@ char* load_program_file(const char* filename)
     return src;
 }
 
-cl_program build_program_source(cl_context context,
-                                const char* source)
+char** load_kernel_sources()
+{
+    char** result = (char**)malloc(kernel_path_count * sizeof(char*));
+
+    for (int i = 0; i < kernel_path_count; ++i)
+        result[i] = load_file(kernel_paths[i]);
+
+    return result;
+}
+
+void free_kernel_sources(char** sources)
+{
+    for (int i = 0; i < kernel_path_count; ++i)
+        free(sources[i]);
+
+    free(sources);
+}
+
+cl_program build_program_with_sources(cl_context context,
+                                      const char** sources)
 {
     cl_int CL_err = CL_SUCCESS;
     cl_program result = NULL;
 
     cl_uint numDevices = 0;
     cl_device_id* devices = NULL;
+
+    size_t* lengths = (size_t*)malloc(kernel_path_count * sizeof(size_t));
+    for(int i = 0 ; i < kernel_path_count; ++i)
 #ifdef _WIN32
-    const size_t length = strnlen_s(source, UINT_MAX);
+      lengths[i] = strnlen_s(sources[i], UINT_MAX);
 #else
-    const size_t length = strlen(source);
+      lengths[i] = strnlen(sources[i]);
 #endif
 
-    result = clCreateProgramWithSource(context, 1, &source, &length, &CL_err);
+    result = clCreateProgramWithSource(context, kernel_path_count, sources, lengths, &CL_err);
     checkErr(CL_err, "clCreateProgramWithSource()");
 
     CL_err = clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &numDevices, NULL);
@@ -588,6 +618,8 @@ cl_program build_program_source(cl_context context,
         checkErr(-111, "clBuildProgram");
     }
 
+    free(lengths);
+
     return result;
 }
 
@@ -620,7 +652,7 @@ const char* obtain_kernel_name(cl_uint i)
         result = "compute_sincosmodf";
         break;
     case Modvir:
-        result = "modvir_kern";
+        result = "modvir";
         break;
     case TShiftPMod:
         result = "tshift_pmod_kern";
@@ -714,7 +746,7 @@ void init_arrays(Detector_settings* ifo,
 {
 	init_ifo_arrays(sett, cl_handles, opts, ifo);
 
-	init_aux_arrays(sett, cl_handles, aux_arr);
+	init_aux_arrays(sett, ifo, cl_handles, aux_arr);
 
 	init_fft_arrays(sett, cl_handles, fft_arr);
 
@@ -948,6 +980,7 @@ void init_fft_arrays(Search_settings* sett,
 }
 
 void init_aux_arrays(Search_settings* sett,
+                     Detector_settings* ifo,
                      OpenCL_handles* cl_handles,
                      Aux_arrays* aux_arr)
 {
@@ -961,21 +994,21 @@ void init_aux_arrays(Search_settings* sett,
                    &CL_err);
   checkErr(CL_err, "clCreateBuffer(aux_arr->ifo_amod_d)");
 
-  aux_arr->cosmodf_d =
-    clCreateBuffer(cl_handles->ctx,
-                   CL_MEM_READ_WRITE,
-                   sett->N * sizeof(real_t),
-                   NULL,
-                   &CL_err);
-  checkErr(CL_err, "clCreateBuffer(aux_arr->cosmodf_d)");
-
-  aux_arr->sinmodf_d =
-    clCreateBuffer(cl_handles->ctx,
-                   CL_MEM_READ_WRITE,
-                   sett->N * sizeof(real_t),
-                   NULL,
-                   &CL_err);
-  checkErr(CL_err, "clCreateBuffer(aux_arr->sinmodf_d)");
+  //aux_arr->cosmodf_d =
+  //  clCreateBuffer(cl_handles->ctx,
+  //                 CL_MEM_READ_WRITE,
+  //                 sett->N * sizeof(real_t),
+  //                 NULL,
+  //                 &CL_err);
+  //checkErr(CL_err, "clCreateBuffer(aux_arr->cosmodf_d)");
+  //
+  //aux_arr->sinmodf_d =
+  //  clCreateBuffer(cl_handles->ctx,
+  //                 CL_MEM_READ_WRITE,
+  //                 sett->N * sizeof(real_t),
+  //                 NULL,
+  //                 &CL_err);
+  //checkErr(CL_err, "clCreateBuffer(aux_arr->sinmodf_d)");
 
   
   aux_arr->tshift_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
@@ -1080,30 +1113,52 @@ void init_aux_arrays(Search_settings* sett,
   //                     sett->Ninterp);
 
   // Device id=0 calculates the single sinmod/cosmod instance which will be shared between devices
-  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 0, sizeof(cl_mem), &aux_arr->sinmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 0)");
-  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 1, sizeof(cl_mem), &aux_arr->cosmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 1)");
-  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 2, sizeof(real_t), &sett->omr);          checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 2)");
-  CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 3, sizeof(cl_int), &sett->N);            checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 3)");
+  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 0, sizeof(cl_mem), &aux_arr->sinmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 0)");
+  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 1, sizeof(cl_mem), &aux_arr->cosmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 1)");
+  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 2, sizeof(real_t), &sett->omr);          checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 2)");
+  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 3, sizeof(cl_int), &sett->N);            checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 3)");
+  //
+  //cl_event exec;
+  //size_t size_N = (size_t)sett->N; // Variable so pointer can be given to API
+  //
+  //CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0][0],
+  //                                cl_handles->kernels[0][ComputeSinCosModF],
+  //                                1,
+  //                                NULL,
+  //                                &size_N,
+  //                                NULL,
+  //                                0,
+  //                                NULL,
+  //                                &exec);
+  //checkErr(CL_err, "clEnqueueNDRangeKernel(ComputeSinCosModF)");
+  //
+  //CL_err = clWaitForEvents(1, &exec);
+  //checkErr(CL_err, "clWaitForEvents(exec)");
+  //
+  //// OpenCL cleanup
+  //clReleaseEvent(exec);
 
-  cl_event exec;
-  size_t size_N = (size_t)sett->N; // Variable so pointer can be given to API
+  Ampl_mod_coeff* tmp =
+      clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
+          aux_arr->ifo_amod_d,
+          CL_TRUE,
+          CL_MAP_WRITE_INVALIDATE_REGION,
+          0,
+          sett->nifo * sizeof(Ampl_mod_coeff),
+          0,
+          NULL,
+          NULL,
+          &CL_err);
 
-  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0][0],
-                                  cl_handles->kernels[0][ComputeSinCosModF],
-                                  1,
-                                  NULL,
-                                  &size_N,
-                                  NULL,
-                                  0,
-                                  NULL,
-                                  &exec);
-  checkErr(CL_err, "clEnqueueNDRangeKernel(ComputeSinCosModF)");
+  for (size_t i = 0; i < sett->nifo; ++i) tmp[i] = ifo[i].amod;
 
-  CL_err = clWaitForEvents(1, &exec);
-  checkErr(CL_err, "clWaitForEvents(exec)");
+  cl_event unmap_event;
+  clEnqueueUnmapMemObject(cl_handles->exec_queues[0][0], aux_arr->ifo_amod_d, tmp, 0, NULL, &unmap_event);
+
+  clWaitForEvents(1, &unmap_event);
 
   // OpenCL cleanup
-  clReleaseEvent(exec);
+  clReleaseEvent(unmap_event);
 }
 
 void set_search_range(Search_settings *sett,

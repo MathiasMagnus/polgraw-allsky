@@ -62,35 +62,6 @@ void sky_positions(const int pm,                  // hemisphere
 	               real_t* sindelt,
 	               real_t* cosdelt);
 
-/// <summary>Copies amplitude modulation coefficients to constant memory.</summary>
-///
-void copy_amod_coeff(const Detector_settings* ifo,
-                     const cl_int nifo,
-                     OpenCL_handles* cl_handles,
-                     Aux_arrays* aux);
-
-/// <summary>Calculate the amplitude modulation functions aa and bb of the given detector (in signal sub-structs: ifo->sig.aa, ifo->.sig.bb).</summary>
-/// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
-/// <remarks>Becomes a blocking call when <c>TESTING</c> is enabled</remarks>
-///
-cl_event modvir_gpu(const cl_int idet,
-                    const cl_int id,
-                    const cl_int Np,
-                    const real_t sinal,
-                    const real_t cosal,
-                    const real_t sindel,
-                    const real_t cosdel,
-                    const real_t cphir,
-                    const real_t sphir,
-                    const cl_mem ifo_amod_d,
-                    const cl_mem sinmodf_d,
-                    const cl_mem cosmodf_d,
-                    cl_mem aa_d,
-                    cl_mem bb_d,
-                    const OpenCL_handles* cl_handles,
-                    const cl_uint num_events_in_wait_list,
-                    const cl_event* event_wait_list);
-
 /// <summary>The purpose of this function was undocumented.</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 /// <remarks>Becomes a blocking call when <c>TESTING</c> is enabled</remarks>

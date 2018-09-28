@@ -152,7 +152,7 @@ typedef struct _fft_plans {
 typedef struct _aux_arrays {
 
   cl_mem ifo_amod_d;             // constant buffer of detector settings
-  cl_mem sinmodf_d, cosmodf_d;   // Earth position
+  //cl_mem sinmodf_d, cosmodf_d;   // Earth position
   cl_mem **tshift_d;
   //cl_mem *aadot_d, *bbdot_d;     // dot-products of xx_d
   cl_mem **aadots_d, **bbdots_d; // array of sub-buffers pointing into xxdot_d
@@ -207,11 +207,11 @@ typedef struct _search_settings {
 
 } Search_settings;
 
-/// <summar>Amplitude modulation function coefficients</summary>
+/// <summary>Amplitude modulation function coefficients</summary>
 ///
 typedef struct _ampl_mod_coeff
 {
-  double c1, c2, c3, c4, c5, c6, c7, c8, c9;
+    modvir_real_in c1, c2, c3, c4, c5, c6, c7, c8, c9;
 
 } Ampl_mod_coeff;
 

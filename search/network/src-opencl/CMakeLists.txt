@@ -19,7 +19,8 @@ set (HDRS inc/auxi.h
           inc/spline_z.h
           inc/struct.h
           inc/timer.h
-          inc/CL/util.h)
+          inc/CL/util.h
+		  inc/modvir.h)
 
 set (SRCS src/main.c
           src/auxi.c
@@ -28,25 +29,37 @@ set (SRCS src/main.c
           src/init.c
           src/jobcore.c
           src/spline_z.c
-          src/CL/util.c)
+          src/CL/util.c
+		  src/modvir.c)
 
-set (KRNS krn/floats.h.cl
-          krn/kernels.h.cl
-          krn/kernels.cl)
+set (KRN_HDRS krn/floats.h.cl
+              krn/kernels.h.cl
+		      krn/modvir.h.cl)
+
+set (KRN_SRCS krn/kernels.cl
+		      krn/modvir.cl)
 
 # Generate the configuration file for application to locate kernel files
+set (KRN_LIST)
+foreach (Kernel ${KRN_SRCS})
+  string(APPEND KRN_LIST "\"${CMAKE_CURRENT_SOURCE_DIR}/${Kernel}\",")
+endforeach ()
+string (REGEX REPLACE ".$" "" KRN_LIST ${KRN_LIST}) # Remove trailing ,
+list (LENGTH KRN_SRCS KRN_LIST_LENGTH)
+
 configure_file (${CMAKE_CURRENT_SOURCE_DIR}/inc/locations.in.h
                 ${CMAKE_CURRENT_BINARY_DIR}/inc/locations.h)
 
 list (APPEND HDRS ${CMAKE_CURRENT_BINARY_DIR}/inc/locations.h)
 
 # Variable to hold ALL files to build and be visible in IDE
-set (BUILD ${HDRS} ${SRCS} ${KRNS})
+set (BUILD ${HDRS} ${SRCS} ${KRN_HDRS} ${KRN_SRCS})
 
 # Create filters for IDEs
-source_group ("Headers" FILES ${HDRS})
-source_group ("Sources" FILES ${SRCS})
-source_group ("Kernels" FILES ${KRNS})
+source_group ("Host//Headers" FILES ${HDRS})
+source_group ("Host//Sources" FILES ${SRCS})
+source_group ("Device//Headers" FILES ${KRN_HDRS})
+source_group ("Device//Sources" FILES ${KRN_SRC})
 
 # Specify executable sources
 add_executable (${Target_NAME} ${BUILD})

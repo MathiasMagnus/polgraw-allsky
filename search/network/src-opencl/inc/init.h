@@ -43,12 +43,20 @@ cl_command_queue** create_command_queue_set(cl_context context);
 
 /// <summary>Load kernel file from disk.</summary>
 ///
-char* load_program_file(const char* filename);
+char* load_file(const char* filename);
+
+/// <summary>Load all kernel files from disk.</summary>
+///
+char** load_kernel_sources();
+
+/// <summary>Free memory of source files.</summary>
+///
+void free_kernel_sources(char** sources);
 
 /// <summary>Build program file</summary>
 ///
-cl_program build_program_source(cl_context context,
-                                const char* source);
+cl_program build_program_with_sources(cl_context context,
+                                      const char** sources);
 
 /// <summary>Create a kernel for all entry points in the program for each device.</summary>
 ///
@@ -88,6 +96,7 @@ void init_ifo_arrays(Search_settings* sett,
 /// <summary>Initialize auxiliary arrays.</summary>
 ///
 void init_aux_arrays(Search_settings* sett,
+                     Detector_settings* ifo,
                      OpenCL_handles* cl_handles,
                      Aux_arrays* aux_arr);
 
@@ -158,14 +167,14 @@ void cleanup_fft_arrays(FFT_arrays* fft_arr,
 
 /// <summary>Initialize interferometer arrays.</summary>
 ///
-void init_ifo_arrays(Search_settings* sett,
+void cleanup_ifo_arrays(Search_settings* sett,
     OpenCL_handles* cl_handles,
     Command_line_opts* opts,
     Detector_settings* ifo);
 
 /// <summary>Initialize auxiliary arrays.</summary>
 ///
-void init_aux_arrays(Search_settings* sett,
+void cleanup_aux_arrays(Search_settings* sett,
     OpenCL_handles* cl_handles,
     Aux_arrays* aux_arr);
 

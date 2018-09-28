@@ -1,6 +1,10 @@
 #ifndef __FLOATS_HCL__
 #define __FLOATS_HCL__
 
+typedef double modvir_real_in;
+typedef double modvir_real;
+typedef double modvir_real_out;
+
 #ifdef COMP_FLOAT
 typedef float real_t;
 typedef float2 complex_t;

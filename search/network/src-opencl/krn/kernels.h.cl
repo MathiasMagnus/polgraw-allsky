@@ -3,30 +3,8 @@
 
 #include <floats.h.cl>
 
-/// <summar>Amplitude modulation function coefficients</summary>
-///
-typedef struct _ampl_mod_coeff
-{
-    real_t c1, c2, c3, c4, c5, c6, c7, c8, c9;
-
-} Ampl_mod_coeff;
 
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
-__kernel void modvir_kern(__global real_t* aa_d,
-                          __global real_t* bb_d,
-                          real_t cosalfr,
-                          real_t sinalfr,
-                          real_t c2d,
-                          real_t c2sd,
-                          __global real_t* sinmodf_d,
-                          __global real_t* cosmodf_d,
-                          real_t sindel,
-                          real_t cosdel,
-                          int Np,
-                          int idet,
-                          __constant Ampl_mod_coeff* amod_d);
 
 /// <summary>The purpose of this function was undocumented.</summary>
 ///

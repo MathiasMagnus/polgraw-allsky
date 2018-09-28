@@ -1,5 +1,4 @@
-#ifndef __FLOATS_H__
-#define __FLOATS_H__
+#pragma once
 
 // OpenCL includes
 #include <CL/cl.h>      // cl_float, cl_double
@@ -7,8 +6,9 @@
 // Standard C includes
 #include <complex.h>    // _Dcomplex
 
-
-#undef COMP_FLOAT
+typedef double modvir_real_in;
+typedef double modvir_real;
+typedef double modvir_real_out;
 
 //changing computations in spindown loop to single-precision arithmetic
 #ifdef COMP_FLOAT //if single-precision
@@ -51,7 +51,4 @@ complex_t csubrc(const real_t lhs, const complex_t rhs);
 typedef complex double complex_t;
 #define HOST_COMPLEX_TYPE complex double
 #endif // WIN32
-#endif
-
-
 #endif

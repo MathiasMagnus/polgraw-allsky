@@ -320,14 +320,14 @@ void rogcvir(const int nifo, Detector_settings* ifo)
 
   for (Detector_settings* ifoi = ifo; ifoi < ifo + nifo; ++ifoi)
   {
-    ifoi->amod.c1 = .25*sin(2.*ifoi->egam)*(1 + sqr(sin(ifoi->ephi)));
-    ifoi->amod.c2 = -.5*cos(2.*ifoi->egam)*sin(ifoi->ephi);
-    ifoi->amod.c3 = .5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi);
-    ifoi->amod.c4 = -cos(2.*ifoi->egam)*cos(ifoi->ephi);
-    ifoi->amod.c5 = .75*sin(2.*ifoi->egam)*sqr(cos(ifoi->ephi));
-    ifoi->amod.c6 = cos(2.*ifoi->egam)*sin(ifoi->ephi);
-    ifoi->amod.c7 = .5*sin(2.*ifoi->egam)*(1. + sqr(sin(ifoi->ephi)));
-    ifoi->amod.c8 = cos(2.*ifoi->egam)*cos(ifoi->ephi);
-    ifoi->amod.c9 = .5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi);
+    ifoi->amod.c1 = (modvir_real_in)(.25*sin(2.*ifoi->egam)*(1 + sqr(sin(ifoi->ephi))));
+    ifoi->amod.c2 = (modvir_real_in)(-.5*cos(2.*ifoi->egam)*sin(ifoi->ephi));
+    ifoi->amod.c3 = (modvir_real_in)(.5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi));
+    ifoi->amod.c4 = (modvir_real_in)(-cos(2.*ifoi->egam)*cos(ifoi->ephi));
+    ifoi->amod.c5 = (modvir_real_in)(.75*sin(2.*ifoi->egam)*sqr(cos(ifoi->ephi)));
+    ifoi->amod.c6 = (modvir_real_in)(cos(2.*ifoi->egam)*sin(ifoi->ephi));
+    ifoi->amod.c7 = (modvir_real_in)(.5*sin(2.*ifoi->egam)*(1. + sqr(sin(ifoi->ephi))));
+    ifoi->amod.c8 = (modvir_real_in)(cos(2.*ifoi->egam)*cos(ifoi->ephi));
+    ifoi->amod.c9 = (modvir_real_in)(.5*sin(2.*ifoi->egam)*sin(2.*ifoi->ephi));
   }
 } // rogcvir

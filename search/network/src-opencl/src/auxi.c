@@ -3,6 +3,14 @@
 // MSVC: macro to include constants, such as M_PI (include before math.h)
 #define _USE_MATH_DEFINES
 
+// OpenCL behavioral defines
+//
+// 1.2+ OpenCL headers: tells the headers not to bitch about clCreateCommandQueue being renamed to clCreateCommandQueueWithProperties
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS 1
+//
+// Select API to use
+#define CL_TARGET_OPENCL_VERSION 120
+
 // Polgraw includes
 #include <auxi.h>       // Splintpad_callback_data
 #include <CL/util.h>

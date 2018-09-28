@@ -10,6 +10,7 @@
 // Polgraw includes
 #include <CL/util.h>        // checkErr
 #include <signal_params.h>
+#include <modvir.h>
 #include <struct.h>
 #include <jobcore.h>
 #include <auxi.h>
@@ -86,9 +87,6 @@ void search(Detector_settings* ifo,
 //    state = fopen(opts->qname, "w");
 //#endif // WIN32
 //  }
-
-  // Copy amod coefficients to device
-  copy_amod_coeff(ifo, sett->nifo, cl_handles, aux);
 
   Search_results*** results = init_results(s_range);
 
@@ -216,12 +214,12 @@ Search_results job_core(const int pm,                  // hemisphere
   for (int n = 0; n<sett->nifo; ++n)
   {
     modvir_events[n] =
-      modvir_gpu(n, id, sett->N,                                  // input
-                 sinalt, cosalt, sindelt, cosdelt,                // input
-                 ifo[n].sig.cphir, ifo[n].sig.sphir,              // input
-                 aux->ifo_amod_d, aux->sinmodf_d, aux->cosmodf_d, // input
-                 ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id],        // output
-                 cl_handles, 0, NULL);                            // sync
+      modvir(n, id, sett->N,                            // input
+             sinalt, cosalt, sindelt, cosdelt,          // input
+             ifo[n].sig.cphir, ifo[n].sig.sphir,        // input
+             sett->omr, aux->ifo_amod_d,                // input
+             ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id],  // output
+             cl_handles, 0, NULL);                      // sync
 
     // Calculate detector positions with respect to baricenter
     real3_t nSource = { cosalt * cosdelt,
@@ -403,90 +401,6 @@ void sky_positions(const int pm,                  // hemisphere
   sgnlt[ascension] = fmod(atan2(*sinalt, *cosalt) + 2.*M_PI, 2.*M_PI);
 
   *het0 = fmod(nn*M[8] + mm * M[12], M[0]);
-}
-
-void copy_amod_coeff(const Detector_settings* ifo,
-                     const cl_int nifo,
-                     OpenCL_handles* cl_handles,
-                     Aux_arrays* aux)
-{
-  cl_int CL_err = CL_SUCCESS;
-
-  Ampl_mod_coeff* tmp =
-    clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
-                       aux->ifo_amod_d,
-                       CL_TRUE,
-                       CL_MAP_WRITE_INVALIDATE_REGION,
-                       0,
-                       nifo * sizeof(Ampl_mod_coeff),
-                       0,
-                       NULL,
-                       NULL,
-                       &CL_err);
-
-  for (size_t i = 0; i < nifo; ++i) tmp[i] = ifo[i].amod;
-
-  cl_event unmap_event;
-  clEnqueueUnmapMemObject(cl_handles->exec_queues[0][0], aux->ifo_amod_d, tmp, 0, NULL, &unmap_event);
-  
-  clWaitForEvents(1, &unmap_event);
-  
-  clReleaseEvent(unmap_event);
-}
-
-cl_event modvir_gpu(const cl_int idet,
-                    const cl_int id,
-                    const cl_int Np,
-                    const real_t sinal,
-                    const real_t cosal,
-                    const real_t sindel,
-                    const real_t cosdel,
-                    const real_t cphir,
-                    const real_t sphir,
-                    const cl_mem ifo_amod_d,
-                    const cl_mem sinmodf_d,
-                    const cl_mem cosmodf_d,
-                    cl_mem aa_d,
-                    cl_mem bb_d,
-                    const OpenCL_handles* cl_handles,
-                    const cl_uint num_events_in_wait_list,
-                    const cl_event* event_wait_list)
-{
-  cl_int CL_err = CL_SUCCESS;
-  real_t cosalfr = cosal * (cphir) + sinal * (sphir),
-         sinalfr = sinal * (cphir) - cosal * (sphir),
-         c2d = sqr(cosdel),
-         c2sd = sindel * cosdel;
-
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 0, sizeof(cl_mem), &aa_d);             checkErr(CL_err, "clSetKernelArg(&aa_d)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 1, sizeof(cl_mem), &bb_d);             checkErr(CL_err, "clSetKernelArg(&bb_d)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 2, sizeof(real_t), &cosalfr);          checkErr(CL_err, "clSetKernelArg(&cosalfr)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 3, sizeof(real_t), &sinalfr);          checkErr(CL_err, "clSetKernelArg(&sinalfr)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 4, sizeof(real_t), &c2d);              checkErr(CL_err, "clSetKernelArg(&c2d)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 5, sizeof(real_t), &c2sd);             checkErr(CL_err, "clSetKernelArg(&c2sd)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 6, sizeof(cl_mem), &sinmodf_d);        checkErr(CL_err, "clSetKernelArg(&sinmodf_d)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 7, sizeof(cl_mem), &cosmodf_d);        checkErr(CL_err, "clSetKernelArg(&cosmodf_d)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 8, sizeof(real_t), &sindel);           checkErr(CL_err, "clSetKernelArg(&sindel)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 9, sizeof(real_t), &cosdel);           checkErr(CL_err, "clSetKernelArg(&cosdel)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 10, sizeof(cl_int), &Np);              checkErr(CL_err, "clSetKernelArg(&Np)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 11, sizeof(cl_int), &idet);            checkErr(CL_err, "clSetKernelArg(&idet)");
-  CL_err = clSetKernelArg(cl_handles->kernels[id][Modvir], 12, sizeof(cl_mem), &ifo_amod_d);      checkErr(CL_err, "clSetKernelArg(&ifo_amod_d)");
-
-  cl_event exec;
-  size_t size_Np = (size_t)Np; // Helper variable to make pointer types match. Cast to silence warning
-
-  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][Modvir], 1, NULL, &size_Np, NULL, num_events_in_wait_list, event_wait_list, &exec);
-  checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[Modvir])");
-
-#ifdef TESTING
-  clWaitForEvents(1, &exec);
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], sinmodf_d, Np, idet, "aux_sinmodf");
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], cosmodf_d, Np, idet, "aux_cosmodf");
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], aa_d, Np, idet, "ifo_sig_aa");
-  save_numbered_real_buffer(cl_handles->read_queues[id][idet], bb_d, Np, idet, "ifo_sig_bb");
-#endif
-
-    return exec;
 }
 
 cl_event tshift_pmod_gpu(const cl_int idet,

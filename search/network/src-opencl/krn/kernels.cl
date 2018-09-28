@@ -4,44 +4,7 @@
 
 //#pragma OPENCL EXTENSION cl_amd_printf : enable
 
-/// <summary>The purpose of this function was undocumented.</summary>
-///
-__kernel void modvir_kern(__global real_t* aa_d,
-                          __global real_t* bb_d,
-                          real_t cosalfr,
-                          real_t sinalfr,
-                          real_t c2d,
-                          real_t c2sd,
-                          __global real_t* sinmodf_d,
-                          __global real_t* cosmodf_d,
-                          real_t sindel,
-                          real_t cosdel,
-                          int Np,
-                          int idet,
-                          __constant Ampl_mod_coeff* amod_d)
-{
-  size_t idx = get_global_id(0);
 
-  real_t c = cosalfr * cosmodf_d[idx] + sinalfr * sinmodf_d[idx];
-  real_t s = sinalfr * cosmodf_d[idx] - cosalfr * sinmodf_d[idx];
-  real_t c2s = 2.*c*c;
-  real_t cs = c*s;
-
-  aa_d[idx] =
-    amod_d[idet].c1*(2. - c2d)*c2s +
-    amod_d[idet].c2*(2. - c2d)*2.*cs +
-    amod_d[idet].c3*c2sd*c +
-    amod_d[idet].c4*c2sd*s -
-    amod_d[idet].c1*(2. - c2d) +
-    amod_d[idet].c5*c2d;
-  
-  bb_d[idx] =
-    amod_d[idet].c6*sindel*c2s +
-    amod_d[idet].c7*sindel*2.*cs +
-    amod_d[idet].c8*cosdel*c +
-    amod_d[idet].c9*cosdel*s -
-    amod_d[idet].c6*sindel;
-}
 
 /// <summary>The purpose of this function was undocumented.</summary>
 ///
