@@ -323,12 +323,6 @@ void init_opencl(OpenCL_handles* cl_handles,
   cl_handles->read_queues  = create_command_queue_set(cl_handles->ctx);
 
   {
-    //char* source = load_program_file(kernel_path);
-    //
-    //cl_handles->prog = build_program_source(cl_handles->ctx, source);
-    //
-    //free(source);
-
     char** sources = load_kernel_sources();
 
     cl_handles->prog = build_program_with_sources(cl_handles->ctx, sources);
@@ -627,7 +621,7 @@ cl_kernel** create_kernels(cl_program program,
 	                       cl_uint count)
 {
     cl_int CL_err = CL_SUCCESS;
-    cl_uint kernel_count = 11;
+    cl_uint kernel_count = 10;
 
     cl_kernel** result = (cl_kernel**)malloc(count * sizeof(cl_kernel*));
 
@@ -648,9 +642,6 @@ const char* obtain_kernel_name(cl_uint i)
 
     switch (i)
     {
-    case ComputeSinCosModF:
-        result = "compute_sincosmodf";
-        break;
     case Modvir:
         result = "modvir";
         break;
@@ -993,27 +984,8 @@ void init_aux_arrays(Search_settings* sett,
                    NULL,
                    &CL_err);
   checkErr(CL_err, "clCreateBuffer(aux_arr->ifo_amod_d)");
-
-  //aux_arr->cosmodf_d =
-  //  clCreateBuffer(cl_handles->ctx,
-  //                 CL_MEM_READ_WRITE,
-  //                 sett->N * sizeof(real_t),
-  //                 NULL,
-  //                 &CL_err);
-  //checkErr(CL_err, "clCreateBuffer(aux_arr->cosmodf_d)");
-  //
-  //aux_arr->sinmodf_d =
-  //  clCreateBuffer(cl_handles->ctx,
-  //                 CL_MEM_READ_WRITE,
-  //                 sett->N * sizeof(real_t),
-  //                 NULL,
-  //                 &CL_err);
-  //checkErr(CL_err, "clCreateBuffer(aux_arr->sinmodf_d)");
-
   
   aux_arr->tshift_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
-  //aux_arr->aadot_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-  //aux_arr->bbdot_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
   aux_arr->aadots_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
   aux_arr->bbdots_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
   aux_arr->maa_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
@@ -1023,22 +995,6 @@ void init_aux_arrays(Search_settings* sett,
 
   for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
   {
-    //aux_arr->aadot_d[id] =
-    //  clCreateBuffer(cl_handles->ctx,
-    //                 CL_MEM_READ_ONLY,
-    //                 sett->nifo * sizeof(real_t),
-    //                 NULL,
-    //                 &CL_err);
-    //checkErr(CL_err, "clCreateBuffer(aux_arr->aadot_d)");
-    //
-    //aux_arr->bbdot_d[id] =
-    //  clCreateBuffer(cl_handles->ctx,
-    //                 CL_MEM_READ_ONLY,
-    //                 sett->nifo * sizeof(real_t),
-    //                 NULL,
-    //                 &CL_err);
-    //checkErr(CL_err, "clCreateBuffer(aux_arr->bbdot_d)");
-
     aux_arr->tshift_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
     aux_arr->aadots_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
     aux_arr->bbdots_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
@@ -1111,32 +1067,6 @@ void init_aux_arrays(Search_settings* sett,
   //                     &aux_arr->udiag_d,
   //                     &aux_arr->B_d,
   //                     sett->Ninterp);
-
-  // Device id=0 calculates the single sinmod/cosmod instance which will be shared between devices
-  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 0, sizeof(cl_mem), &aux_arr->sinmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 0)");
-  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 1, sizeof(cl_mem), &aux_arr->cosmodf_d); checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 1)");
-  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 2, sizeof(real_t), &sett->omr);          checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 2)");
-  //CL_err = clSetKernelArg(cl_handles->kernels[0][ComputeSinCosModF], 3, sizeof(cl_int), &sett->N);            checkErr(CL_err, "clSetKernelArg(ComputeSinCosModF, 3)");
-  //
-  //cl_event exec;
-  //size_t size_N = (size_t)sett->N; // Variable so pointer can be given to API
-  //
-  //CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[0][0],
-  //                                cl_handles->kernels[0][ComputeSinCosModF],
-  //                                1,
-  //                                NULL,
-  //                                &size_N,
-  //                                NULL,
-  //                                0,
-  //                                NULL,
-  //                                &exec);
-  //checkErr(CL_err, "clEnqueueNDRangeKernel(ComputeSinCosModF)");
-  //
-  //CL_err = clWaitForEvents(1, &exec);
-  //checkErr(CL_err, "clWaitForEvents(exec)");
-  //
-  //// OpenCL cleanup
-  //clReleaseEvent(exec);
 
   Ampl_mod_coeff* tmp =
       clEnqueueMapBuffer(cl_handles->exec_queues[0][0],

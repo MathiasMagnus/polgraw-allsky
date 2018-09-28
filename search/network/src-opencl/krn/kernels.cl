@@ -79,23 +79,6 @@ __kernel void resample_postfft(__global complex_t *xa_d,
 	xb_d[j].y = 0;
 }
 
-/// <summary>Computes sin and cos values and stores them in an array.</summary>
-/// <remarks>Most likely a very bad idea. Results are used in modvir and should be computed there in place.</remarks>
-///
-__kernel void compute_sincosmodf(__global real_t* s,
-                                 __global real_t* c,
-                                 real_t omr,
-                                 int N)
-{
-    size_t idx = get_global_id(0);
-
-    if (idx < N)
-    {
-        s[idx] = sin(omr * idx);
-        c[idx] = cos(omr * idx);
-    }
-}
-
 /// <summary>The purpose of this function was undocumented.</summary>
 ///
 __kernel void computeB(__global complex_t* y,
