@@ -33,11 +33,12 @@ cl_event modvir(const cl_int idet,
                 const cl_event* event_wait_list)
 {
     cl_int CL_err = CL_SUCCESS;
+    // Casts silence warnings
     real cosalfr = (real)(cosal * (cphir)+sinal * (sphir)),
          sinalfr = (real)(sinal * (cphir)-cosal * (sphir)),
          c2d = (real)sqr(cosdel),
          c2sd = (real)(sindel * cosdel),
-    // Helper variables to make pointer types match. Casts silence warning
+    // Helper variables to make pointer types match
          real_sindel = (real)sindel,
          real_cosdel = (real)cosdel,
          real_omr = (real)omr;

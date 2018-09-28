@@ -1,9 +1,9 @@
 #ifndef __FLOATS_HCL__
 #define __FLOATS_HCL__
 
-typedef double modvir_real_in;
-typedef double modvir_real;
-typedef double modvir_real_out;
+// Polgraw includes
+#include <../inc/precision.h>
+
 
 #ifdef COMP_FLOAT
 typedef float real_t;

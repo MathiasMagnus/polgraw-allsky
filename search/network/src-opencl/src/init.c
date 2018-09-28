@@ -576,7 +576,8 @@ cl_program build_program_with_sources(cl_context context,
       lengths[i] = strnlen(sources[i]);
 #endif
 
-    result = clCreateProgramWithSource(context, kernel_path_count, sources, lengths, &CL_err);
+    cl_uint uint_kernel_path_count = (cl_uint)kernel_path_count;
+    result = clCreateProgramWithSource(context, uint_kernel_path_count, sources, lengths, &CL_err);
     checkErr(CL_err, "clCreateProgramWithSource()");
 
     CL_err = clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &numDevices, NULL);

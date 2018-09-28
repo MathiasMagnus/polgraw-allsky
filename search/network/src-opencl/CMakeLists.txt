@@ -12,6 +12,7 @@ set (Target_NAME gwsearch-ocl)
 
 # Adding source code files according to configuration
 set (HDRS inc/auxi.h
+          inc/precision.h
           inc/floats.h
           inc/init.h
           inc/jobcore.h

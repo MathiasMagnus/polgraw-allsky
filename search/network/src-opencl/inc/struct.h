@@ -2,6 +2,7 @@
 #define __STRUCT_H__
 
 // Polgraw includes
+#include <precision.h>
 #include <floats.h>     // COMPLEX_FLOAT
 
 // clBLAS includes
@@ -125,17 +126,16 @@ typedef struct _opencl_handles
 ///
 enum Kernel
 {
-    ComputeSinCosModF = 0,
-    Modvir = 1,
-    TShiftPMod = 2,
-    ResamplePostFFT = 3,
-    ComputeB = 4,
-    TriDiagMul = 5,
-    Interpolate = 6,
-    PhaseMod1 = 7,
-    PhaseMod2 = 8,
-    ComputeFStat = 9,
-    NormalizeFStatWG = 10
+    Modvir = 0,
+    TShiftPMod = 1,
+    ResamplePostFFT = 2,
+    ComputeB = 3,
+    TriDiagMul = 4,
+    Interpolate = 5,
+    PhaseMod1 = 6,
+    PhaseMod2 = 7,
+    ComputeFStat = 8,
+    NormalizeFStatWG = 9
 };
 
 /* FFTW plans  */ 
@@ -211,7 +211,7 @@ typedef struct _search_settings {
 ///
 typedef struct _ampl_mod_coeff
 {
-    modvir_real_in c1, c2, c3, c4, c5, c6, c7, c8, c9;
+    ampl_mod_real_out c1, c2, c3, c4, c5, c6, c7, c8, c9;
 
 } Ampl_mod_coeff;
 
