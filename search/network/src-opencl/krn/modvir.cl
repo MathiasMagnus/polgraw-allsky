@@ -12,8 +12,8 @@ kernel void modvir(const int idet,
                    const modvir_real c2sd,
                    const modvir_real omr,
                    constant Ampl_mod_coeff* amod,
-                   global modvir_real_out* aa,
-                   global modvir_real_out* bb)
+                   global ampl_mod_real* aa,
+                   global ampl_mod_real* bb)
 {
     size_t idx = get_global_id(0);
 

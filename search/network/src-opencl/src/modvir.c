@@ -33,12 +33,11 @@ cl_event modvir(const cl_int idet,
                 const cl_event* event_wait_list)
 {
     cl_int CL_err = CL_SUCCESS;
-    // Casts silence warnings
-    real cosalfr = (real)(cosal * (cphir)+sinal * (sphir)),
-         sinalfr = (real)(sinal * (cphir)-cosal * (sphir)),
+    // Helper variable to make pointer types match. Cast to silence warning
+    real cosalfr = (real)(cosal * (cphir) + sinal * (sphir)),
+         sinalfr = (real)(sinal * (cphir) - cosal * (sphir)),
          c2d = (real)sqr(cosdel),
          c2sd = (real)(sindel * cosdel),
-    // Helper variables to make pointer types match
          real_sindel = (real)sindel,
          real_cosdel = (real)cosdel,
          real_omr = (real)omr;
@@ -59,13 +58,17 @@ cl_event modvir(const cl_int idet,
 
     cl_event exec;
 
-    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][Modvir], 1, NULL, &size_Np, NULL, num_events_in_wait_list, event_wait_list, &exec);
+    CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], // queue
+                                    cl_handles->kernels[id][Modvir],   // kernel
+                                    1,                                 // dimensions
+                                    NULL, &size_Np, NULL,              // offset, global/local work-size
+                                    num_events_in_wait_list,           // nomen est omen
+                                    event_wait_list,                   // nomen est omen
+                                    &exec);                            // event out
     checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[Modvir])");
 
 #ifdef TESTING
     clWaitForEvents(1, &exec);
-    save_numbered_real_buffer(cl_handles->read_queues[id][idet], sinmodf_d, Np, idet, "aux_sinmodf");
-    save_numbered_real_buffer(cl_handles->read_queues[id][idet], cosmodf_d, Np, idet, "aux_cosmodf");
     save_numbered_real_buffer(cl_handles->read_queues[id][idet], aa_d, Np, idet, "ifo_sig_aa");
     save_numbered_real_buffer(cl_handles->read_queues[id][idet], bb_d, Np, idet, "ifo_sig_bb");
 #endif

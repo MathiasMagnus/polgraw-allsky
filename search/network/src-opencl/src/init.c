@@ -647,7 +647,7 @@ const char* obtain_kernel_name(cl_uint i)
         result = "modvir";
         break;
     case TShiftPMod:
-        result = "tshift_pmod_kern";
+        result = "tshift_pmod";
         break;
     case ResamplePostFFT:
         result = "resample_postfft";
@@ -755,7 +755,7 @@ void init_ifo_arrays(Search_settings* sett,
 
   for (int i = 0; i < sett->nifo; i++)
   {
-    ifo[i].sig.xDat = (real_t*)calloc(sett->N, sizeof(real_t));
+    ifo[i].sig.xDat = (double*)calloc(sett->N, sizeof(double));
 
     // Input time-domain data handling
     // 
@@ -766,7 +766,7 @@ void init_ifo_arrays(Search_settings* sett,
     if ((data = fopen(ifo[i].xdatname, "rb")) != NULL)
     {
 		status = fread((void *)(ifo[i].sig.xDat),
-                              sizeof(real_t),
+                              sizeof(double),
                               sett->N,
                               data);
         fclose(data);
@@ -777,13 +777,20 @@ void init_ifo_arrays(Search_settings* sett,
       exit(EXIT_FAILURE);
     }
 
-	cl_int CL_err = CL_SUCCESS;
-    ifo[i].sig.xDat_d = clCreateBuffer(cl_handles->ctx,
-                                       CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                       sett->N * sizeof(real_t),
-                                       ifo[i].sig.xDat,
-                                       &CL_err);
-    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
+    cl_int CL_err = CL_SUCCESS;
+    // Potentially wasteful conversion from storage to computation type
+    {
+      xDat_real* tmp = (xDat_real*)malloc(sett->N * sizeof(xDat_real));
+      for (int ii = 0 ; ii < sett->N ; ++ii) tmp[ii] = (xDat_real)ifo[i].sig.xDat[ii]; // Cast silences warning
+
+      ifo[i].sig.xDat_d = clCreateBuffer(cl_handles->ctx,
+                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                         sett->N * sizeof(xDat_real),
+                                         tmp,
+                                         &CL_err);
+      checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
+      free(tmp);
+    }
 
     int j, Nzeros = 0;
     // Checking for null values in the data
@@ -793,12 +800,12 @@ void init_ifo_arrays(Search_settings* sett,
     ifo[i].sig.Nzeros = Nzeros;
 
     // factor N/(N - Nzeros) to account for null values in the data
-    ifo[i].sig.crf0 = (real_t)sett->N / (sett->N - ifo[i].sig.Nzeros);
+    ifo[i].sig.crf0 = (double)sett->N / (sett->N - ifo[i].sig.Nzeros);
 
     // Estimation of the variance for each detector 
     ifo[i].sig.sig2 = (ifo[i].sig.crf0)*var(ifo[i].sig.xDat, sett->N);
 
-    ifo[i].sig.DetSSB = (real3_t*)calloc(sett->N, sizeof(real3_t));
+    ifo[i].sig.DetSSB = (DetSSB_real3*)calloc(sett->N, sizeof(DetSSB_real3));
 
     // Ephemeris file handling
     char filename[512];
@@ -815,23 +822,28 @@ void init_ifo_arrays(Search_settings* sett,
       // for every datapoint
       for (j = 0; j < sett->N; ++j)
       {
-        status = fread((void *)(&ifo[i].sig.DetSSB[j]),
-                       sizeof(real_t),
+        double tmp[3];
+        status = fread((void *)(&tmp),
+                       sizeof(double),
                        3,
                        data);
+
+        ifo[i].sig.DetSSB[j].s[0] = tmp[0];
+        ifo[i].sig.DetSSB[j].s[1] = tmp[1];
+        ifo[i].sig.DetSSB[j].s[2] = tmp[2];
         ifo[i].sig.DetSSB[j].s[3] = 0;
       }
 
       // Deterministic phase defining the position of the Earth
       // in its diurnal motion at t=0 
       status = fread((void *)(&ifo[i].sig.phir),
-                     sizeof(real_t),
+                     sizeof(double),
                      1,
                      data);
 
       // Earth's axis inclination to the ecliptic at t=0
       status = fread((void *)(&ifo[i].sig.epsm),
-                     sizeof(real_t),
+                     sizeof(double),
                      1,
                      data);
       fclose(data);
@@ -847,7 +859,7 @@ void init_ifo_arrays(Search_settings* sett,
 
     ifo[i].sig.DetSSB_d = clCreateBuffer(cl_handles->ctx,
                                          CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                         sett->N * sizeof(real3_t),
+                                         sett->N * sizeof(DetSSB_real3),
                                          ifo[i].sig.DetSSB,
                                          &CL_err);
     checkErr(CL_err, "clCreateBuffer(ifo[i].sig.DetSSB_d)");
@@ -872,42 +884,42 @@ void init_ifo_arrays(Search_settings* sett,
 	{
       ifo[i].sig.xDatma_d[j] = clCreateBuffer(cl_handles->ctx,
                                               CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                              sett->N * sizeof(complex_devt),
+                                              sett->N * sizeof(xDatm_complex),
                                               NULL,
                                               &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatma_d)");
 	  
       ifo[i].sig.xDatmb_d[j] = clCreateBuffer(cl_handles->ctx,
                                               CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                              sett->N * sizeof(complex_devt),
+                                              sett->N * sizeof(xDatm_complex),
                                               NULL,
                                               &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatmb_d)");
 	  
       ifo[i].sig.aa_d[j] = clCreateBuffer(cl_handles->ctx,
                                           CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                          sett->N * sizeof(real_t),
+                                          sett->N * sizeof(ampl_mod_real),
                                           NULL,
                                           &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.aa_d)");
 	  
       ifo[i].sig.bb_d[j] = clCreateBuffer(cl_handles->ctx,
                                           CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                          sett->N * sizeof(real_t),
+                                          sett->N * sizeof(ampl_mod_real),
                                           NULL,
                                           &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.bb_d)");
 	  
       ifo[i].sig.shft_d[j] = clCreateBuffer(cl_handles->ctx,
                                             CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                            sett->N * sizeof(real_t),
+                                            sett->N * sizeof(shift_real),
                                             NULL,
                                             &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.shft_d)");
 	  
       ifo[i].sig.shftf_d[j] = clCreateBuffer(cl_handles->ctx,
                                              CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                                             sett->N * sizeof(real_t),
+                                             sett->N * sizeof(shift_real),
                                              NULL,
                                              &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.shftf_d)");
@@ -955,7 +967,7 @@ void init_fft_arrays(Search_settings* sett,
       fft_arr->xa_d[id][n] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_WRITE,
-                       fft_arr->arr_len * sizeof(complex_t),
+                       fft_arr->arr_len * sizeof(fft_complex),
                        NULL,
                        &CL_err);
       checkErr(CL_err, "clCreateBuffer(fft_arr->xa_d)");
@@ -963,7 +975,7 @@ void init_fft_arrays(Search_settings* sett,
       fft_arr->xb_d[id][n] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_WRITE,
-                       fft_arr->arr_len * sizeof(complex_t),
+                       fft_arr->arr_len * sizeof(fft_complex),
                        NULL,
                        &CL_err);
       checkErr(CL_err, "clCreateBuffer(fft_arr->xb_d)");
@@ -1005,7 +1017,7 @@ void init_aux_arrays(Search_settings* sett,
       aux_arr->tshift_d[id][n] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_WRITE,
-                       sett->N * sizeof(real_t),
+                       sett->N * sizeof(shift_real),
                        NULL,
                        &CL_err);
       checkErr(CL_err, "clCreateBuffer(aux_arr->tshift_d)");
@@ -1013,7 +1025,7 @@ void init_aux_arrays(Search_settings* sett,
       aux_arr->aadots_d[id][n] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_ONLY,
-                       sizeof(real_t),
+                       sizeof(ampl_mod_real),
                        NULL,
                        &CL_err);
       checkErr(CL_err, "clCreateBuffer(aux_arr->aadots_d)");
@@ -1021,7 +1033,7 @@ void init_aux_arrays(Search_settings* sett,
       aux_arr->bbdots_d[id][n] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_ONLY,
-                       sizeof(real_t),
+                       sizeof(ampl_mod_real),
                        NULL,
                        &CL_err);
       checkErr(CL_err, "clCreateBuffer(aux_arr->bbdots_d)");
@@ -1030,7 +1042,7 @@ void init_aux_arrays(Search_settings* sett,
     aux_arr->maa_d[id] =
       clCreateBuffer(cl_handles->ctx,
                      CL_MEM_READ_ONLY,
-                     sizeof(real_t),
+                     sizeof(ampl_mod_real),
                      NULL,
                      &CL_err);
     checkErr(CL_err, "clCreateBuffer(aux_arr->maa_d)");
@@ -1038,7 +1050,7 @@ void init_aux_arrays(Search_settings* sett,
     aux_arr->mbb_d[id] =
       clCreateBuffer(cl_handles->ctx,
                      CL_MEM_READ_ONLY,
-                     sizeof(real_t),
+                     sizeof(ampl_mod_real),
                      NULL,
                      &CL_err);
     checkErr(CL_err, "clCreateBuffer(aux_arr->mbb_d)");
@@ -1046,28 +1058,11 @@ void init_aux_arrays(Search_settings* sett,
     aux_arr->F_d[id] =
       clCreateBuffer(cl_handles->ctx,
                      CL_MEM_READ_WRITE,
-                     2 * sett->nfft * sizeof(real_t),
+                     2 * sett->nfft * sizeof(fstat_real),
                      NULL,
                      &CL_err);
     checkErr(CL_err, "clCreateBuffer(F_d)");
   }
-
-  // Auxiliary arrays, Earth's rotation
-  //aux_arr->t2_d = clCreateBuffer(cl_handles->ctx,
-  //                               CL_MEM_READ_WRITE,
-  //                               sett->N * sizeof(real_t),
-  //                               NULL,
-  //                               &CL_err);
-  //checkErr(CL_err, "clCreateBuffer(aux_arr->t2_d)");
-  //
-  //
-  //
-  //init_spline_matrices(cl_handles,
-  //                     &aux_arr->diag_d,
-  //                     &aux_arr->ldiag_d,
-  //                     &aux_arr->udiag_d,
-  //                     &aux_arr->B_d,
-  //                     sett->Ninterp);
 
   Ampl_mod_coeff* tmp =
       clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
@@ -1200,7 +1195,7 @@ void init_blas(Search_settings* sett,
       blas_handles->aaScratch_d[id][idet] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                       sett->N * sizeof(real_t),
+                       sett->N * sizeof(ampl_mod_real),
                        NULL,
                        &CL_err);
 	  checkErr(CL_err, "clCreateBuffer(blas_handles->aaScratch_d)");
@@ -1208,7 +1203,7 @@ void init_blas(Search_settings* sett,
       blas_handles->bbScratch_d[id][idet] =
         clCreateBuffer(cl_handles->ctx,
                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                       sett->N * sizeof(real_t),
+                       sett->N * sizeof(ampl_mod_real),
                        NULL,
                        &CL_err);
 	  checkErr(CL_err, "clCreateBuffer(blas_handles->bbScratch_d)");
@@ -1238,9 +1233,11 @@ void init_fft(Search_settings* sett,
         CLFFT_status = clfftCreateDefaultPlan(&plans->plan[id], cl_handles->ctx, CLFFT_1D, &nfftf_size);
         checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
-        CLFFT_status = clfftSetPlanPrecision(plans->plan[id], CLFFT_TRANSFORM_PRECISION);
-        checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
-        CLFFT_status = clfftSetLayout(plans->plan[id], CLFFT_TRANSFORM_LAYOUT, CLFFT_TRANSFORM_LAYOUT);
+        clfftPrecision clfft_precision = sizeof(fft_complex) == 8 ? CLFFT_SINGLE : CLFFT_DOUBLE;
+
+        CLFFT_status = clfftSetPlanPrecision(plans->plan[id], clfft_precision);
+        checkErrFFT(CLFFT_status, "clfftSetPlanPrecision()");
+        CLFFT_status = clfftSetLayout(plans->plan[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
         checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
         CLFFT_status = clfftSetResultLocation(plans->plan[id], CLFFT_INPLACE);
         checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
@@ -1256,9 +1253,9 @@ void init_fft(Search_settings* sett,
         CLFFT_status = clfftCreateDefaultPlan(&plans->pl_int[id], cl_handles->ctx, CLFFT_1D, &nfft_size);
         checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
-        CLFFT_status = clfftSetPlanPrecision(plans->pl_int[id], CLFFT_TRANSFORM_PRECISION);
+        CLFFT_status = clfftSetPlanPrecision(plans->pl_int[id], clfft_precision);
         checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
-        CLFFT_status = clfftSetLayout(plans->pl_int[id], CLFFT_TRANSFORM_LAYOUT, CLFFT_TRANSFORM_LAYOUT);
+        CLFFT_status = clfftSetLayout(plans->pl_int[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
         checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
         CLFFT_status = clfftSetResultLocation(plans->pl_int[id], CLFFT_INPLACE);
         checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
@@ -1274,13 +1271,13 @@ void init_fft(Search_settings* sett,
         CLFFT_status = clfftCreateDefaultPlan(&plans->pl_inv[id], cl_handles->ctx, CLFFT_1D, &Ninterp_size);
         checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
-        CLFFT_status = clfftSetPlanPrecision(plans->pl_inv[id], CLFFT_TRANSFORM_PRECISION);
+        CLFFT_status = clfftSetPlanPrecision(plans->pl_inv[id], clfft_precision);
         checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
-        CLFFT_status = clfftSetLayout(plans->pl_inv[id], CLFFT_TRANSFORM_LAYOUT, CLFFT_TRANSFORM_LAYOUT);
+        CLFFT_status = clfftSetLayout(plans->pl_inv[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
         checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
         CLFFT_status = clfftSetResultLocation(plans->pl_inv[id], CLFFT_INPLACE);
         checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
-        CLFFT_status = clfftSetPlanScale(plans->pl_inv[id], CLFFT_BACKWARD, (cl_float)sett->interpftpad / sett->Ninterp);
+        CLFFT_status = clfftSetPlanScale(plans->pl_inv[id], CLFFT_BACKWARD, (cl_float)((double)sett->interpftpad / sett->Ninterp));
         checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
         CLFFT_status = clfftBakePlan(plans->pl_inv[id],

@@ -1,26 +1,85 @@
-#ifndef __FLOATS_HCL__
-#define __FLOATS_HCL__
+#ifndef __FLOATS_H_CL__
+#define __FLOATS_H_CL__
 
 // Polgraw includes
 #include <../inc/precision.h>
 
-
-#ifdef COMP_FLOAT
-typedef float real_t;
-typedef float2 complex_t;
+#if AMPL_MOD_DOUBLE
+typedef double ampl_mod_real;
 #else
-typedef double real_t;
-typedef double2 complex_t;
-typedef double3 real3_t;
-#endif // COMP_FLOAT
+typedef float ampl_mod_real;
+#endif
 
-real_t creal(const complex_t val) { return val.x; }
-real_t cimag(const complex_t val) { return val.y; }
+#if XDAT_DOUBLE
+typedef double xDat_real;
+#else
+typedef float xDat_real;
+#endif
 
-complex_t cbuild(const real_t real, const real_t imag) { return (complex_t)(real, imag); }
+#if DETSSB_DOUBLE
+typedef double3 DetSSB_real3;
+#else
+typedef float3 DetSSB_real3;
+#endif
 
-complex_t cmulcc(const complex_t lhs, const complex_t rhs) { return cbuild(creal(lhs)*creal(rhs) - cimag(lhs)*cimag(rhs),
-                                                                           creal(lhs)*cimag(rhs) + cimag(lhs)*creal(rhs)); }
+#if XDATM_DOUBLE
+typedef double2 xDatm_complex;
+#else
+typedef float2 xDatm_complex;
+#endif
 
+#if FFT_DOUBLE
+typedef double2 fft_complex;
+#else
+typedef float2 fft_complex;
+#endif
 
-#endif // __FLOATS_HCL__
+#if SHIFT_DOUBLE
+typedef double shift_real;
+#else
+typedef float shift_real;
+#endif
+
+#if FSTAT_DOUBLE
+typedef double fstat_real;
+#else
+typedef float fstat_real;
+#endif
+
+#if MODVIR_DOUBLE
+typedef double modvir_real;
+#else
+typedef float modvir_real;
+#endif
+
+#if TSHIFT_PMOD_DOUBLE
+typedef double3 tshift_pmod_real3;
+#else
+typedef float3 tshift_pmod_real3;
+#endif
+
+#if SPLINE_DOUBLE
+typedef double spline_real;
+typedef double2 spline_complex;
+#else
+typedef float spline_real;
+typedef float2 spline_complex;
+#endif
+
+#if PHASE_MOD_DOUBLE
+typedef double phase_mod_real;
+typedef double2 phase_mod_complex;
+#else
+typedef float phase_mod_real;
+typedef float2 phase_mod_complex;
+#endif
+
+#if INTERIM_FSTAT_DOUBLE
+typedef double interim_fstat_real;
+typedef double2 interim_fstat_complex;
+#else
+typedef float interim_fstat_real;
+typedef float2 interim_fstat_complex;
+#endif
+
+#endif // __FLOATS_H_CL__

@@ -1,9 +1,8 @@
-#ifndef __STRUCT_H__
-#define __STRUCT_H__
+#pragma once
 
 // Polgraw includes
-#include <precision.h>
-#include <floats.h>     // COMPLEX_FLOAT
+#include <floats.h>
+#include <signal_params.h>
 
 // clBLAS includes
 #include <clBLAS.h>
@@ -49,15 +48,15 @@ typedef struct _comm_line_opts {
 /* input signal arrays */
 typedef struct _signals
 {	
-    real_t* xDat;
+    double* xDat;
     cl_mem xDat_d;
-    real3_t* DetSSB;
+    DetSSB_real3* DetSSB;
     cl_mem DetSSB_d;          // Ephemeris of the detector
     cl_mem *aa_d, *bb_d;      // Amplitude modulation functions
     cl_mem *shftf_d, *shft_d; // Resampling and time-shifting
 	cl_mem *xDatma_d, *xDatmb_d;
   
-    real_t epsm,
+    double epsm,
            phir,
            sepsm,           // sin(epsm)
            cepsm,           // cos(epsm)
@@ -169,7 +168,7 @@ typedef struct _aux_arrays {
 // Search settings //
 typedef struct _search_settings {
 
-  real_t fpo,    // Band frequency
+  double fpo,    // Band frequency
          dt,     // Sampling time
          B,      // Bandwidth
          oms,    // Dimensionless angular frequency (fpo)
@@ -211,7 +210,7 @@ typedef struct _search_settings {
 ///
 typedef struct _ampl_mod_coeff
 {
-    ampl_mod_real_out c1, c2, c3, c4, c5, c6, c7, c8, c9;
+    ampl_mod_real c1, c2, c3, c4, c5, c6, c7, c8, c9;
 
 } Ampl_mod_coeff;
 
@@ -278,8 +277,6 @@ typedef struct _triggers {
 typedef struct _search_results {
 
   size_t sgnlc;  // Size of candidate signal array
-  real_t* sgnlv; // Array of candidate signals
+  double* sgnlv; // Array of candidate signals
 
 } Search_results;
-
-#endif // __STRUCT_H__

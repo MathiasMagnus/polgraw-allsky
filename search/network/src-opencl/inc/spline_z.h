@@ -34,28 +34,6 @@ void gpu_interp(cl_mem cu_y,                // buffer of complex_t
                 cl_mem cu_B,                // buffer of complex_t
                 OpenCL_handles* cl_handles);// handles to OpenCL resources
 
-/// <summary>Spline interpolation to xDatma, xDatmb arrays.</summary>
-/// <note>Algorithm borrowed from gwsearch-cpu, until GPU version is implemented.</note>
-///
-void spline_interpolate_cpu(const cl_int idet,
-                            const cl_int id,
-                            const size_t arr_len,
-	                        const size_t N,
-	                        const int interpftpad,
-	                        const real_t sig2,
-	                        const cl_mem xa_d,
-	                        const cl_mem xb_d,
-	                        const cl_mem shftf_d,
-	                        cl_mem xDatma_d,
-	                        cl_mem xDatmb_d,
-	                        BLAS_handles* blas_handles,
-	                        OpenCL_handles* cl_handles,
-	                        const cl_uint num_events_in_wait_list,
-	                        const cl_event* event_wait_list,
-	                        cl_event* spline_map_events,
-	                        cl_event* spline_unmap_events,
-	                        cl_event* spline_blas_events);
-
 /// <summary>Scales vectors with a constant.</summary>
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 /// <remarks>Storage for the events must be provided by the caller.</remarks>
@@ -63,7 +41,7 @@ void spline_interpolate_cpu(const cl_int idet,
 void blas_scale(const cl_int idet,
                 const cl_int id,
                 const size_t n,
-                const real_t a,
+                const double a,
                 cl_mem xa_d,
                 cl_mem xb_d,
                 BLAS_handles* blas_handles,

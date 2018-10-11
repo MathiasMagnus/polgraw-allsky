@@ -1,3 +1,6 @@
+#ifndef __MODVIR_H_CL__
+#define __MODVIR_H_CL__
+
 // Polgraw includes
 #include <floats.h.cl>       // modvir_real
 
@@ -5,7 +8,7 @@
 ///
 typedef struct _ampl_mod_coeff
 {
-    modvir_real_in c1, c2, c3, c4, c5, c6, c7, c8, c9;
+    ampl_mod_real c1, c2, c3, c4, c5, c6, c7, c8, c9;
 
 } Ampl_mod_coeff;
 
@@ -21,5 +24,7 @@ kernel void modvir(const int idet,
                    const modvir_real c2sd,
                    const modvir_real omr,
                    constant Ampl_mod_coeff* amod,
-                   global modvir_real_out* aa,
-                   global modvir_real_out* bb);
+                   global ampl_mod_real* aa,
+                   global ampl_mod_real* bb);
+
+#endif // __MODVIR_H_CL__

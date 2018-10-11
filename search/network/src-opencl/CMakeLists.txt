@@ -14,31 +14,62 @@ set (Target_NAME gwsearch-ocl)
 set (HDRS inc/auxi.h
           inc/precision.h
           inc/floats.h
+		  inc/log.h
           inc/init.h
           inc/jobcore.h
+		  inc/sky_positions.h
           inc/settings.h
           inc/spline_z.h
           inc/struct.h
           inc/timer.h
           inc/CL/util.h
-		  inc/modvir.h)
+		  inc/modvir.h
+		  inc/tshift_pmod.h
+		  inc/fft_interpolate.h
+		  inc/spline_interpolate.h
+		  inc/blas_dot.h
+		  inc/calc_mxx.h
+		  inc/phase_mod.h
+		  inc/time_to_frequency.h
+		  inc/fstat.h
+		  inc/find_peaks.h)
 
 set (SRCS src/main.c
           src/auxi.c
-		  src/floats.c
+		  src/log.c
+		  src/log_sp.c
+		  src/log_dp.c
           src/settings.c
           src/init.c
           src/jobcore.c
-          src/spline_z.c
+		  src/sky_positions.c
+          #src/spline_z.c
           src/CL/util.c
-		  src/modvir.c)
+		  src/modvir.c
+		  src/tshift_pmod.c
+		  src/fft_interpolate.c
+		  src/spline_interpolate.c
+		  src/blas_dot.c
+		  src/calc_mxx.c
+		  src/phase_mod.c
+		  src/time_to_frequency.c
+		  src/fstat.c
+		  src/find_peaks.c)
 
 set (KRN_HDRS krn/floats.h.cl
-              krn/kernels.h.cl
-		      krn/modvir.h.cl)
+              #krn/kernels.h.cl
+		      krn/modvir.h.cl
+			  krn/tshift_pmod.h.cl
+			  krn/fft_interpolate.h.cl
+			  krn/phase_mod.h.cl
+			  krn/fstat.h.cl)
 
-set (KRN_SRCS krn/kernels.cl
-		      krn/modvir.cl)
+set (KRN_SRCS #krn/kernels.cl
+		      krn/modvir.cl
+			  krn/tshift_pmod.cl
+			  krn/fft_interpolate.cl
+			  krn/phase_mod.cl
+			  krn/fstat.cl)
 
 # Generate the configuration file for application to locate kernel files
 set (KRN_LIST)
