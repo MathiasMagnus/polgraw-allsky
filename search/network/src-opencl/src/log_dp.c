@@ -6,6 +6,8 @@
 // Standard C includes
 #include <float.h>      // DBL_MAX
 #include <stdio.h>      // fopen
+#include <math.h>       // fcabs
+#include <string.h>     // strcpy, strcat
 
 void print_complex_min_max_dp(complex_double* arr, size_t N, const char* msg)
 {

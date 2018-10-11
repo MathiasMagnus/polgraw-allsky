@@ -11,7 +11,8 @@ cmake_minimum_required (VERSION 3.9)
 set (Target_NAME gwsearch-ocl)
 
 # Adding source code files according to configuration
-set (HDRS inc/auxi.h
+set (HDRS inc/complex_op.h
+          inc/auxi.h
           inc/precision.h
           inc/floats.h
 		  inc/log.h
@@ -35,6 +36,7 @@ set (HDRS inc/auxi.h
 		  inc/find_peaks.h)
 
 set (SRCS src/main.c
+          src/complex_op.c
           src/auxi.c
 		  src/log.c
 		  src/log_sp.c

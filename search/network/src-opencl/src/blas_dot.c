@@ -1,4 +1,18 @@
+// OpenCL behavioral defines
+//
+// 1.2+ OpenCL headers: tells the headers not to bitch about clCreateCommandQueue being renamed to clCreateCommandQueueWithProperties
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS 1
+//
+// Select API to use
+#define CL_TARGET_OPENCL_VERSION 120
+
 #include <blas_dot.h>
+
+// Polgraw includes
+#include <CL/util.h>    // checkErrBLAS
+
+// clBLAS includes
+#include <clBLAS.h>     // clblas?dot
 
 void blas_dot(const cl_int idet,
               const cl_int id,

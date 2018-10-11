@@ -25,12 +25,16 @@
 #include <spline_interpolate.h>
 #include <blas_dot.h>
 #include <calc_mxx.h>
+#include <phase_mod.h>
+#include <time_to_frequency.h>
+#include <fstat.h>
+#include <find_peaks.h>
 #include <struct.h>
 #include <jobcore.h>
 #include <auxi.h>
 #include <settings.h>
 #include <timer.h>
-#include <spline_z.h>
+//#include <spline_z.h>
 #include <floats.h>
 
 // clFFT includes
@@ -326,15 +330,15 @@ Search_results job_core(const int pm,                  // hemisphere
     (*FNum)++; // TODO: revisit this variable, needs atomic at least
 
     cl_event compute_Fstat_event =
-	  compute_Fstat_gpu(0, id, sett->nmin, sett->nmax,
-                        fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], aux->maa_d[id], aux->mbb_d[id],
-                        aux->F_d[id],
-                        cl_handles, 2, fw2_fft_events);
+	  compute_Fstat(0, id, sett->nmin, sett->nmax,
+                    fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], aux->maa_d[id], aux->mbb_d[id],
+                    aux->F_d[id],
+                    cl_handles, 2, fw2_fft_events);
 
 	cl_event normalize_Fstat_event =
-		normalize_FStat_gpu_wg_reduce(0, id, sett->nmin, sett->nmax, NAVFSTAT, // input
-                                      aux->F_d[id],                            // input / output
-                                      cl_handles, 1, &compute_Fstat_event);    // sync
+		normalize_FStat_wg_reduce(0, id, sett->nmin, sett->nmax, NAVFSTAT, // input
+                                  aux->F_d[id],                            // input / output
+                                  cl_handles, 1, &compute_Fstat_event);    // sync
 
     cl_event peak_map_event, peak_unmap_event;
     find_peaks(0, id, sett->nmin, sett->nmax, opts->trl, sgnl_freq, sett, aux->F_d[id], // input

@@ -12,6 +12,9 @@
 #include <floats.h>     // tshift_pmod_real, tshift_pmod_real3
 #include <CL/util.h>    // checkErr
 
+// Standard C includes
+#include <assert.h>     // assert
+
 cl_event compute_Fstat(const cl_int idet,
                        const cl_int id,
                        const cl_int nmin,

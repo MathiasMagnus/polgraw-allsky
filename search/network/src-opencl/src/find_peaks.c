@@ -19,6 +19,7 @@
 // Standard C includes
 #include <math.h>       // sqrt, M_PI
 #include <stdbool.h>    // _Bool, true, false
+#include <stdlib.h>     // realloc
 
 void find_peaks(const cl_int idet,
                 const cl_int id,

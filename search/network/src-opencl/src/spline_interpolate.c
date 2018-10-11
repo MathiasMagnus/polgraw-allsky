@@ -1,10 +1,15 @@
 #include <spline_interpolate.h>
 
 #ifdef _WIN32
-#define COMP_DOUBLE SPLINE_DOUBLE
 #include <complex_op.h>
 #endif
 
+// Polgraw includes
+#include <CL/util.h>    // checkErr
+
+// Standard C includes
+#include <math.h>       // floor(f)
+#include <stdlib.h>     // mallloc, free
 
 void spline_interpolate(const cl_int idet,
                         const cl_int id,
@@ -123,6 +128,29 @@ void spline_interpolate(const cl_int idet,
 #endif
 }
 
+void blas_scale(const cl_int idet,
+                const cl_int id,
+                const size_t n,
+                const double a,
+                cl_mem a_d,
+                cl_mem b_d,
+                BLAS_handles* blas_handles,
+                OpenCL_handles* cl_handles,
+                const cl_uint num_events_in_wait_list,
+                const cl_event* event_wait_list,
+                cl_event* blas_exec)
+{
+  clblasStatus status[2];
+
+#if XDATM_DOUBLE
+  status[0] = clblasDscal(n * 2, a, a_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasDscal(xa_d)");
+  status[1] = clblasDscal(n * 2, a, b_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasDscal(xb_d)");
+#else
+  status[0] = clblasSscal(n * 2, (float)a, a_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasSscal(xa_d)");
+  status[1] = clblasSscal(n * 2, (float)a, b_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasSscal(xb_d)");
+#endif // COMP_FLOAT
+}
+
 void splintpad(fft_complex* ya,
                shift_real* shftf,
                int N,
@@ -145,7 +173,7 @@ void splintpad(fft_complex* ya,
 
   spline(ya, interpftpad*N, y2, u);
   for (int i = 0; i<N; ++i) {
-      spline_real x = interpftpad * (i - shftf[i]);
+    spline_real x = interpftpad * (i - shftf[i]);
     out[i] = splint(ya, y2, interpftpad*N, x);
   } /* for i */
 
@@ -159,37 +187,53 @@ void spline(const fft_complex* y,
             spline_complex* u)
 {
 #ifndef _WIN32
-    y2[0] = u[0] = 0.;
+  y2[0] = u[0] = 0.;
 
-    for (int i = 1; i < n - 1; ++i) {
-        //p = .5*y2[i-1]+2.;
-        //y2[i] = -.5/p;
-        //u[i] = y[i+1]-2.*y[i]+y[i-1];
-        //u[i] = (3.*u[i]-.5*u[i-1])/p;
-        complex_t invp = 2. / (y2[i - 1] + 4.);
-        y2[i] = -.5*invp;
-        u[i] = y[i - 1] - 2.*y[i] + y[i + 1];
-        u[i] = (-.5*u[i - 1] + 3.*u[i])*invp;
-    }
-    complex_t qn = 0,
-              un = 0;
-    y2[n - 1] = (un - qn * u[n - 2]) / (qn*y2[n - 2] + 1.);
-    for (int k = n - 2; k >= 0; --k)
-        y2[k] = y2[k] * y2[k + 1] + u[k];
+  for (int i = 1; i < n - 1; ++i) {
+    //p = .5*y2[i-1]+2.;
+    //y2[i] = -.5/p;
+    //u[i] = y[i+1]-2.*y[i]+y[i-1];
+    //u[i] = (3.*u[i]-.5*u[i-1])/p;
+    complex_t invp = 2. / (y2[i - 1] + 4.);
+    y2[i] = -.5*invp;
+    u[i] = y[i - 1] - 2.*y[i] + y[i + 1];
+    u[i] = (-.5*u[i - 1] + 3.*u[i])*invp;
+  }
+  complex_t qn = 0,
+            un = 0;
+  y2[n - 1] = (un - qn * u[n - 2]) / (qn*y2[n - 2] + 1.);
+  for (int k = n - 2; k >= 0; --k)
+    y2[k] = y2[k] * y2[k + 1] + u[k];
 #else
-    y2[0] = u[0] = cbuild(0, 0);
+#if SPLINE_DOUBLE
+  y2[0] = u[0] = cbuild(0, 0);
 
-    for (int i = 1; i < n - 1; ++i) {
-        spline_complex invp = cdivrc(2., caddcr(y2[i - 1], 4.));
-        y2[i] = cmulrc(-.5, invp);
-        u[i] = caddcc(caddcc(y[i - 1], cmulrc(-2., y[i])), y[i + 1]);
-        u[i] = cmulcc(caddcc(cmulrc(-.5, u[i - 1]), cmulrc(3., u[i])), invp);
-    }
-    spline_complex qn = cbuild(0, 0),
-                   un = cbuild(0, 0);
-    y2[n - 1] = cdivcc(csubcc(un, cmulcc(qn, u[n - 2])), caddcr(cmulcc(qn, y2[n - 2]), 1.));
-    for (int k = n - 2; k >= 0; --k)
-        y2[k] = caddcc(cmulcc(y2[k], y2[k + 1]), u[k]);
+  for (int i = 1; i < n - 1; ++i) {
+    spline_complex invp = cdivrc(2., caddcr(y2[i - 1], 4.));
+    y2[i] = cmulrc(-.5, invp);
+    u[i] = caddcc(caddcc(y[i - 1], cmulrc(-2., y[i])), y[i + 1]);
+    u[i] = cmulcc(caddcc(cmulrc(-.5, u[i - 1]), cmulrc(3., u[i])), invp);
+  }
+  spline_complex qn = cbuild(0, 0),
+                 un = cbuild(0, 0);
+  y2[n - 1] = cdivcc(csubcc(un, cmulcc(qn, u[n - 2])), caddcr(cmulcc(qn, y2[n - 2]), 1.));
+  for (int k = n - 2; k >= 0; --k)
+    y2[k] = caddcc(cmulcc(y2[k], y2[k + 1]), u[k]);
+#else
+  y2[0] = u[0] = fcbuild(0, 0);
+
+  for (int i = 1; i < n - 1; ++i) {
+    spline_complex invp = fcdivrc(2., fcaddcr(y2[i - 1], 4.));
+    y2[i] = fcmulrc(-.5, invp);
+    u[i] = fcaddcc(fcaddcc(y[i - 1], fcmulrc(-2., y[i])), y[i + 1]);
+    u[i] = fcmulcc(fcaddcc(fcmulrc(-.5, u[i - 1]), fcmulrc(3., u[i])), invp);
+  }
+  spline_complex qn = fcbuild(0, 0),
+                 un = fcbuild(0, 0);
+  y2[n - 1] = fcdivcc(fcsubcc(un, fcmulcc(qn, u[n - 2])), fcaddcr(fcmulcc(qn, y2[n - 2]), 1.));
+  for (int k = n - 2; k >= 0; --k)
+    y2[k] = fcaddcc(fcmulcc(y2[k], y2[k + 1]), u[k]);
+#endif
 #endif
 }
 
@@ -199,26 +243,39 @@ xDatm_complex splint(fft_complex *ya,
                      spline_real x)
 {
 #ifndef _WIN32
-    int klo, khi;
-    spline_real b, a;
+  int klo, khi;
+  spline_real b, a;
 
-    if (x<0 || x>n - 1)
-        return 0.;
-    klo = floor(x);
-    khi = klo + 1;
-    a = khi - x;
-    b = x - klo;
-    return a * ya[klo] + b * ya[khi] + ((a*a*a - a)*y2a[klo] + (b*b*b - b)*y2a[khi]) / 6.0;
+  if (x<0 || x>n - 1)
+    return 0.;
+  klo = floor(x);
+  khi = klo + 1;
+  a = khi - x;
+  b = x - klo;
+  return a * ya[klo] + b * ya[khi] + ((a*a*a - a)*y2a[klo] + (b*b*b - b)*y2a[khi]) / 6.0;
 #else
-    int klo, khi;
-    spline_real b, a;
+#if SPLINE_DOUBLE
+  int klo, khi;
+  spline_real b, a;
 
-    if (x<0 || x>n - 1)
-        return cbuild(0, 0);
-    klo = (int)floor(x); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
-    khi = klo + 1;
-    a = khi - x;
-    b = x - klo;
-    return caddcc(caddcc(cmulrc(a, ya[klo]), cmulrc(b, ya[khi])), cdivcr(caddcc(cmulrc(a*a*a - a, y2a[klo]), cmulrc(b*b*b - b, y2a[khi])), 6.0));
+  if (x<0 || x>n - 1)
+    return cbuild(0, 0);
+  klo = (int)floor(x); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+  khi = klo + 1;
+  a = khi - x;
+  b = x - klo;
+  return caddcc(caddcc(cmulrc(a, ya[klo]), cmulrc(b, ya[khi])), cdivcr(caddcc(cmulrc(a*a*a - a, y2a[klo]), cmulrc(b*b*b - b, y2a[khi])), 6.0));
+#else
+  int klo, khi;
+  spline_real b, a;
+
+  if (x<0 || x>n - 1)
+    return fcbuild(0, 0);
+  klo = (int)floorf(x); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+  khi = klo + 1;
+  a = khi - x;
+  b = x - klo;
+  return fcaddcc(fcaddcc(fcmulrc(a, ya[klo]), fcmulrc(b, ya[khi])), fcdivcr(fcaddcc(fcmulrc(a*a*a - a, y2a[klo]), fcmulrc(b*b*b - b, y2a[khi])), 6.0));
+#endif
 #endif // _WIN32
 }

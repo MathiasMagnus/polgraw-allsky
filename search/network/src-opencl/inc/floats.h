@@ -22,8 +22,10 @@ typedef float xDat_real;
 #endif
 
 #if DETSSB_DOUBLE
+typedef cl_double DetSSB_real;
 typedef cl_double3 DetSSB_real3;
 #else
+typedef cl_float DetSSB_real;
 typedef cl_float3 DetSSB_real3;
 #endif
 

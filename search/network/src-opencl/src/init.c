@@ -828,10 +828,10 @@ void init_ifo_arrays(Search_settings* sett,
                        3,
                        data);
 
-        ifo[i].sig.DetSSB[j].s[0] = tmp[0];
-        ifo[i].sig.DetSSB[j].s[1] = tmp[1];
-        ifo[i].sig.DetSSB[j].s[2] = tmp[2];
-        ifo[i].sig.DetSSB[j].s[3] = 0;
+        ifo[i].sig.DetSSB[j].s[0] = (DetSSB_real)tmp[0];
+        ifo[i].sig.DetSSB[j].s[1] = (DetSSB_real)tmp[1];
+        ifo[i].sig.DetSSB[j].s[2] = (DetSSB_real)tmp[2];
+        ifo[i].sig.DetSSB[j].s[3] = (DetSSB_real)0;
       }
 
       // Deterministic phase defining the position of the Earth

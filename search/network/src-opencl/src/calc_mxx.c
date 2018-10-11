@@ -1,4 +1,18 @@
+// OpenCL behavioral defines
+//
+// 1.2+ OpenCL headers: tells the headers not to bitch about clCreateCommandQueue being renamed to clCreateCommandQueueWithProperties
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS 1
+//
+// Select API to use
+#define CL_TARGET_OPENCL_VERSION 120
+
 #include <calc_mxx.h>
+
+// Polgraw includes
+#include <CL/util.h>    // checkErr
+
+// Standard C includes
+#include <stdlib.h>     // malloc, free
 
 void calc_mxx(const cl_uint nifo,
               const cl_int id,
@@ -41,12 +55,12 @@ void calc_mxx(const cl_uint nifo,
 
   for (cl_uint i = 1; i < nifo; ++i)
   {
-#ifdef AMPL_MOD_DOUBLE
-    status[0] = clblasSaxpy(1, 1 / ifo[i].sig.sig2, aadots_d[i], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 0], &axpy_events[i * 2 + 0]); checkErrBLAS(status[0], "clblasDaxpy()");
-    status[1] = clblasSaxpy(1, 1 / ifo[i].sig.sig2, bbdots_d[i], 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[1], "clblasDaxpy()");
-#else
+#if AMPL_MOD_DOUBLE
     status[0] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, aadots_d[i], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 0], &axpy_events[i * 2 + 0]); checkErrBLAS(status[0], "clblasDaxpy()");
     status[1] = clblasDaxpy(1, 1 / ifo[i].sig.sig2, bbdots_d[i], 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[1], "clblasDaxpy()");
+#else
+    status[0] = clblasSaxpy(1, (ampl_mod_real)(1 / ifo[i].sig.sig2), aadots_d[i], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 0], &axpy_events[i * 2 + 0]); checkErrBLAS(status[0], "clblasDaxpy()");
+    status[1] = clblasSaxpy(1, (ampl_mod_real)(1 / ifo[i].sig.sig2), bbdots_d[i], 0, 1, mbb_d, 0, 1, 1, &cl_handles->exec_queues[id][0], 2, &axpy_events[(i - 1) * 2 + 1], &axpy_events[i * 2 + 1]); checkErrBLAS(status[1], "clblasDaxpy()");
 #endif
   }
 

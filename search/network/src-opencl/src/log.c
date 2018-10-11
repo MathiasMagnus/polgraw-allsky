@@ -19,6 +19,7 @@
 
 // Standard C includes
 #include <stdio.h>      // fopen
+#include <string.h>     // strcpy, strcat
 
 /// <summary>Prints the largest absolute value of a host side complex array.</summary>
 ///
