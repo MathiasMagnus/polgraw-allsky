@@ -59,17 +59,19 @@ set (SRCS src/main.c
 		  src/find_peaks.c)
 
 set (KRN_HDRS krn/floats.h.cl
+              krn/complex_op.h.cl
               #krn/kernels.h.cl
 		      krn/modvir.h.cl
 			  krn/tshift_pmod.h.cl
-			  krn/fft_interpolate.h.cl
+			  #krn/fft_interpolate.h.cl
 			  krn/phase_mod.h.cl
 			  krn/fstat.h.cl)
 
 set (KRN_SRCS #krn/kernels.cl
+              krn/complex_op.cl
 		      krn/modvir.cl
 			  krn/tshift_pmod.cl
-			  krn/fft_interpolate.cl
+			  #krn/fft_interpolate.cl
 			  krn/phase_mod.cl
 			  krn/fstat.cl)
 

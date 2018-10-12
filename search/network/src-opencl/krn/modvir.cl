@@ -1,7 +1,5 @@
 #include <modvir.h.cl>
 
-typedef modvir_real real;
-
 kernel void modvir(const int idet,
                    const int Np,
                    const modvir_real sinalfr,
@@ -17,12 +15,12 @@ kernel void modvir(const int idet,
 {
     size_t idx = get_global_id(0);
 
-    real cosmod = cos(omr * idx),
-         sinmod = sin(omr * idx),
-         c = cosalfr * cosmod + sinalfr * sinmod,
-         s = sinalfr * cosmod - cosalfr * sinmod,
-         c2s = 2.*c*c,
-         cs = c * s;
+    modvir_real cosmod = cos(omr * idx),
+                sinmod = sin(omr * idx),
+                c = cosalfr * cosmod + sinalfr * sinmod,
+                s = sinalfr * cosmod - cosalfr * sinmod,
+                c2s = 2.*c*c,
+                cs = c * s;
 
     aa[idx] =
         amod[idet].c1*(2. - c2d)*c2s +

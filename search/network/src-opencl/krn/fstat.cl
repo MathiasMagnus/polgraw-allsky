@@ -1,9 +1,5 @@
 #include <fstat.h.cl>
 
-typedef interim_fstat_real real_t;
-typedef interim_fstat_complex complex_t;
-
-#define COMP_DOUBLE INTERIM_FSTAT_DOUBLE
 #include <complex_op.h.cl>
 
 /// <summary>Compute F-statistics.</summary>
@@ -17,13 +13,17 @@ kernel void compute_Fstat(global fft_complex* xa,
 {
   size_t i = get_global_id(0);
 
-  complex_t xai = xa[i],
-            xbi = xb[i];
-  real_t maa = maa_d[0],
-         mbb = mbb_d[0];
-
+  interim_fstat_complex xai = xa[i],
+                        xbi = xb[i];
+  interim_fstat_real maa = maa_d[0],
+                     mbb = mbb_d[0];
+#if INTERIM_FSTAT_DOUBLE
   F[i] = (pown(creal(xai), 2) + pown(cimag(xai), 2)) / maa +
          (pown(creal(xbi), 2) + pown(cimag(xbi), 2)) / mbb;
+#else
+  F[i] = (pown(fcreal(xai), 2) + pown(fcimag(xai), 2)) / maa +
+         (pown(fcreal(xbi), 2) + pown(fcimag(xbi), 2)) / mbb;
+#endif
 }
 
 /// <summary>Compute F-statistics.</summary>
@@ -56,7 +56,7 @@ kernel void normalize_Fstat_wg_reduce(global fstat_real* F,
   // ASSERT: nav % lsi == 0
   if (lsi != nav)
   {
-      real_t mu = 0;
+      interim_fstat_real mu = 0;
 
       for (size_t p = 0; p < nav; p += lsi) mu += shared[p + lid];
 
@@ -75,7 +75,7 @@ kernel void normalize_Fstat_wg_reduce(global fstat_real* F,
 
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  real_t mu = shared[0] / (2 * nav);
+  interim_fstat_real mu = shared[0] / (2 * nav);
 
   // Normalize in global
   //

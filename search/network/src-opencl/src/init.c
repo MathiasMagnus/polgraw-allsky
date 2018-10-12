@@ -591,7 +591,7 @@ cl_program build_program_with_sources(cl_context context,
     strcat(build_params, kernel_inc_path );
     strcat(build_params, " -cl-opt-disable" );
     strcat(build_params, " -cl-std=CL1.2" );
-    //strcat(build_params, " -Werror" ); // Warnings will be treated like errors, this is useful for debug
+    strcat(build_params, " -Werror" ); // Warnings will be treated like errors, this is useful for debug
     CL_err = clBuildProgram(result, numDevices, devices, build_params, NULL, NULL);
 
     if (CL_err != CL_SUCCESS)
@@ -622,7 +622,6 @@ cl_kernel** create_kernels(cl_program program,
 	                       cl_uint count)
 {
     cl_int CL_err = CL_SUCCESS;
-    cl_uint kernel_count = 10;
 
     cl_kernel** result = (cl_kernel**)malloc(count * sizeof(cl_kernel*));
 
@@ -649,18 +648,18 @@ const char* obtain_kernel_name(cl_uint i)
     case TShiftPMod:
         result = "tshift_pmod";
         break;
-    case ResamplePostFFT:
-        result = "resample_postfft";
-        break;
-    case ComputeB:
-        result = "computeB";
-        break;
-    case TriDiagMul:
-        result = "tridiagMul";
-        break;
-    case Interpolate:
-        result = "interpolate";
-        break;
+    //case ResamplePostFFT:
+    //    result = "resample_postfft";
+    //    break;
+    //case ComputeB:
+    //    result = "computeB";
+    //    break;
+    //case TriDiagMul:
+    //    result = "tridiagMul";
+    //    break;
+    //case Interpolate:
+    //    result = "interpolate";
+    //    break;
     case PhaseMod1:
         result = "phase_mod_1";
         break;

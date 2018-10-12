@@ -1,7 +1,7 @@
 #include <phase_mod.h.cl>
 
-#define COMP_DOUBLE PHASE_MOD_DOUBLE
 #include <complex_op.h.cl>
+
 
 /// <summary>The purpose of this function was undocumented.</summary>
 ///
@@ -18,18 +18,26 @@ kernel void phase_mod_1(global fft_complex* xa,
 
   if (idx < N)
   {
-    // _tmp1[0][i]
-    //        |     aux->t2[i]
-    //        |         |
-    //        |         |    (double)(2*i)*ifo[n].sig.shft[i]
-    //        |         |           |
-    real_t tmp10i = idx * idx + 2 * idx*shft[idx];
+    //         _tmp1[0][i]
+    //                |     aux->t2[i]
+    //                |         |
+    //                |         |    (double)(2*i)*ifo[n].sig.shft[i]
+    //                |         |           |
+    phase_mod_real tmp10i = idx * idx + 2 * idx*shft[idx];
 
-    real_t phase = idx * het1 + sgnlt1 * tmp10i;
-    complex_t exph = cbuild(cos(phase), -sin(phase));
+#if PHASE_MOD_DOUBLE
+    phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
+    phase_mod_complex exph = cbuild(cos(phase), -sin(phase));
 
     xa[idx] = cmulcc(xar[idx], exph);
     xb[idx] = cmulcc(xbr[idx], exph);
+#else
+    phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
+    phase_mod_complex exph = fcbuild(cos(phase), -sin(phase));
+
+    xa[idx] = fcmulcc(xar[idx], exph);
+    xb[idx] = fcmulcc(xbr[idx], exph);
+#endif
   }
 }
 
@@ -48,17 +56,25 @@ kernel void phase_mod_2(global fft_complex* xa,
 
   if (idx < N)
   {
-    // _tmp1[n][i]
-    //        |     aux->t2[i]
-    //        |         |
-    //        |         |    (double)(2*i)*ifo[n].sig.shft[i]
-    //        |         |           |
-    real_t tmp1ni = idx * idx + 2 * idx*shft[idx];
+    //         _tmp1[0][i]
+    //                |     aux->t2[i]
+    //                |         |
+    //                |         |    (double)(2*i)*ifo[n].sig.shft[i]
+    //                |         |           |
+    phase_mod_real tmp10i = idx * idx + 2 * idx*shft[idx];
 
-    real_t phase = idx * het1 + sgnlt1 * tmp1ni;
-    complex_t exph = cbuild(cos(phase), -sin(phase));
+#if PHASE_MOD_DOUBLE
+    phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
+    phase_mod_complex exph = cbuild(cos(phase), -sin(phase));
 
     xa[idx] += cmulcc(xar[idx], exph);
     xb[idx] += cmulcc(xbr[idx], exph);
+#else
+    phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
+    phase_mod_complex exph = fcbuild(cos(phase), -sin(phase));
+
+    xa[idx] += fcmulcc(xar[idx], exph);
+    xb[idx] += fcmulcc(xbr[idx], exph);
+#endif
   }
 }

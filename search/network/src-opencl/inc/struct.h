@@ -126,16 +126,17 @@ typedef struct _opencl_handles
 enum Kernel
 {
     Modvir = 0,
-    TShiftPMod = 1,
-    ResamplePostFFT = 2,
-    ComputeB = 3,
-    TriDiagMul = 4,
-    Interpolate = 5,
-    PhaseMod1 = 6,
-    PhaseMod2 = 7,
-    ComputeFStat = 8,
-    NormalizeFStatWG = 9
+    TShiftPMod,
+    //ResamplePostFFT = 2,
+    //ComputeB,
+    //TriDiagMul,
+    //Interpolate,
+    PhaseMod1,
+    PhaseMod2,
+    ComputeFStat,
+    NormalizeFStatWG
 };
+static const cl_uint kernel_count = 6;
 
 /* FFTW plans  */ 
 typedef struct _fft_plans {

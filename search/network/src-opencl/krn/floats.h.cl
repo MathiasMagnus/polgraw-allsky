@@ -53,8 +53,10 @@ typedef float modvir_real;
 #endif
 
 #if TSHIFT_PMOD_DOUBLE
+typedef double tshift_pmod_real;
 typedef double3 tshift_pmod_real3;
 #else
+typedef float tshift_pmod_real;
 typedef float3 tshift_pmod_real3;
 #endif
 
