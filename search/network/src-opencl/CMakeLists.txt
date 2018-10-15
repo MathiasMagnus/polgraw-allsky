@@ -113,7 +113,10 @@ target_link_libraries (${Target_NAME} PRIVATE OpenCL::OpenCL
                                               clBLAS)
 
 # Create project groups for IDEs
-set_target_properties (${Target_NAME} PROPERTIES FOLDER "GPU")
+set_target_properties (${Target_NAME} PROPERTIES C_STANDARD 11
+                                                 C_STANDARD_REQUIRED ON
+												 C_EXTENSIONS OFF
+                                                 FOLDER "GPU")
 
 # Add verbose output if opted in for
 target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${PG_VERBOSE}>:VERBOSE>

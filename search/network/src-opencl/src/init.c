@@ -621,8 +621,6 @@ cl_program build_program_with_sources(cl_context context,
 cl_kernel** create_kernels(cl_program program,
 	                       cl_uint count)
 {
-    cl_int CL_err = CL_SUCCESS;
-
     cl_kernel** result = (cl_kernel**)malloc(count * sizeof(cl_kernel*));
 
 	for (cl_uint i = 0; i < count; ++i)
@@ -791,9 +789,9 @@ void init_ifo_arrays(Search_settings* sett,
       free(tmp);
     }
 
-    int j, Nzeros = 0;
+    int Nzeros = 0;
     // Checking for null values in the data
-    for (j = 0; j < sett->N; j++)
+    for (int j = 0; j < sett->N; j++)
       if (!ifo[i].sig.xDat[j]) Nzeros++;
 
     ifo[i].sig.Nzeros = Nzeros;
@@ -819,7 +817,7 @@ void init_ifo_arrays(Search_settings* sett,
     {
       // Detector position w.r.t Solar System Baricenter
       // for every datapoint
-      for (j = 0; j < sett->N; ++j)
+      for (int j = 0; j < sett->N; ++j)
       {
         double tmp[3];
         status = fread((void *)(&tmp),
@@ -1489,8 +1487,6 @@ void cleanup_program(cl_program prog)
 void cleanup_kernels(cl_kernel** kernels,
                      cl_uint count)
 {
-	cl_uint kernel_count = 11;
-
 	for (cl_uint i = 0; i < count; ++i)
 	{
 		for (cl_uint j = 0; j < kernel_count; ++j)

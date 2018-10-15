@@ -84,11 +84,17 @@ void resample_postfft(const cl_int idet,
   //CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
   //checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[ResamplePostFFT])");
 
+  size_t src_off = sizeof(fft_complex) * nyqst,                     // src offset
+      dst_off = sizeof(fft_complex) * (nyqst + Ninterp - nfft),  // dst offset
+      size = sizeof(fft_complex) * Ninterp - (nyqst + nfft),     // size
+      end = (dst_off + size) / sizeof(fft_complex);
+  cl_long negative = dst_off - (src_off + size);
+
   CL_err = clEnqueueCopyBuffer(cl_handles->read_queues[id][idet],               // queue
                                xa_d, xa_d,                                      // src, dst
                                sizeof(fft_complex) * nyqst,                     // src offset
                                sizeof(fft_complex) * (nyqst + Ninterp - nfft),  // dst offset
-                               sizeof(fft_complex) * Ninterp - (nyqst + nfft),  // size
+                               sizeof(fft_complex) * (Ninterp - (nyqst + nfft)),// size
                                1, &event_wait_list[0],                          // wait events
                                &copy_events[0]);                                // out event
   checkErr(CL_err, "clEnqueueCopyBuffer(xa_d, xa_d)");
@@ -97,7 +103,7 @@ void resample_postfft(const cl_int idet,
                                xb_d, xb_d,                                      // src, dst
                                sizeof(fft_complex) * nyqst,                     // src offset
                                sizeof(fft_complex) * (nyqst + Ninterp - nfft),  // dst offset
-                               sizeof(fft_complex) * Ninterp - (nyqst + nfft),  // size
+                               sizeof(fft_complex) * (Ninterp - (nyqst + nfft)),// size
                                1, &event_wait_list[1],                          // wait events
                                &copy_events[1]);                                // out event
   checkErr(CL_err, "clEnqueueCopyBuffer(xb_d, xb_d)");
@@ -112,7 +118,7 @@ void resample_postfft(const cl_int idet,
                                xa_d,                                            // buffer
                                &pattern, sizeof(fft_complex),                   // patern and size
                                sizeof(fft_complex) * nyqst,                     // offset
-                               sizeof(fft_complex) * Ninterp - (nyqst + nfft),  // size
+                               sizeof(fft_complex) * (Ninterp - (nyqst + nfft)),// size
                                1, &copy_events[0],                              // wait events
                                &fill_events[0]);                                // out event
   checkErr(CL_err, "clEnqueueFillBuffer(xa_d, { 0, 0 })");
@@ -121,7 +127,7 @@ void resample_postfft(const cl_int idet,
                                xb_d,                                            // buffer
                                &pattern, sizeof(fft_complex),                   // patern and size
                                sizeof(fft_complex) * nyqst,                     // offset
-                               sizeof(fft_complex) * Ninterp - (nyqst + nfft),  // size
+                               sizeof(fft_complex) * (Ninterp - (nyqst + nfft)),// size
                                1, &copy_events[1],                              // wait events
                                &fill_events[1]);                                // out event
   checkErr(CL_err, "clEnqueueFillBuffer(xb_d, { 0, 0 })");
