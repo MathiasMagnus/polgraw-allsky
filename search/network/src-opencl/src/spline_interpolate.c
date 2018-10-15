@@ -6,6 +6,7 @@
 
 // Polgraw includes
 #include <CL/util.h>    // checkErr
+#include <log.h>        // save_numbered_complex_buffer
 
 // Standard C includes
 #include <math.h>       // floor(f)
@@ -110,8 +111,8 @@ void spline_interpolate(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(5, spline_unmap_events);
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatma_d, N, idet, "ifo_sig_xDatma");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatmb_d, N, idet, "ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatma_d, N, idet, "ifo_sig_xDatma", XDATM_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatmb_d, N, idet, "ifo_sig_xDatmb", XDATM_DOUBLE);
 #endif
 
   blas_scale(idet, id, N, 1. / sig2,
@@ -123,8 +124,8 @@ void spline_interpolate(const cl_int idet,
              spline_blas_events);
 #ifdef TESTING
   clWaitForEvents(2, spline_blas_events);
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatma_d, N, idet, "rescaled_ifo_sig_xDatma");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatmb_d, N, idet, "rescaled_ifo_sig_xDatmb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatma_d, N, idet, "rescaled_ifo_sig_xDatma", XDATM_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xDatmb_d, N, idet, "rescaled_ifo_sig_xDatmb", XDATM_DOUBLE);
 #endif
 }
 

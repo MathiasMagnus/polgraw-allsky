@@ -11,6 +11,7 @@
 // Polgraw includes
 #include <floats.h>     // tshift_pmod_real, tshift_pmod_real3
 #include <CL/util.h>    // checkErr
+#include <log.h>        // save_numbered_real_buffer, save_numbered_complex_buffer
 
 typedef tshift_pmod_real real;
 typedef tshift_pmod_real3 real3;
@@ -79,10 +80,10 @@ cl_event tshift_pmod(const cl_int idet,
 
 #ifdef TESTING
     clWaitForEvents(1, &exec);
-    save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, nfft, idet, "xa_time");
-    save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, nfft, idet, "xb_time");
-    save_numbered_real_buffer(cl_handles->read_queues[id][idet], shft_d, N, idet, "ifo_sig_shft");
-    save_numbered_real_buffer(cl_handles->read_queues[id][idet], shftf_d, N, idet, "ifo_sig_shftf");
+    save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, nfft, idet, "xa_time", FFT_DOUBLE);
+    save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, nfft, idet, "xb_time", FFT_DOUBLE);
+    save_numbered_real_buffer(cl_handles->read_queues[id][idet], shft_d, N, idet, "ifo_sig_shft", SHIFT_DOUBLE);
+    save_numbered_real_buffer(cl_handles->read_queues[id][idet], shftf_d, N, idet, "ifo_sig_shftf", SHIFT_DOUBLE);
 #endif
 
     return exec;

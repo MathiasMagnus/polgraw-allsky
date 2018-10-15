@@ -11,6 +11,7 @@
 // Polgraw includes
 #include <floats.h>     // tshift_pmod_real, tshift_pmod_real3
 #include <CL/util.h>    // checkErr
+#include <log.h>        // save_numbered_complex_buffer
 
 void zero_pad(const cl_int idet,
               const cl_int id,
@@ -39,10 +40,10 @@ void zero_pad(const cl_int idet,
 #ifdef TESTING
   clWaitForEvents(2, zero_pad_events);
   // Wasteful
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 0, "pre_fft_post_zero_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 0, "pre_fft_post_zero_xb");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 1, "pre_fft_post_zero_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->fftpad*sett->nfft/*sett->Ninterp*/, 1, "pre_fft_post_zero_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->fftpad*sett->nfft, 0, "pre_fft_post_zero_xa", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->fftpad*sett->nfft, 0, "pre_fft_post_zero_xb", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->fftpad*sett->nfft, 1, "pre_fft_post_zero_xa", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->fftpad*sett->nfft, 1, "pre_fft_post_zero_xb", FFT_DOUBLE);
 #endif
 }
 
@@ -66,9 +67,9 @@ void time_to_frequency(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(2, fw2_fft_events);
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->nfftf, 0, "post_fft_phasemod_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 0, "post_fft_phasemod_xb");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->nfftf, 1, "post_fft_phasemod_xa");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 1, "post_fft_phasemod_xb");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->nfftf, 0, "post_fft_phasemod_xa", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 0, "post_fft_phasemod_xb", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->nfftf, 1, "post_fft_phasemod_xa", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 1, "post_fft_phasemod_xb", FFT_DOUBLE);
 #endif
 }

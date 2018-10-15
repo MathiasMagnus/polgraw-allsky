@@ -12,6 +12,7 @@
 #include <auxi.h>       // sqr
 #include <floats.h>     // modvir_real_t
 #include <CL/util.h>    // checkErr
+#include <log.h>        // save_numbered_real_buffer
 
 typedef modvir_real real;
 
@@ -69,8 +70,8 @@ cl_event modvir(const cl_int idet,
 
 #ifdef TESTING
     clWaitForEvents(1, &exec);
-    save_numbered_real_buffer(cl_handles->read_queues[id][idet], aa_d, Np, idet, "ifo_sig_aa");
-    save_numbered_real_buffer(cl_handles->read_queues[id][idet], bb_d, Np, idet, "ifo_sig_bb");
+    save_numbered_real_buffer(cl_handles->read_queues[id][idet], aa_d, Np, idet, "ifo_sig_aa", AMPL_MOD_DOUBLE);
+    save_numbered_real_buffer(cl_handles->read_queues[id][idet], bb_d, Np, idet, "ifo_sig_bb", AMPL_MOD_DOUBLE);
 #endif
 
     return exec;

@@ -3,6 +3,7 @@
 // Polgraw includes
 #include <precision.h>  // fft_complex
 #include <CL/util.h>    // checkErr
+#include <log.h>        // save_numbered_complex_buffer
 
 
 void fft_interpolate(const cl_int idet,
@@ -31,8 +32,8 @@ void fft_interpolate(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(2, fw_fft_events);
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, nfft, idet, "xa_fourier");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, nfft, idet, "xb_fourier");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, nfft, idet, "xa_fourier", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, nfft, idet, "xb_fourier", FFT_DOUBLE);
 #endif
 
   // Resample coefficients
@@ -52,8 +53,8 @@ void fft_interpolate(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(2, inv_fft_events);
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, Ninterp, idet, "xa_time_resampled");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, Ninterp, idet, "xb_time_resampled");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, Ninterp, idet, "xa_time_resampled", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, Ninterp, idet, "xb_time_resampled", FFT_DOUBLE);
 #endif
 }
 
@@ -134,7 +135,7 @@ void resample_postfft(const cl_int idet,
 
 #ifdef TESTING
   clWaitForEvents(2, fill_events);
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, Ninterp, idet, "xa_fourier_resampled");
-  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, Ninterp, idet, "xb_fourier_resampled");
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, Ninterp, idet, "xa_fourier_resampled", FFT_DOUBLE);
+  save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, Ninterp, idet, "xb_fourier_resampled", FFT_DOUBLE);
 #endif
 }

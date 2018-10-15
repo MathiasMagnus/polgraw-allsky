@@ -11,6 +11,7 @@
 // Polgraw includes
 #include <floats.h>     // tshift_pmod_real, tshift_pmod_real3
 #include <CL/util.h>    // checkErr
+#include <log.h>        // save_numbered_real_buffer_with_offset
 
 // Standard C includes
 #include <assert.h>     // assert
@@ -50,8 +51,8 @@ cl_event compute_Fstat(const cl_int idet,
 #ifdef TESTING
   // Wasteful
   clWaitForEvents(1, &exec);
-  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 0, "Fstat");
-  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 1, "Fstat");
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 0, "Fstat", FSTAT_DOUBLE);
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 1, "Fstat", FSTAT_DOUBLE);
 #endif
 
   return exec;
@@ -103,8 +104,10 @@ cl_event normalize_FStat_wg_reduce(const cl_int idet,
 #ifdef TESTING
   // Wasteful
   clWaitForEvents(1, &exec);
-  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 0, "Fstat_norm");
-  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 1, "Fstat_norm");
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 0, "Fstat_norm", FSTAT_DOUBLE);
+  save_numbered_real_buffer_with_offset(cl_handles->read_queues[id][idet], F_d, nmin, nmax - nmin, 1, "Fstat_norm", FSTAT_DOUBLE);
+
+  exit(0);
 #endif
 
   return exec;

@@ -21,22 +21,24 @@ kernel void phase_mod_1(global fft_complex* xa,
     //         _tmp1[0][i]
     //                |     aux->t2[i]
     //                |         |
-    //                |         |    (double)(2*i)*ifo[n].sig.shft[i]
-    //                |         |           |
-    phase_mod_real tmp10i = idx * idx + 2 * idx*shft[idx];
+    //                |         |        (double)(2*i)*ifo[n].sig.shft[i]
+    //                |         |               |
+    phase_mod_real tmp10i = idx * idx + 2 * idx * (phase_mod_real)(shft[idx]);
+    fft_complex xDatma = xar[idx];
+    fft_complex xDatmb = xbr[idx];
 
 #if PHASE_MOD_DOUBLE
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = cbuild(cos(phase), -sin(phase));
 
-    xa[idx] = cmulcc(xar[idx], exph);
-    xb[idx] = cmulcc(xbr[idx], exph);
+    xa[idx] = cmulcc(cbuild(xDatma.x, xDatma.y), exph);
+    xb[idx] = cmulcc(cbuild(xDatmb.x, xDatmb.y), exph);
 #else
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = fcbuild(cos(phase), -sin(phase));
 
-    xa[idx] = fcmulcc(xar[idx], exph);
-    xb[idx] = fcmulcc(xbr[idx], exph);
+    xa[idx] = fcmulcc(fcbuild(xDatma.x, xDatma.y), exph);
+    xb[idx] = fcmulcc(fcbuild(xDatmb.x, xDatmb.y), exph);
 #endif
   }
 }
@@ -59,22 +61,24 @@ kernel void phase_mod_2(global fft_complex* xa,
     //         _tmp1[0][i]
     //                |     aux->t2[i]
     //                |         |
-    //                |         |    (double)(2*i)*ifo[n].sig.shft[i]
-    //                |         |           |
-    phase_mod_real tmp10i = idx * idx + 2 * idx*shft[idx];
+    //                |         |        (double)(2*i)*ifo[n].sig.shft[i]
+    //                |         |               |
+    phase_mod_real tmp10i = idx * idx + 2 * idx * (phase_mod_real)(shft[idx]);
+    fft_complex xDatma = xar[idx];
+    fft_complex xDatmb = xbr[idx];
 
 #if PHASE_MOD_DOUBLE
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = cbuild(cos(phase), -sin(phase));
 
-    xa[idx] += cmulcc(xar[idx], exph);
-    xb[idx] += cmulcc(xbr[idx], exph);
+    xa[idx] = cmulcc(cbuild(xDatma.x, xDatma.y), exph);
+    xb[idx] = cmulcc(cbuild(xDatmb.x, xDatmb.y), exph);
 #else
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = fcbuild(cos(phase), -sin(phase));
 
-    xa[idx] += fcmulcc(xar[idx], exph);
-    xb[idx] += fcmulcc(xbr[idx], exph);
+    xa[idx] = fcmulcc(fcbuild(xDatma.x, xDatma.y), exph);
+    xb[idx] = fcmulcc(fcbuild(xDatmb.x, xDatmb.y), exph);
 #endif
   }
 }

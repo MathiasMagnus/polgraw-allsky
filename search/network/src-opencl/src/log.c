@@ -182,7 +182,7 @@ void save_numbered_real_buffer(cl_command_queue queue, cl_mem buf, int count, si
 void save_numbered_real_buffer_with_offset(cl_command_queue queue, cl_mem buf, int off, int count, size_t n, const char* name, _Bool dp)
 {
     char num_filename[1024],
-        num_str[10];
+         num_str[10];
 
     sprintf(num_str, "%zu", n);
 
