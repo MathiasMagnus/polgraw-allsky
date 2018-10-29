@@ -4,19 +4,19 @@
 
 // Calculating amplitude modulation coefficients is done in double on host
 // Should the results be stored in double?
-#define AMPL_MOD_DOUBLE 1
+#define AMPL_MOD_DOUBLE 0
 
 // The input time-domain array is read from disk, which is stored in doubles
 // Should the array be stored in double?
-#define XDAT_DOUBLE 1
+#define XDAT_DOUBLE 0
 
 // The detector position for every data point w.r.t Solar System Baricenter is read from disk, which is stored in doubles
 // Should the array be stored in double?
-#define DETSSB_DOUBLE 1
+#define DETSSB_DOUBLE 0
 
 // Interpolated, resampled time-domain data
 // Should the array be stored in double?
-#define XDATM_DOUBLE 1
+#define XDATM_DOUBLE 0
 
 // Time-fourier transform precision
 // Should the arrays bestored (and transformed) in double?
@@ -24,11 +24,11 @@
 
 // Resampling and time-shift values
 // Should the array be stored as double?
-#define SHIFT_DOUBLE 1
+#define SHIFT_DOUBLE 0
 
 // F-Statistic values
 // Should the array be stored as double?
-#define FSTAT_DOUBLE 1
+#define FSTAT_DOUBLE 0
 
 // Intermediate types used during amplification modulation calculation
 #define MODVIR_DOUBLE 1
