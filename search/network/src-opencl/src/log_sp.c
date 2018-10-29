@@ -52,7 +52,8 @@ void save_complex_array_sp(complex_float* arr, size_t count, const char* name)
   for (i = (size_t)0; i < count; ++i)
       //fprintf(fc, "%lf %lf\n", crealf(arr[i]), cimagf(arr[i]));
       //fprintf(fc, "%zu %e + i %e\n", i, crealf(arr[i]), cimagf(arr[i]));
-      fprintf(fc, "(%e,%e)\n", crealf(arr[i]), cimagf(arr[i]));
+      //fprintf(fc, "(%e,%e)\n", crealf(arr[i]), cimagf(arr[i]));
+      fprintf(fc, "%e %e\n", crealf(arr[i]), cimagf(arr[i]));
 
   int close = fclose(fc);
   if (close == EOF) perror("Failed to close output file.");

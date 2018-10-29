@@ -16,15 +16,15 @@
 
 // Interpolated, resampled time-domain data
 // Should the array be stored in double?
-#define XDATM_DOUBLE 0
+#define XDATM_DOUBLE 1
 
 // Time-fourier transform precision
-// Should the arrays be stored (and transformed) in double?
+// Should the arrays bestored (and transformed) in double?
 #define FFT_DOUBLE 1
 
 // Resampling and time-shift values
 // Should the array be stored as double?
-#define SHIFT_DOUBLE 0
+#define SHIFT_DOUBLE 1
 
 // F-Statistic values
 // Should the array be stored as double?
@@ -34,7 +34,7 @@
 #define MODVIR_DOUBLE 1
 
 // Intermediate types used during resampling and time-shift calculations
-#define TSHIFT_PMOD_DOUBLE 0
+#define TSHIFT_PMOD_DOUBLE 1
 
 // Intermediate types used during spline interpolation
 #define SPLINE_DOUBLE 1
@@ -45,12 +45,5 @@
 // Intermediate types used during the calculation of the F-Statistics
 #define INTERIM_FSTAT_DOUBLE 1
 
-
-#if (SPLINE_DOUBLE != FFT_DOUBLE) || \
-    (SPLINE_DOUBLE != XDATM_DOUBLE) || \
-    (FFT_DOUBLE != XDATM_DOUBLE)
-
-//#error "Current limitation is that FFT, spline interpolation and resampled time-domain data has to be in the same precision."
-#endif
 
 #endif // __PRECISION_H__

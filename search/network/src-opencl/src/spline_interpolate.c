@@ -174,7 +174,7 @@ void splintpad(fft_complex* ya,
 
   spline(ya, interpftpad*N, y2, u);
   for (int i = 0; i<N; ++i) {
-    spline_real x = interpftpad * (i - shftf[i]);
+    spline_real x = interpftpad * (i - (spline_real)(shftf[i]));
     out[i] = splint(ya, y2, interpftpad*N, x);
   } /* for i */
 
@@ -210,9 +210,18 @@ void spline(const fft_complex* y,
   y2[0] = u[0] = cbuild(0, 0);
 
   for (int i = 1; i < n - 1; ++i) {
+#if FFT_DOUBLE
+    spline_complex yim1 = y[i - 1],
+                   yi   = y[i],
+                   yip1 = y[i + 1];
+#else
+    spline_complex yim1 = cbuild(crealf(y[i - 1]), cimagf(y[i - 1])),
+                   yi   = cbuild(crealf(y[i]), cimagf(y[i])),
+                   yip1 = cbuild(crealf(y[i + 1]), cimagf(y[i + 1]));
+#endif
     spline_complex invp = cdivrc(2., caddcr(y2[i - 1], 4.));
     y2[i] = cmulrc(-.5, invp);
-    u[i] = caddcc(caddcc(y[i - 1], cmulrc(-2., y[i])), y[i + 1]);
+    u[i] = caddcc(caddcc(yim1, cmulrc(-2., yi)), yip1);
     u[i] = cmulcc(caddcc(cmulrc(-.5, u[i - 1]), cmulrc(3., u[i])), invp);
   }
   spline_complex qn = cbuild(0, 0),
@@ -224,6 +233,15 @@ void spline(const fft_complex* y,
   y2[0] = u[0] = fcbuild(0, 0);
 
   for (int i = 1; i < n - 1; ++i) {
+#if FFT_DOUBLE
+    spline_complex yim1 = fcbuild((spline_real)creal(y[i - 1]), cimag((spline_real)y[i - 1])),
+                   yi   = fcbuild((spline_real)creal(y[i]), (spline_real)cimag(y[i])),
+                   yip1 = fcbuild(y[i + 1]);
+#else
+    spline_complex yim1 = y[i - 1],
+                   yi   = y[i],
+                   yip1 = y[i + 1];
+#endif
     spline_complex invp = fcdivrc(2., fcaddcr(y2[i - 1], 4.));
     y2[i] = fcmulrc(-.5, invp);
     u[i] = fcaddcc(fcaddcc(y[i - 1], fcmulrc(-2., y[i])), y[i + 1]);
@@ -260,23 +278,63 @@ xDatm_complex splint(fft_complex *ya,
   spline_real b, a;
 
   if (x<0 || x>n - 1)
+#if XDATM_DOUBLE
     return cbuild(0, 0);
+#else
+    return fcbuild(0, 0);
+#endif
   klo = (int)floor(x); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
   khi = klo + 1;
   a = khi - x;
   b = x - klo;
-  return caddcc(caddcc(cmulrc(a, ya[klo]), cmulrc(b, ya[khi])), cdivcr(caddcc(cmulrc(a*a*a - a, y2a[klo]), cmulrc(b*b*b - b, y2a[khi])), 6.0));
+#if FFT_DOUBLE
+  spline_complex ya_klo = ya[klo],
+                 ya_khi = ya[khi],
+                 y2a_klo = y2a[klo],
+                 y2a_khi = y2a[khi];
+#else
+  spline_complex ya_klo = cbuild(crealf(ya[klo]), cimagf(ya[klo])),
+                 ya_khi = cbuild(crealf(ya[khi]), cimagf(ya[khi])),
+                 y2a_klo = cbuild(crealf(y2a[klo]), cimagf(y2a[klo])),
+                 y2a_khi = cbuild(crealf(y2a[khi]), cimagf(y2a[khi]));
+#endif
+  spline_complex result = caddcc(caddcc(cmulrc(a, ya_klo), cmulrc(b, ya_khi)), cdivcr(caddcc(cmulrc(a*a*a - a, y2a_klo), cmulrc(b*b*b - b, y2a_khi)), 6.0));
+#if XDATM_DOUBLE
+  return result;
+#else
+  return fcbuild((spline_real)creal(result), (spline_real)cimag(result));
+#endif
 #else
   int klo, khi;
   spline_real b, a;
 
   if (x<0 || x>n - 1)
-    return fcbuild(0, 0);
+#if XDATM_DOUBLE
+      return cbuild(0, 0);
+#else
+      return fcbuild(0, 0);
+#endif
   klo = (int)floorf(x); // Explicit cast silences warning C4244: '=': conversion from 'double' to 'int', possible loss of data
   khi = klo + 1;
   a = khi - x;
   b = x - klo;
-  return fcaddcc(fcaddcc(fcmulrc(a, ya[klo]), fcmulrc(b, ya[khi])), fcdivcr(fcaddcc(fcmulrc(a*a*a - a, y2a[klo]), fcmulrc(b*b*b - b, y2a[khi])), 6.0));
+#if FFT_DOUBLE
+  spline_complex ya_klo = fcbuild((spline_real)creal(ya[klo]), (spline_real)cimag(ya[klo])),
+                 ya_khi = fcbuild((spline_real)creal(ya[khi]), (spline_real)cimag(ya[khi])),
+                 y2a_klo = fcbuild((spline_real)creal(y2a[klo]), (spline_real)cimag(y2a[klo])),
+                 y2a_khi = fcbuild((spline_real)creal(y2a[khi]), (spline_real)cimag(y2a[khi]));
+#else
+  spline_complex ya_klo = ya[klo],
+                 ya_khi = ya[khi],
+                 y2a_klo = y2a[klo],
+                 y2a_khi = y2a[khi];
+#endif
+  spline_complex result = (fcaddcc(fcmulrc(a, ya_klo), fcmulrc(b, ya_khi)), fcdivcr(fcaddcc(fcmulrc(a*a*a - a, y2a_klo), fcmulrc(b*b*b - b, y2a_khi)), 6.0));
+#if XDATM_DOUBLE
+  return cbuild(fcreal(result), fcimag(result));
+#else
+  return result;
+#endif
 #endif
 #endif // _WIN32
 }

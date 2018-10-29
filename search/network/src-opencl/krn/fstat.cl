@@ -13,14 +13,46 @@ kernel void compute_Fstat(global fft_complex* xa,
 {
   size_t i = get_global_id(0);
 
-  interim_fstat_complex xai = xa[i],
-                        xbi = xb[i];
+  fft_complex xa_in = xa[i],
+              xb_in = xb[i];
+#if INTERIM_FSTAT_DOUBLE
+#if FFT_DOUBLE
+  interim_fstat_complex xai = xa_in,
+                        xbi = xb_in;
+#else
+  interim_fstat_complex xai = cbuild(fcreal(xa_in), fcimag(xa_in)),
+                        xbi = cbuild(fcreal(xb_in), fcimag(xb_in));
+#endif
+#else
+#if FFT_DOUBLE
+  interim_fstat_complex xai = fcbuild((interim_fstat_real)creal(xa_in), (interim_fstat_real)cimag(xa_in)),
+                        xbi = fcbuild((interim_fstat_real)creal(xb_in), (interim_fstat_real)cimag(xb_in));
+#else
+  interim_fstat_complex xai = xa_in,
+                        xbi = xb_in;
+#endif
+#endif
   interim_fstat_real maa = maa_d[0],
                      mbb = mbb_d[0];
+
 #if INTERIM_FSTAT_DOUBLE
+#if FSTAT_DOUBLE
   F[i] = (pown(creal(xai), 2) + pown(cimag(xai), 2)) / maa +
          (pown(creal(xbi), 2) + pown(cimag(xbi), 2)) / mbb;
 #else
+  interim_fstat_real result = (pown(creal(xai), 2) + pown(cimag(xai), 2)) / maa +
+                              (pown(creal(xbi), 2) + pown(cimag(xbi), 2)) / mbb;
+
+  F[i] = fcbuild((fstat_real)creal(result), (fstat_real)cimag(result));
+#endif
+#else
+#if FSTAT_DOUBLE
+#else
+  interim_fstat_real result = (pown(fcreal(xai), 2) + pown(fcimag(xai), 2)) / maa +
+                              (pown(fcreal(xbi), 2) + pown(fcimag(xbi), 2)) / mbb;
+
+  F[i] = cbuild(fcreal(result), fcimag(result));
+#endif
   F[i] = (pown(fcreal(xai), 2) + pown(fcimag(xai), 2)) / maa +
          (pown(fcreal(xbi), 2) + pown(fcimag(xbi), 2)) / mbb;
 #endif

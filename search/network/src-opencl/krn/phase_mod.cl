@@ -24,21 +24,44 @@ kernel void phase_mod_1(global fft_complex* xa,
     //                |         |        (double)(2*i)*ifo[n].sig.shft[i]
     //                |         |               |
     phase_mod_real tmp10i = idx * idx + 2 * idx * (phase_mod_real)(shft[idx]);
-    fft_complex xDatma = xar[idx];
-    fft_complex xDatmb = xbr[idx];
+    xDatm_complex xDatma = xar[idx];
+    xDatm_complex xDatmb = xbr[idx];
 
 #if PHASE_MOD_DOUBLE
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = cbuild(cos(phase), -sin(phase));
-
-    xa[idx] = cmulcc(cbuild(xDatma.x, xDatma.y), exph);
-    xb[idx] = cmulcc(cbuild(xDatmb.x, xDatmb.y), exph);
+#if XDATM_DOUBLE
+    phase_mod_complex result_a = cmulcc(xDatma, exph),
+                      result_b = cmulcc(xDatmb, exph);
+#else
+    phase_mod_complex result_a = cmulcc(cbuild(fcreal(xDatma), fcimag(xDatma)), exph),
+                      result_b = cmulcc(cbuild(fcreal(xDatmb), fcimag(xDatmb)), exph);
+#endif
+#if FFT_DOUBLE
+    xa[idx] = result_a;
+    xb[idx] = result_b;
+#else
+    xa[idx] = fcbuild((phase_mod_real)creal(result_a), (phase_mod_real)cimag(result_a));
+    xb[idx] = fcbuild((phase_mod_real)creal(result_b), (phase_mod_real)cimag(result_b));
+#endif
 #else
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = fcbuild(cos(phase), -sin(phase));
-
-    xa[idx] = fcmulcc(fcbuild(xDatma.x, xDatma.y), exph);
-    xb[idx] = fcmulcc(fcbuild(xDatmb.x, xDatmb.y), exph);
+#if XDATM_DOUBLE
+    phase_mod_complex result_a = fcmulcc(fcbuild((phase_mod_real)creal(xDatma), (phase_mod_real)cimag(xDatma)), exph),
+                      result_b = fcmulcc(fcbuild((phase_mod_real)creal(xDatmb), (phase_mod_real)cimag(xDatmb)), exph);
+#else
+    phase_mod_complex result_a = fcmulcc(xDatma, exph),
+                      result_b = fcmulcc(xDatmb, exph);
+    
+#endif
+#if FFT_DOUBLE
+    xa[idx] = cbuild(fcreal(result_a), fcimag(result_a));
+    xb[idx] = cbuild(fcreal(result_b), fcimag(result_b));
+#else
+    xa[idx] = result_a;
+    xb[idx] = result_b;
+#endif
 #endif
   }
 }
@@ -64,21 +87,44 @@ kernel void phase_mod_2(global fft_complex* xa,
     //                |         |        (double)(2*i)*ifo[n].sig.shft[i]
     //                |         |               |
     phase_mod_real tmp10i = idx * idx + 2 * idx * (phase_mod_real)(shft[idx]);
-    fft_complex xDatma = xar[idx];
-    fft_complex xDatmb = xbr[idx];
+    xDatm_complex xDatma = xar[idx];
+    xDatm_complex xDatmb = xbr[idx];
 
 #if PHASE_MOD_DOUBLE
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = cbuild(cos(phase), -sin(phase));
-
-    xa[idx] = cmulcc(cbuild(xDatma.x, xDatma.y), exph);
-    xb[idx] = cmulcc(cbuild(xDatmb.x, xDatmb.y), exph);
+#if XDATM_DOUBLE
+    phase_mod_complex result_a = cmulcc(xDatma, exph),
+                      result_b = cmulcc(xDatmb, exph);
+#else
+    phase_mod_complex result_a = cmulcc(cbuild(fcreal(xDatma), fcimag(xDatma)), exph),
+                      result_b = cmulcc(cbuild(fcreal(xDatmb), fcimag(xDatmb)), exph);
+#endif
+#if FFT_DOUBLE
+    xa[idx] = result_a;
+    xb[idx] = result_b;
+#else
+    xa[idx] = fcbuild((phase_mod_real)creal(result_a), (phase_mod_real)cimag(result_a));
+    xb[idx] = fcbuild((phase_mod_real)creal(result_b), (phase_mod_real)cimag(result_b));
+#endif
 #else
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
     phase_mod_complex exph = fcbuild(cos(phase), -sin(phase));
-
-    xa[idx] = fcmulcc(fcbuild(xDatma.x, xDatma.y), exph);
-    xb[idx] = fcmulcc(fcbuild(xDatmb.x, xDatmb.y), exph);
+#if XDATM_DOUBLE
+    phase_mod_complex result_a = fcmulcc(fcbuild((phase_mod_real)creal(xDatma), (phase_mod_real)cimag(xDatma)), exph),
+                      result_b = fcmulcc(fcbuild((phase_mod_real)creal(xDatmb), (phase_mod_real)cimag(xDatmb)), exph);
+#else
+    phase_mod_complex result_a = fcmulcc(xDatma, exph),
+                      result_b = fcmulcc(xDatmb, exph);
+    
+#endif
+#if FFT_DOUBLE
+    xa[idx] += cbuild(fcreal(result_a), fcimag(result_a));
+    xb[idx] += cbuild(fcreal(result_b), fcimag(result_b));
+#else
+    xa[idx] += result_a;
+    xb[idx] += result_b;
+#endif
 #endif
   }
 }
