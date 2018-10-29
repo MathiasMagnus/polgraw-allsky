@@ -257,7 +257,7 @@ void spline(const fft_complex* y,
 }
 
 xDatm_complex splint(fft_complex *ya,
-                     fft_complex *y2a,
+                     spline_complex *y2a,
                      int n,
                      spline_real x)
 {
@@ -289,16 +289,14 @@ xDatm_complex splint(fft_complex *ya,
   b = x - klo;
 #if FFT_DOUBLE
   spline_complex ya_klo = ya[klo],
-                 ya_khi = ya[khi],
-                 y2a_klo = y2a[klo],
-                 y2a_khi = y2a[khi];
+                 ya_khi = ya[khi];
 #else
   spline_complex ya_klo = cbuild(crealf(ya[klo]), cimagf(ya[klo])),
-                 ya_khi = cbuild(crealf(ya[khi]), cimagf(ya[khi])),
-                 y2a_klo = cbuild(crealf(y2a[klo]), cimagf(y2a[klo])),
-                 y2a_khi = cbuild(crealf(y2a[khi]), cimagf(y2a[khi]));
+                 ya_khi = cbuild(crealf(ya[khi]), cimagf(ya[khi]));
 #endif
-  spline_complex result = caddcc(caddcc(cmulrc(a, ya_klo), cmulrc(b, ya_khi)), cdivcr(caddcc(cmulrc(a*a*a - a, y2a_klo), cmulrc(b*b*b - b, y2a_khi)), 6.0));
+  spline_complex y2a_klo = y2a[klo],
+                 y2a_khi = y2a[khi],
+                 result = caddcc(caddcc(cmulrc(a, ya_klo), cmulrc(b, ya_khi)), cdivcr(caddcc(cmulrc(a*a*a - a, y2a_klo), cmulrc(b*b*b - b, y2a_khi)), 6.0));
 #if XDATM_DOUBLE
   return result;
 #else
@@ -320,16 +318,14 @@ xDatm_complex splint(fft_complex *ya,
   b = x - klo;
 #if FFT_DOUBLE
   spline_complex ya_klo = fcbuild((spline_real)creal(ya[klo]), (spline_real)cimag(ya[klo])),
-                 ya_khi = fcbuild((spline_real)creal(ya[khi]), (spline_real)cimag(ya[khi])),
-                 y2a_klo = fcbuild((spline_real)creal(y2a[klo]), (spline_real)cimag(y2a[klo])),
-                 y2a_khi = fcbuild((spline_real)creal(y2a[khi]), (spline_real)cimag(y2a[khi]));
+                 ya_khi = fcbuild((spline_real)creal(ya[khi]), (spline_real)cimag(ya[khi]));
 #else
   spline_complex ya_klo = ya[klo],
-                 ya_khi = ya[khi],
-                 y2a_klo = y2a[klo],
-                 y2a_khi = y2a[khi];
+                 ya_khi = ya[khi];
 #endif
-  spline_complex result = (fcaddcc(fcmulrc(a, ya_klo), fcmulrc(b, ya_khi)), fcdivcr(fcaddcc(fcmulrc(a*a*a - a, y2a_klo), fcmulrc(b*b*b - b, y2a_khi)), 6.0));
+  spline_complex y2a_klo = y2a[klo],
+                 y2a_khi = y2a[khi],
+                 result = (fcaddcc(fcmulrc(a, ya_klo), fcmulrc(b, ya_khi)), fcdivcr(fcaddcc(fcmulrc(a*a*a - a, y2a_klo), fcmulrc(b*b*b - b, y2a_khi)), 6.0));
 #if XDATM_DOUBLE
   return cbuild(fcreal(result), fcimag(result));
 #else

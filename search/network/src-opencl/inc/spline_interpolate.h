@@ -57,6 +57,6 @@ void spline(const fft_complex* y,
             spline_complex* u);
 
 xDatm_complex splint(fft_complex *ya,
-                     fft_complex *y2a,
+                     spline_complex *y2a,
                      int n,
                      spline_real x);

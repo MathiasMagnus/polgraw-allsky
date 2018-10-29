@@ -20,7 +20,7 @@
 
 // Time-fourier transform precision
 // Should the arrays bestored (and transformed) in double?
-#define FFT_DOUBLE 1
+#define FFT_DOUBLE 0
 
 // Resampling and time-shift values
 // Should the array be stored as double?
