@@ -127,7 +127,7 @@ enum Kernel
 {
     Modvir = 0,
     TShiftPMod,
-    //ResamplePostFFT = 2,
+    ResamplePostFFT,
     //ComputeB,
     //TriDiagMul,
     //Interpolate,
@@ -136,7 +136,7 @@ enum Kernel
     ComputeFStat,
     NormalizeFStatWG
 };
-static const cl_uint kernel_count = 6;
+static const cl_uint kernel_count = 7;
 
 /* FFTW plans  */ 
 typedef struct _fft_plans {

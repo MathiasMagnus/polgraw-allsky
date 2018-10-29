@@ -10,6 +10,7 @@
 /// <remarks>Ownership of the event created internally is transfered to the caller.</remarks>
 /// <remarks>Storage for the events must be provided by the caller.</remarks>
 /// <todo>Create persistent storage for FFT temporary.</todo>
+/// <todo>Remove manual component copying. Fix API call based version.</todo>
 ///
 void fft_interpolate(const cl_int idet,
                      const cl_int id,

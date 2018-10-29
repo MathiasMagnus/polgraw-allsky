@@ -646,9 +646,9 @@ const char* obtain_kernel_name(cl_uint i)
     case TShiftPMod:
         result = "tshift_pmod";
         break;
-    //case ResamplePostFFT:
-    //    result = "resample_postfft";
-    //    break;
+    case ResamplePostFFT:
+        result = "resample_postfft";
+        break;
     //case ComputeB:
     //    result = "computeB";
     //    break;

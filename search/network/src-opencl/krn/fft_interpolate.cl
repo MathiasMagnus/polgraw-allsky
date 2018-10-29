@@ -1,8 +1,8 @@
 #include <fft_interpolate.h.cl>
 
 
-kernel void resample_postfft(global complex_fft *xa,
-                             global complex_fft *xb,
+kernel void resample_postfft(global fft_complex *xa,
+                             global fft_complex *xb,
                              int nfft,
                              int Ninterp,
                              int nyqst)
