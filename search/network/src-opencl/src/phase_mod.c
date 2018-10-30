@@ -31,16 +31,16 @@ cl_event phase_mod_1(const cl_int idet,
   cl_int CL_err = CL_SUCCESS;
 
   // Helper variable to make pointer types match. Cast to silence warning
-  real real_sgnlt1 = (real)sgnlt1,
-       real_het1 = (real)het1;
+  real real_het1 = (real)het1,
+       real_sgnlt1 = (real)sgnlt1;
   size_t size_N = (size_t)N;
 
   clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 0, sizeof(cl_mem), &xa);	  checkErr(CL_err, "clSetKernelArg(&xa)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 1, sizeof(cl_mem), &xb);	  checkErr(CL_err, "clSetKernelArg(&xb)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 2, sizeof(cl_mem), &xar);  checkErr(CL_err, "clSetKernelArg(&xar)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 3, sizeof(cl_mem), &xbr);  checkErr(CL_err, "clSetKernelArg(&xbr)");
-  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 4, sizeof(real), &het1);	  checkErr(CL_err, "clSetKernelArg(&het1)");
-  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 5, sizeof(real), &sgnlt1); checkErr(CL_err, "clSetKernelArg(&sgnlt1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 4, sizeof(real), &real_het1);	  checkErr(CL_err, "clSetKernelArg(&het1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 5, sizeof(real), &real_sgnlt1); checkErr(CL_err, "clSetKernelArg(&sgnlt1)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 6, sizeof(cl_mem), &shft); checkErr(CL_err, "clSetKernelArg(&shft)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod1], 7, sizeof(cl_int), &N);    checkErr(CL_err, "clSetKernelArg(&N)");
 
@@ -79,16 +79,16 @@ cl_event phase_mod_2(const cl_int idet,
   cl_int CL_err = CL_SUCCESS;
 
   // Helper variable to make pointer types match. Cast to silence warning
-  real real_sgnlt1 = (real)sgnlt1,
-       real_het1 = (real)het1;
+  real real_het1 = (real)het1,
+       real_sgnlt1 = (real)sgnlt1;
   size_t size_N = (size_t)N;
 
   clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 0, sizeof(cl_mem), &xa);	  checkErr(CL_err, "clSetKernelArg(&xa)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 1, sizeof(cl_mem), &xb);	  checkErr(CL_err, "clSetKernelArg(&xb)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 2, sizeof(cl_mem), &xar);  checkErr(CL_err, "clSetKernelArg(&xar)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 3, sizeof(cl_mem), &xbr);  checkErr(CL_err, "clSetKernelArg(&xbr)");
-  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 4, sizeof(real), &het1);	  checkErr(CL_err, "clSetKernelArg(&het1)");
-  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 5, sizeof(real), &sgnlt1); checkErr(CL_err, "clSetKernelArg(&sgnlt1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 4, sizeof(real), &real_het1);	  checkErr(CL_err, "clSetKernelArg(&het1)");
+  clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 5, sizeof(real), &real_sgnlt1); checkErr(CL_err, "clSetKernelArg(&sgnlt1)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 6, sizeof(cl_mem), &shft); checkErr(CL_err, "clSetKernelArg(&shft)");
   clSetKernelArg(cl_handles->kernels[id][PhaseMod2], 7, sizeof(cl_int), &N);    checkErr(CL_err, "clSetKernelArg(&N)");
 

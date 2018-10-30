@@ -31,19 +31,19 @@
 #define FSTAT_DOUBLE 0
 
 // Intermediate types used during amplification modulation calculation
-#define MODVIR_DOUBLE 1
+#define MODVIR_DOUBLE 0
 
 // Intermediate types used during resampling and time-shift calculations
-#define TSHIFT_PMOD_DOUBLE 1
+#define TSHIFT_PMOD_DOUBLE 0
 
 // Intermediate types used during spline interpolation
 #define SPLINE_DOUBLE 1
 
 // Intermediate types used during phase modulation
-#define PHASE_MOD_DOUBLE 1
+#define PHASE_MOD_DOUBLE 0
 
 // Intermediate types used during the calculation of the F-Statistics
-#define INTERIM_FSTAT_DOUBLE 1
+#define INTERIM_FSTAT_DOUBLE 0
 
 
 #endif // __PRECISION_H__

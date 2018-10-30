@@ -24,8 +24,8 @@ kernel void phase_mod_1(global fft_complex* xa,
     //                |         |        (double)(2*i)*ifo[n].sig.shft[i]
     //                |         |               |
     phase_mod_real tmp10i = idx * idx + 2 * idx * (phase_mod_real)(shft[idx]);
-    xDatm_complex xDatma = xar[idx];
-    xDatm_complex xDatmb = xbr[idx];
+    xDatm_complex xDatma = xar[idx],
+                  xDatmb = xbr[idx];
 
 #if PHASE_MOD_DOUBLE
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
@@ -87,8 +87,8 @@ kernel void phase_mod_2(global fft_complex* xa,
     //                |         |        (double)(2*i)*ifo[n].sig.shft[i]
     //                |         |               |
     phase_mod_real tmp10i = idx * idx + 2 * idx * (phase_mod_real)(shft[idx]);
-    xDatm_complex xDatma = xar[idx];
-    xDatm_complex xDatmb = xbr[idx];
+    xDatm_complex xDatma = xar[idx],
+                  xDatmb = xbr[idx];
 
 #if PHASE_MOD_DOUBLE
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
@@ -101,11 +101,11 @@ kernel void phase_mod_2(global fft_complex* xa,
                       result_b = cmulcc(cbuild(fcreal(xDatmb), fcimag(xDatmb)), exph);
 #endif
 #if FFT_DOUBLE
-    xa[idx] = result_a;
-    xb[idx] = result_b;
+    xa[idx] += result_a;
+    xb[idx] += result_b;
 #else
-    xa[idx] = fcbuild((phase_mod_real)creal(result_a), (phase_mod_real)cimag(result_a));
-    xb[idx] = fcbuild((phase_mod_real)creal(result_b), (phase_mod_real)cimag(result_b));
+    xa[idx] += fcbuild((phase_mod_real)creal(result_a), (phase_mod_real)cimag(result_a));
+    xb[idx] += fcbuild((phase_mod_real)creal(result_b), (phase_mod_real)cimag(result_b));
 #endif
 #else
     phase_mod_real phase = idx * het1 + sgnlt1 * tmp10i;
