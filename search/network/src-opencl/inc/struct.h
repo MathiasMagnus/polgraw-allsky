@@ -279,3 +279,27 @@ typedef struct _search_results {
   double* sgnlv; // Array of candidate signals
 
 } Search_results;
+
+/// <summary></summary>
+///
+typedef struct _pipeline {
+  cl_event *modvir_events,
+           *tshift_pmod_events;
+  cl_event **fft_interpolate_fw_fft_events,
+           **fft_interpolate_resample_copy_events,
+           **fft_interpolate_resample_fill_events,
+           **fft_interpolate_inv_fft_events,
+           **spline_map_events,
+           **spline_unmap_events,
+           **spline_blas_events,
+           **blas_dot_events;
+  cl_event *mxx_fill_events,
+           *axpy_events,
+           *phase_mod_events,
+           *zero_pad_events,
+           *fw2_fft_events;
+  cl_event compute_Fstat_event,
+           normalize_Fstat_event,
+           peak_map_event,
+           peak_unmap_event;
+} Pipeline;

@@ -192,32 +192,7 @@ Search_results job_core(const int pm,                  // hemisphere
   Search_results results = { 0, NULL };
 
   // Allocate storage for events to synchronize pipeline
-  cl_event *modvir_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
-	       *tshift_pmod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
-	       **fft_interpolate_fw_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **fft_interpolate_resample_copy_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-           **fft_interpolate_resample_fill_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **fft_interpolate_inv_fft_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **spline_map_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **spline_unmap_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **spline_blas_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-	       **blas_dot_events = (cl_event**)malloc(sett->nifo * sizeof(cl_event*)),
-           *mxx_fill_events = (cl_event*)malloc(2 * sizeof(cl_event)),
-	       *axpy_events = (cl_event*)malloc(sett->nifo * 2 * sizeof(cl_event)),
-           *phase_mod_events = (cl_event*)malloc(sett->nifo * sizeof(cl_event)),
-           *zero_pad_events = (cl_event*)malloc(2 * sizeof(cl_event)),
-	       *fw2_fft_events = (cl_event*)malloc(2 * sizeof(cl_event));
-  for (int n = 0; n < sett->nifo; ++n)
-  {
-    fft_interpolate_fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
-    fft_interpolate_resample_copy_events[n] = (cl_event*)malloc(2 * sizeof(cl_event)),
-    fft_interpolate_resample_fill_events[n] = (cl_event*)malloc(2 * sizeof(cl_event)),
-    fft_interpolate_inv_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
-	spline_map_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
-	spline_unmap_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
-	spline_blas_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
-	blas_dot_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
-  }
+  Pipeline pl = init_pipeline(sett->nifo);
 
   signal_params_t sgnlt[NPAR], sgnl_freq;
   double het0, ft, sinalt, cosalt, sindelt, cosdelt;
@@ -230,7 +205,7 @@ Search_results job_core(const int pm,                  // hemisphere
   // Loop for each detector
   for (int n = 0; n<sett->nifo; ++n)
   {
-    modvir_events[n] =
+    pl.modvir_events[n] =
       modvir(n, id, sett->N,                            // input
              sinalt, cosalt, sindelt, cosdelt,          // input
              ifo[n].sig.cphir, ifo[n].sig.sphir,        // input
@@ -246,7 +221,7 @@ Search_results job_core(const int pm,                  // hemisphere
                    nSource.s[1] * ifo[n].sig.DetSSB[0].s[1] +
                    nSource.s[2] * ifo[n].sig.DetSSB[0].s[2];
 
-    tshift_pmod_events[n] =
+    pl.tshift_pmod_events[n] =
       tshift_pmod(n, id, sett->N, sett->nfft, sett->interpftpad,               // input
                   shft1, het0, sett->oms, nSource,                             // input
                   ifo[n].sig.xDat_d, ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
@@ -254,33 +229,33 @@ Search_results job_core(const int pm,                  // hemisphere
                   fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],                  // output
                   ifo[n].sig.shft_d[id], ifo[n].sig.shftf_d[id],               // output
                   aux->tshift_d[id][n],                                        // output
-                  cl_handles, 1, &modvir_events[n]);                           // sync
+                  cl_handles, 1, &pl.modvir_events[n]);                        // sync
 
 	fft_interpolate(n, id, sett->nfft, sett->Ninterp, sett->nyqst, plans,    // input
 		            fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],              // input / output
-		            cl_handles, 1, &tshift_pmod_events[n],                   // sync
-                    fft_interpolate_fw_fft_events[n],                        // sync
-                    fft_interpolate_resample_copy_events[n],                 // sync
-                    fft_interpolate_resample_fill_events[n],                 // sync
-                    fft_interpolate_inv_fft_events[n]);                      // sync
+		            cl_handles, 1, &pl.tshift_pmod_events[n],                // sync
+                    pl.fft_interpolate_fw_fft_events[n],                     // sync
+                    pl.fft_interpolate_resample_copy_events[n],              // sync
+                    pl.fft_interpolate_resample_fill_events[n],              // sync
+                    pl.fft_interpolate_inv_fft_events[n]);                   // sync
 
-	spline_interpolate(n, id, fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2, // input
-		               fft_arr->xa_d[id][n], fft_arr->xb_d[id][n], ifo[n].sig.shftf_d[id],   // input
-		               ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id],                     // output
-		               blas_handles, cl_handles, 2, fft_interpolate_inv_fft_events[n],       // sync
-		               spline_map_events[n], spline_unmap_events[n], spline_blas_events[n]); // sync
+	spline_interpolate(n, id, fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2,          // input
+		               fft_arr->xa_d[id][n], fft_arr->xb_d[id][n], ifo[n].sig.shftf_d[id],            // input
+		               ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id],                              // output
+		               blas_handles, cl_handles, 2, pl.fft_interpolate_inv_fft_events[n],             // sync
+                       pl.spline_map_events[n], pl.spline_unmap_events[n], pl.spline_blas_events[n]); // sync
 
 	blas_dot(n, id, sett->N, ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
 		     aux->aadots_d[id][n], aux->bbdots_d[id][n],               // output
-		     blas_handles, cl_handles, 1, &modvir_events[n],           // sync
-		     blas_dot_events[n]);                                      // sync
+		     blas_handles, cl_handles, 1, &pl.modvir_events[n],        // sync
+             pl.blas_dot_events[n]);                                   // sync
   } // end of detector loop
 
   calc_mxx(sett->nifo, id,                            // input
            aux->aadots_d[id], aux->bbdots_d[id], ifo, // input
            aux->maa_d[id], aux->mbb_d[id],            // output
-           cl_handles, sett->nifo, blas_dot_events,   // sync
-	       mxx_fill_events, axpy_events);             // sync
+           cl_handles, sett->nifo, pl.blas_dot_events,// sync
+           pl.mxx_fill_events, pl.axpy_events);       // sync
     
   int smin, smax; // if spindown parameter is taken into account, smin != smax
   spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
@@ -301,57 +276,58 @@ Search_results job_core(const int pm,                  // hemisphere
     sgnl_freq = het0 + het1; // are we reusing memory here? What does 'sgnl0' mean?
 
 	// spline_interpolate_cpu is the last operation we should wait on for args to be ready
-	phase_mod_events[0] = 
+    pl.phase_mod_events[0] =
       phase_mod_1(0, id, sett->N, het1, sgnlt[spindown],                                   // input
                   ifo[0].sig.xDatma_d[id], ifo[0].sig.xDatmb_d[id], ifo[0].sig.shft_d[id], // input
                   fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],                              // output
-                  cl_handles, 5, spline_unmap_events[0]);                                  // sync
+                  cl_handles, 5, pl.spline_unmap_events[0]);                               // sync
     
     for (int n = 1; n<sett->nifo; ++n)
     {
       // xY_d[id][0] is intentional, we're summing into the first xY_d arrays from xDatmY_d
-      phase_mod_events[n] =
+        pl.phase_mod_events[n] =
         phase_mod_2(n, id, sett->N, het1, sgnlt[spindown],                                   // input
                     ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id], ifo[n].sig.shft_d[id], // input
                     fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],                              // output
-                    cl_handles, 1, phase_mod_events + (n - 1));                              // sync
+                    cl_handles, 1, &pl.phase_mod_events[n - 1]);                             // sync
     }
 
 	zero_pad(0, id, sett,                                      // input
              fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],       // input / output
-             cl_handles, sett->nifo, phase_mod_events,         // sync
-             zero_pad_events);                                 // sync
+             cl_handles, sett->nifo, pl.phase_mod_events,      // sync
+             pl.zero_pad_events);                              // sync
 
 	time_to_frequency(0, id, sett, plans,                         // input
                       fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], // input / output
-                      cl_handles, 2, zero_pad_events,             // sync
-                      fw2_fft_events);                            // sync
+                      cl_handles, 2, pl.zero_pad_events,          // sync
+                      pl.fw2_fft_events);                         // sync
 
     (*FNum)++; // TODO: revisit this variable, needs atomic at least
 
-    cl_event compute_Fstat_event =
+    pl.compute_Fstat_event =
 	  compute_Fstat(0, id, sett->nmin, sett->nmax,
                     fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], aux->maa_d[id], aux->mbb_d[id],
                     aux->F_d[id],
-                    cl_handles, 2, fw2_fft_events);
+                    cl_handles, 2, pl.fw2_fft_events);
 
-	cl_event normalize_Fstat_event =
-		normalize_FStat_wg_reduce(0, id, sett->nmin, sett->nmax, NAVFSTAT, // input
-                                  aux->F_d[id],                            // input / output
-                                  cl_handles, 1, &compute_Fstat_event);    // sync
+    pl.normalize_Fstat_event =
+      normalize_FStat_wg_reduce(0, id, sett->nmin, sett->nmax, NAVFSTAT, // input
+                                aux->F_d[id],                            // input / output
+                                cl_handles, 1, &pl.compute_Fstat_event); // sync
 
-    cl_event peak_map_event, peak_unmap_event;
-    find_peaks(0, id, sett->nmin, sett->nmax, opts->trl, sgnl_freq, sett, aux->F_d[id], // input
-               &results, sgnlt,                                                     // output
-               cl_handles, 1, &normalize_Fstat_event,                               // sync
-               &peak_map_event, &peak_unmap_event);                                 // sync
-
-    clReleaseEvent(peak_map_event); clReleaseEvent(peak_unmap_event);
+    find_peaks(0, id, sett->nmin, sett->nmax, opts->trl,    // input
+               sgnl_freq, sett, aux->F_d[id],               // input
+               &results, sgnlt,                             // output
+               cl_handles, 1, &pl.normalize_Fstat_event,    // sync
+               &pl.peak_map_event, &pl.peak_unmap_event);   // sync
   } // for ss 
 
 #ifndef VERBOSE
     printf("Number of signals found: %zu\n", results.sgnlc);
 #endif
+
+  // Deallocate storage for events to synchronize pipeline
+  free_pipeline(sett->nifo, &pl);
 
   return results;
 
@@ -503,4 +479,96 @@ Search_results*** init_results(const Search_range* s_range)
   }
 
   return results;
+}
+
+Pipeline init_pipeline(const size_t nifo)
+{
+  Pipeline p;
+
+  p.modvir_events = (cl_event*)malloc(nifo * sizeof(cl_event));
+  p.tshift_pmod_events = (cl_event*)malloc(nifo * sizeof(cl_event));
+  p.fft_interpolate_fw_fft_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.fft_interpolate_resample_copy_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.fft_interpolate_resample_fill_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.fft_interpolate_inv_fft_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.spline_map_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.spline_unmap_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.spline_blas_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.blas_dot_events = (cl_event**)malloc(nifo * sizeof(cl_event*));
+  p.mxx_fill_events = (cl_event*)malloc(2 * sizeof(cl_event));
+  p.axpy_events = (cl_event*)malloc(nifo * 2 * sizeof(cl_event));
+  p.phase_mod_events = (cl_event*)malloc(nifo * sizeof(cl_event));
+  p.zero_pad_events = (cl_event*)malloc(2 * sizeof(cl_event));
+  p.fw2_fft_events = (cl_event*)malloc(2 * sizeof(cl_event));
+  for (size_t n = 0; n < nifo; ++n)
+  {
+    p.fft_interpolate_fw_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+    p.fft_interpolate_resample_copy_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+    p.fft_interpolate_resample_fill_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+    p.fft_interpolate_inv_fft_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+    p.spline_map_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
+    p.spline_unmap_events[n] = (cl_event*)malloc(5 * sizeof(cl_event));
+    p.spline_blas_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+    p.blas_dot_events[n] = (cl_event*)malloc(2 * sizeof(cl_event));
+  }
+
+  return p;
+}
+
+void free_pipeline(const size_t nifo,
+                   Pipeline* p)
+{
+  // Release OpenCL events
+  for (size_t n = 0; n < nifo; ++n)
+  {
+    for (size_t m = 0; m < 2; ++m)
+    {
+      clReleaseEvent(p->fft_interpolate_fw_fft_events[n][m]);
+      clReleaseEvent(p->fft_interpolate_resample_copy_events[n][m]);
+      clReleaseEvent(p->fft_interpolate_resample_fill_events[n][m]);
+      clReleaseEvent(p->fft_interpolate_inv_fft_events[n][m]);
+    }
+    for (size_t m = 0; m < 5; ++m)
+    {
+      clReleaseEvent(p->spline_map_events[n][m]);
+      clReleaseEvent(p->spline_unmap_events[n][m]);
+    }
+    for (size_t m = 0; m < 2; ++m)
+    {
+      clReleaseEvent(p->spline_blas_events[n][m]);
+      clReleaseEvent(p->blas_dot_events[n][m]);
+    }
+  }
+  clReleaseEvent(p->compute_Fstat_event);
+  clReleaseEvent(p->normalize_Fstat_event);
+  clReleaseEvent(p->peak_map_event);
+  clReleaseEvent(p->peak_unmap_event);
+
+  // Free host-side memory
+  for (size_t n = 0; n < nifo; ++n)
+  {
+    free(p->fft_interpolate_fw_fft_events[n]);
+    free(p->fft_interpolate_resample_copy_events[n]);
+    free(p->fft_interpolate_resample_fill_events[n]);
+    free(p->fft_interpolate_inv_fft_events[n]);
+    free(p->spline_map_events[n]);
+    free(p->spline_unmap_events[n]);
+    free(p->spline_blas_events[n]);
+    free(p->blas_dot_events[n]);
+  }
+  free(p->modvir_events);
+  free(p->tshift_pmod_events);
+  free(p->fft_interpolate_fw_fft_events);
+  free(p->fft_interpolate_resample_copy_events);
+  free(p->fft_interpolate_resample_fill_events);
+  free(p->fft_interpolate_inv_fft_events);
+  free(p->spline_map_events);
+  free(p->spline_unmap_events);
+  free(p->spline_blas_events);
+  free(p->blas_dot_events);
+  free(p->mxx_fill_events);
+  free(p->axpy_events);
+  free(p->phase_mod_events);
+  free(p->zero_pad_events);
+  free(p->fw2_fft_events);
 }
