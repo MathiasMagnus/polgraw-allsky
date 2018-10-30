@@ -189,13 +189,17 @@ Search_results job_core(const int pm,                  // hemisphere
                         OpenCL_handles* cl_handles,    // handles to OpenCL resources
                         BLAS_handles* blas_handles)    // handle for scaling
 {
-  Search_results results = { 0, NULL };
+  Search_results results = { 0, NULL, init_profiling_info() };
 
   // Allocate storage for events to synchronize pipeline
   Pipeline pl = init_pipeline(sett->nifo);
 
   signal_params_t sgnlt[NPAR], sgnl_freq;
   double het0, ft, sinalt, cosalt, sindelt, cosdelt;
+
+  struct timespec pre_spindown_start, pre_spindown_end, spindown_end;
+
+  timespec_get(&pre_spindown_start, TIME_UTC);
 
   sky_positions(pm, mm, nn,                                   // input
 	            sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
@@ -249,6 +253,7 @@ Search_results job_core(const int pm,                  // hemisphere
 		     aux->aadots_d[id][n], aux->bbdots_d[id][n],               // output
 		     blas_handles, cl_handles, 1, &pl.modvir_events[n],        // sync
              pl.blas_dot_events[n]);                                   // sync
+
   } // end of detector loop
 
   calc_mxx(sett->nifo, id,                            // input
@@ -261,6 +266,8 @@ Search_results job_core(const int pm,                  // hemisphere
   spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
                  s_range, opts,                           // input
                  &smin, &smax);                           // output
+
+  timespec_get(&pre_spindown_end, TIME_UTC);
 
   printf("\n>>%zu\t%d\t%d\t[%d..%d]\n", results.sgnlc, mm, nn, smin, smax);
 
@@ -320,7 +327,18 @@ Search_results job_core(const int pm,                  // hemisphere
                &results, sgnlt,                             // output
                cl_handles, 1, &pl.normalize_Fstat_event,    // sync
                &pl.peak_map_event, &pl.peak_unmap_event);   // sync
-  } // for ss 
+  } // for ss
+
+  timespec_get(&spindown_end, TIME_UTC);
+
+  // Extract profiling info
+  results.prof.pre_spindown_exec =
+    (pre_spindown_end.tv_sec - pre_spindown_start.tv_sec) * 1000000000 +
+    (pre_spindown_end.tv_nsec - pre_spindown_start.tv_nsec);
+
+  results.prof.spindown_exec = 
+    (spindown_end.tv_sec - pre_spindown_end.tv_sec) * 1000000000 +
+    (spindown_end.tv_nsec - pre_spindown_end.tv_nsec);
 
 #ifndef VERBOSE
     printf("Number of signals found: %zu\n", results.sgnlc);
@@ -420,25 +438,30 @@ void save_and_free_results(const Command_line_opts* opts,
 Search_results combine_results(const Search_range* s_range,
                                const Search_results** results)
 {
-  Search_results result = { 0, NULL };
+  Search_results result = { 0, NULL, init_profiling_info() };
+
+  unsigned long long pre_spindown_duration,
+                     spindown_duration;
 
   // Two main loops over sky positions //
   for (int mm = s_range->mr[0]; mm <= s_range->mr[1]; ++mm)
   {
     for (int nn = s_range->nr[0]; nn <= s_range->nr[1]; ++nn)
     {
-        const Search_results* select = &results[mm - s_range->mr[0]]
-                                               [nn - s_range->nr[0]];
+      const Search_results* select = &results[mm - s_range->mr[0]]
+                                             [nn - s_range->nr[0]];
 
-        // Add new parameters to output array
-        size_t old_sgnlc = result.sgnlc;
-        result.sgnlc += select->sgnlc;
+      // Add new parameters to output array
+      size_t old_sgnlc = result.sgnlc;
+      result.sgnlc += select->sgnlc;
 
-        result.sgnlv = (double*)realloc(result.sgnlv,
-                                         (result.sgnlc) * NPAR * sizeof(double));
-        memcpy(result.sgnlv + (old_sgnlc * NPAR),
-               select->sgnlv,
-               select->sgnlc * NPAR * sizeof(double));
+      result.sgnlv = (double*)realloc(result.sgnlv,
+                                      (result.sgnlc) * NPAR * sizeof(double));
+      memcpy(result.sgnlv + (old_sgnlc * NPAR),
+             select->sgnlv,
+             select->sgnlc * NPAR * sizeof(double));
+
+      result.prof.pre_spindown_end.tv_sec
     } // for nn
 
   } // for mm
@@ -571,4 +594,33 @@ void free_pipeline(const size_t nifo,
   free(p->phase_mod_events);
   free(p->zero_pad_events);
   free(p->fw2_fft_events);
+}
+
+Profiling_info init_profiling_info()
+{
+  Profiling_info result = {
+    0, // modvir_exec,
+    0, // tshift_pmod_exec,
+    0, // fft_interpolate_fw_fft_exec,
+    0, // fft_interpolate_resample_copy_exec,
+    0, // fft_interpolate_resample_fill_exec,
+    0, // fft_interpolate_inv_fft_exec,
+    0, // spline_map_exec,
+    0, // spline_unmap_exec,
+    0, // spline_blas_exec,
+    0, // blas_dot_exec,
+    0, // mxx_fill_exec,
+    0, // axpy_exec,
+    0, // phase_mod_exec,
+    0, // zero_pad_exec,
+    0, // fw2_fft_exec,
+    0, // compute_Fstat_exec,
+    0, // normalize_Fstat_exec,
+    0, // peak_map_exec,
+    0, // peak_unmap_exec
+    0, // pre_spindown_exec
+    0  // spindown_exec
+  };
+
+  return result;
 }

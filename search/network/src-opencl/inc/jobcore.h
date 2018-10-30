@@ -81,4 +81,11 @@ Pipeline init_pipeline(const size_t nifo);
 void free_pipeline(const size_t nifo,
                    Pipeline* p);
 
+/// <summary>Initializes pipeline profiling data.</summary>
+///
+Profiling_info init_profiling_info();
+
+/// <summary>Prints profiling info to the console.</summary>
+void print_profiling_info
+
 #endif

@@ -14,7 +14,7 @@
 #include <CL/cl.h>
 
 // Standard C includes
-//#include <complex.h>
+#include <time.h>       // timespec
 
 #define MAX_DETECTORS 2        // Maximum number of detectors in network 
 #define DETNAME_LENGTH 2       // Detector name length (H1, L1, V1...)
@@ -271,18 +271,10 @@ typedef struct _triggers {
 
 } Candidate_triggers; 
 
-/// <summary>Used to communicate candidate signals between each <c>job_core</c> invocation and <c>search</c>.</summary>
-///
-typedef struct _search_results {
-
-  size_t sgnlc;  // Size of candidate signal array
-  double* sgnlv; // Array of candidate signals
-
-} Search_results;
-
-/// <summary></summary>
+/// <summary>Used to store OpenCL event objects to synchronize and profile the pipeline</summary>
 ///
 typedef struct _pipeline {
+
   cl_event *modvir_events,
            *tshift_pmod_events;
   cl_event **fft_interpolate_fw_fft_events,
@@ -302,4 +294,44 @@ typedef struct _pipeline {
            normalize_Fstat_event,
            peak_map_event,
            peak_unmap_event;
+
 } Pipeline;
+
+/// <summary>Holds execution durations of various sorts in nanoseconds.</summary>
+///
+typedef struct _profiling_info {
+
+  cl_ulong modvir_exec,
+           tshift_pmod_exec,
+           fft_interpolate_fw_fft_exec,
+           fft_interpolate_resample_copy_exec,
+           fft_interpolate_resample_fill_exec,
+           fft_interpolate_inv_fft_exec,
+           spline_map_exec,
+           spline_unmap_exec,
+           spline_blas_exec,
+           blas_dot_exec,
+           mxx_fill_exec,
+           axpy_exec,
+           phase_mod_exec,
+           zero_pad_exec,
+           fw2_fft_exec,
+           compute_Fstat_exec,
+           normalize_Fstat_exec,
+           peak_map_exec,
+           peak_unmap_exec;
+
+  unsigned long long pre_spindown_exec,
+                     spindown_exec;
+
+} Profiling_info;
+
+/// <summary>Used to communicate candidate signals between each <c>job_core</c> invocation and <c>search</c>.</summary>
+///
+typedef struct _search_results {
+
+    size_t sgnlc;       // Size of candidate signal array
+    double* sgnlv;      // Array of candidate signals
+    Profiling_info prof;// Profiling info of pipeline exec
+
+} Search_results;
