@@ -34,7 +34,6 @@
 #include <auxi.h>
 #include <settings.h>
 #include <timer.h>
-//#include <spline_z.h>
 #include <floats.h>
 
 // clFFT includes
@@ -199,7 +198,7 @@ Search_results job_core(const int pm,                  // hemisphere
 
   struct timespec pre_spindown_start, pre_spindown_end, spindown_end;
 
-  timespec_get(&pre_spindown_start, TIME_UTC);
+  if (timespec_get(&pre_spindown_start, TIME_UTC) != TIME_UTC) { checkErr(TIME_UTC, "timespec_get(&pre_spindown_start, TIME_UTC)"); }
 
   sky_positions(pm, mm, nn,                                   // input
 	            sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
@@ -267,7 +266,7 @@ Search_results job_core(const int pm,                  // hemisphere
                  s_range, opts,                           // input
                  &smin, &smax);                           // output
 
-  timespec_get(&pre_spindown_end, TIME_UTC);
+  if (timespec_get(&pre_spindown_end, TIME_UTC) != TIME_UTC) { checkErr(TIME_UTC, "timespec_get(&pre_spindown_end, TIME_UTC)"); }
 
   printf("\n>>%zu\t%d\t%d\t[%d..%d]\n", results.sgnlc, mm, nn, smin, smax);
 
@@ -329,28 +328,24 @@ Search_results job_core(const int pm,                  // hemisphere
                &pl.peak_map_event, &pl.peak_unmap_event);   // sync
   } // for ss
 
-  timespec_get(&spindown_end, TIME_UTC);
+  if (timespec_get(&spindown_end, TIME_UTC) != TIME_UTC) { checkErr(TIME_UTC, "timespec_get(&spindown_end, TIME_UTC)"); }
 
   // Extract profiling info
-  results.prof.pre_spindown_exec =
-    (pre_spindown_end.tv_sec - pre_spindown_start.tv_sec) * 1000000000 +
-    (pre_spindown_end.tv_nsec - pre_spindown_start.tv_nsec);
-
-  results.prof.spindown_exec = 
-    (spindown_end.tv_sec - pre_spindown_end.tv_sec) * 1000000000 +
-    (spindown_end.tv_nsec - pre_spindown_end.tv_nsec);
+  extract_profiling_info(&pre_spindown_start,
+                         &pre_spindown_end,
+                         &spindown_end,
+                         pl, &results.prof);
 
 #ifndef VERBOSE
     printf("Number of signals found: %zu\n", results.sgnlc);
 #endif
 
-  // Deallocate storage for events to synchronize pipeline
+  // Release OpenCL event objects and free their storage
   free_pipeline(sett->nifo, &pl);
 
   return results;
 
 } // jobcore
-
 
 
 void spindown_range(const int mm,                  // grid 'sky position'
@@ -396,6 +391,8 @@ void save_and_free_results(const Command_line_opts* opts,
         pm);
 
     Search_results result = combine_results(s_range, results[pm - s_range->pmr[0]]);
+
+    print_profiling_info(result.prof);
 
     // if any signals found (Fstat>Fc)
     if (result.sgnlc)
@@ -461,7 +458,9 @@ Search_results combine_results(const Search_range* s_range,
              select->sgnlv,
              select->sgnlc * NPAR * sizeof(double));
 
-      result.prof.pre_spindown_end.tv_sec
+      result.prof.pre_spindown_exec += select->prof.pre_spindown_exec;
+      result.prof.spindown_exec += select->prof.spindown_exec;
+
     } // for nn
 
   } // for mm
@@ -623,4 +622,25 @@ Profiling_info init_profiling_info()
   };
 
   return result;
+}
+
+void extract_profiling_info(const struct timespec* pre_spindown_start,
+                            const struct timespec* pre_spindown_end,
+                            const struct timespec* spindown_end,
+                            const Pipeline pipeline,
+                            Profiling_info* prof)
+{
+    prof->pre_spindown_exec =
+        (pre_spindown_end->tv_sec - pre_spindown_start->tv_sec) * 1000000000 +
+        (pre_spindown_end->tv_nsec - pre_spindown_start->tv_nsec);
+
+    prof->spindown_exec =
+        (spindown_end->tv_sec - pre_spindown_end->tv_sec) * 1000000000 +
+        (spindown_end->tv_nsec - pre_spindown_end->tv_nsec);
+}
+
+void print_profiling_info(const Profiling_info prof)
+{
+    printf("Total pre-spindown calculation : %f seconds.\n", prof.pre_spindown_exec / 1000000000.);
+    printf("Total spindown calculation     : %f seconds.\n", prof.spindown_exec / 1000000000.);
 }

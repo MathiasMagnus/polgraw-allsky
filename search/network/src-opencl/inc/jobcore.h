@@ -85,7 +85,16 @@ void free_pipeline(const size_t nifo,
 ///
 Profiling_info init_profiling_info();
 
-/// <summary>Prints profiling info to the console.</summary>
-void print_profiling_info
+/// <summary>Extracts profiling info from OpenCL events and CRT time points.</summary>
+///
+void extract_profiling_info(const struct timespec* pre_spindown_start,
+                            const struct timespec* pre_spindown_end,
+                            const struct timespec* spindown_end,
+                            const Pipeline pipeline,
+                            Profiling_info* prof);
+
+/// <summary>Prints profiling info to console.</summary>
+///
+void print_profiling_info(const Profiling_info prof);
 
 #endif
