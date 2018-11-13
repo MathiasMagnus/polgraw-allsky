@@ -326,15 +326,23 @@ Search_results job_core(const int pm,                  // hemisphere
                &results, sgnlt,                             // output
                cl_handles, 1, &pl.normalize_Fstat_event,    // sync
                &pl.peak_map_event, &pl.peak_unmap_event);   // sync
+
+    extract_spindown_profiling_info(sett->nifo,
+                                    pl,
+                                    &results.prof);
+
+    release_spindown_events(sett->nifo, &pl);
+
   } // for ss
 
   if (timespec_get(&spindown_end, TIME_UTC) != TIME_UTC) { checkErr(TIME_UTC, "timespec_get(&spindown_end, TIME_UTC)"); }
 
   // Extract profiling info
-  extract_profiling_info(&pre_spindown_start,
-                         &pre_spindown_end,
-                         &spindown_end,
-                         pl, &results.prof);
+  extract_non_spindown_profiling_info(sett->nifo,
+                                      &pre_spindown_start,
+                                      &pre_spindown_end,
+                                      &spindown_end,
+                                      pl, &results.prof);
 
 #ifndef VERBOSE
     printf("Number of signals found: %zu\n", results.sgnlc);
@@ -458,8 +466,22 @@ Search_results combine_results(const Search_range* s_range,
              select->sgnlv,
              select->sgnlc * NPAR * sizeof(double));
 
+      result.prof.modvir_exec += select->prof.modvir_exec;
+      result.prof.tshift_pmod_exec += select->prof.tshift_pmod_exec;
+      result.prof.spline_map_exec += select->prof.spline_map_exec;
+      result.prof.blas_dot_exec += select->prof.blas_dot_exec;
+      result.prof.mxx_fill_exec += select->prof.mxx_fill_exec;
+      result.prof.axpy_exec += select->prof.axpy_exec;
+
       result.prof.pre_spindown_exec += select->prof.pre_spindown_exec;
       result.prof.spindown_exec += select->prof.spindown_exec;
+
+      result.prof.phase_mod_exec += select->prof.phase_mod_exec;
+      result.prof.zero_pad_exec += select->prof.zero_pad_exec;
+      result.prof.fw2_fft_exec += select->prof.fw2_fft_exec;
+      result.prof.compute_Fstat_exec += select->prof.compute_Fstat_exec;
+      result.prof.normalize_Fstat_exec += select->prof.normalize_Fstat_exec;
+      result.prof.find_peak_exec += select->prof.find_peak_exec;
 
     } // for nn
 
@@ -595,6 +617,28 @@ void free_pipeline(const size_t nifo,
   free(p->fw2_fft_events);
 }
 
+void release_spindown_events(const size_t nifo,
+                             Pipeline* p)
+{
+  cl_int CL_err = CL_SUCCESS;
+
+  for (size_t n = 0; n < nifo; ++n)
+  {
+    CL_err = clReleaseEvent(p->phase_mod_events[n]); checkErr(CL_err, "clReleaseEvent(phase_mod_events)");
+  }
+
+  for (size_t m = 0; m < 2; ++m)
+  {
+    CL_err = clReleaseEvent(p->zero_pad_events[m]); checkErr(CL_err, "clReleaseEvent(zero_pad_events)");
+    CL_err = clReleaseEvent(p->fw2_fft_events[m]); checkErr(CL_err, "clReleaseEvent(fw2_fft_events)");
+  }
+
+  CL_err = clReleaseEvent(p->compute_Fstat_event); checkErr(CL_err, "clReleaseEvent(compute_Fstat_event)");
+  CL_err = clReleaseEvent(p->normalize_Fstat_event); checkErr(CL_err, "clReleaseEvent(normalize_Fstat_event)");
+  CL_err = clReleaseEvent(p->peak_map_event); checkErr(CL_err, "clReleaseEvent(peak_map_event)");
+  CL_err = clReleaseEvent(p->peak_unmap_event); checkErr(CL_err, "clReleaseEvent(peak_unmap_event)");
+}
+
 Profiling_info init_profiling_info()
 {
   Profiling_info result = {
@@ -615,8 +659,7 @@ Profiling_info init_profiling_info()
     0, // fw2_fft_exec,
     0, // compute_Fstat_exec,
     0, // normalize_Fstat_exec,
-    0, // peak_map_exec,
-    0, // peak_unmap_exec
+    0, // find_peak_exec
     0, // pre_spindown_exec
     0  // spindown_exec
   };
@@ -624,23 +667,125 @@ Profiling_info init_profiling_info()
   return result;
 }
 
-void extract_profiling_info(const struct timespec* pre_spindown_start,
-                            const struct timespec* pre_spindown_end,
-                            const struct timespec* spindown_end,
-                            const Pipeline pipeline,
-                            Profiling_info* prof)
+void extract_non_spindown_profiling_info(const size_t nifo,
+                                         const struct timespec* pre_spindown_start,
+                                         const struct timespec* pre_spindown_end,
+                                         const struct timespec* spindown_end,
+                                         const Pipeline pipeline,
+                                         Profiling_info* prof)
 {
-    prof->pre_spindown_exec =
-        (pre_spindown_end->tv_sec - pre_spindown_start->tv_sec) * 1000000000 +
-        (pre_spindown_end->tv_nsec - pre_spindown_start->tv_nsec);
+  cl_ulong start, end;
+  size_t info_size;
+  cl_int CL_err = CL_SUCCESS;
 
-    prof->spindown_exec =
-        (spindown_end->tv_sec - pre_spindown_end->tv_sec) * 1000000000 +
-        (spindown_end->tv_nsec - pre_spindown_end->tv_nsec);
+  for (size_t n = 0; n < nifo; ++n)
+  {
+      CL_err = clGetEventProfilingInfo(pipeline.modvir_events[n], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      CL_err = clGetEventProfilingInfo(pipeline.modvir_events[n], CL_PROFILING_COMMAND_END  , sizeof(cl_ulong), &end,   &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      prof->modvir_exec += end - start;
+
+      CL_err = clGetEventProfilingInfo(pipeline.tshift_pmod_events[n], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      CL_err = clGetEventProfilingInfo(pipeline.tshift_pmod_events[n], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      prof->tshift_pmod_exec += end - start;
+
+      cl_ulong earliest = CL_ULONG_MAX,
+               latest = 0;
+      for (size_t m = 0; m < 5; ++m)
+      {
+          CL_err = clGetEventProfilingInfo(pipeline.spline_map_events[n][m], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+          if (start < earliest) earliest = start;
+
+          CL_err = clGetEventProfilingInfo(pipeline.spline_unmap_events[n][m], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+          if (end > latest) latest = end;
+      }
+      prof->spline_map_exec += latest - earliest;
+
+      for (size_t m = 0; m < 2; ++m)
+      {
+          CL_err = clGetEventProfilingInfo(pipeline.blas_dot_events[n][m], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+          CL_err = clGetEventProfilingInfo(pipeline.blas_dot_events[n][m], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+          prof->blas_dot_exec += end - start;
+      }
+  }
+  for (size_t n = 0; n < 2; ++n)
+  {
+      CL_err = clGetEventProfilingInfo(pipeline.mxx_fill_events[n], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      CL_err = clGetEventProfilingInfo(pipeline.mxx_fill_events[n], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      prof->mxx_fill_exec += end - start;
+  }
+  for (size_t n = 0; n < 2 * nifo; ++n)
+  {
+      CL_err = clGetEventProfilingInfo(pipeline.axpy_events[n], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      CL_err = clGetEventProfilingInfo(pipeline.axpy_events[n], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      prof->axpy_exec += end - start;
+  }
+
+  prof->pre_spindown_exec =
+    (pre_spindown_end->tv_sec - pre_spindown_start->tv_sec) * 1000000000 +
+    (pre_spindown_end->tv_nsec - pre_spindown_start->tv_nsec);
+
+  prof->spindown_exec =
+    (spindown_end->tv_sec - pre_spindown_end->tv_sec) * 1000000000 +
+    (spindown_end->tv_nsec - pre_spindown_end->tv_nsec);
+}
+
+void extract_spindown_profiling_info(const size_t nifo,
+                                     const Pipeline pipeline,
+                                     Profiling_info* prof)
+{
+  cl_ulong start, end;
+  size_t info_size;
+  cl_int CL_err = CL_SUCCESS;
+
+  for (size_t n = 0; n < nifo; ++n)
+  {
+    CL_err = clGetEventProfilingInfo(pipeline.phase_mod_events[n], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+    CL_err = clGetEventProfilingInfo(pipeline.phase_mod_events[n], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+    prof->phase_mod_exec += end - start;
+  }
+
+  for (size_t m = 0; m < 2; ++m)
+  {
+    CL_err = clGetEventProfilingInfo(pipeline.zero_pad_events[m], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+    CL_err = clGetEventProfilingInfo(pipeline.zero_pad_events[m], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+    prof->zero_pad_exec += end - start;
+
+    CL_err = clGetEventProfilingInfo(pipeline.fw2_fft_events[m], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+    CL_err = clGetEventProfilingInfo(pipeline.fw2_fft_events[m], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+    prof->fw2_fft_exec += end - start;
+  }
+
+  CL_err = clGetEventProfilingInfo(pipeline.compute_Fstat_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+  CL_err = clGetEventProfilingInfo(pipeline.compute_Fstat_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+  prof->compute_Fstat_exec += end - start;
+
+  CL_err = clGetEventProfilingInfo(pipeline.normalize_Fstat_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+  CL_err = clGetEventProfilingInfo(pipeline.normalize_Fstat_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+  prof->normalize_Fstat_exec += end - start;
+
+  CL_err = clGetEventProfilingInfo(pipeline.peak_map_event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+  CL_err = clGetEventProfilingInfo(pipeline.peak_unmap_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+  prof->find_peak_exec += end - start;
 }
 
 void print_profiling_info(const Profiling_info prof)
 {
     printf("Total pre-spindown calculation : %f seconds.\n", prof.pre_spindown_exec / 1000000000.);
     printf("Total spindown calculation     : %f seconds.\n", prof.spindown_exec / 1000000000.);
+    printf("\n");
+    printf("Pre-spindown details:\n\n");
+    printf("\tModvir        : %f seconds.\n", prof.modvir_exec / 1000000000.);
+    printf("\tTShift_pmod   : %f seconds.\n", prof.tshift_pmod_exec / 1000000000.);
+    printf("\tSpline interp : %f seconds.\n", prof.spline_map_exec / 1000000000.);
+    printf("\tBLAS dot      : %f seconds.\n", prof.blas_dot_exec / 1000000000.);
+    printf("\tCalc_mxx_fill : %f seconds.\n", prof.mxx_fill_exec / 1000000000.);
+    printf("\tCalc_mxx_axpy : %f seconds.\n", prof.axpy_exec / 1000000000.);
+    printf("\n");
+    printf("Spindown details:\n\n");
+    printf("\tPhase mod     : %f seconds.\n", prof.phase_mod_exec / 1000000000.);
+    printf("\tZero pad      : %f seconds.\n", prof.zero_pad_exec / 1000000000.);
+    printf("\tTime to freq  : %f seconds.\n", prof.fw2_fft_exec / 1000000000.);
+    printf("\tCompute FStat : %f seconds.\n", prof.compute_Fstat_exec / 1000000000.);
+    printf("\tNorm FStat    : %f seconds.\n", prof.normalize_Fstat_exec / 1000000000.);
+    printf("\tFind peaks    : %f seconds.\n", prof.find_peak_exec / 1000000000.);
 }

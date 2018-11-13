@@ -318,8 +318,7 @@ typedef struct _profiling_info {
            fw2_fft_exec,
            compute_Fstat_exec,
            normalize_Fstat_exec,
-           peak_map_exec,
-           peak_unmap_exec;
+           find_peak_exec;
 
   unsigned long long pre_spindown_exec,
                      spindown_exec;

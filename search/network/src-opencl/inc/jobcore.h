@@ -81,17 +81,29 @@ Pipeline init_pipeline(const size_t nifo);
 void free_pipeline(const size_t nifo,
                    Pipeline* p);
 
+/// <summary>Releases OpenCL events inside the spindown loop for reuse.</summary>
+///
+void release_spindown_events(const size_t nifo,
+                             Pipeline* p);
+
 /// <summary>Initializes pipeline profiling data.</summary>
 ///
 Profiling_info init_profiling_info();
 
 /// <summary>Extracts profiling info from OpenCL events and CRT time points.</summary>
 ///
-void extract_profiling_info(const struct timespec* pre_spindown_start,
-                            const struct timespec* pre_spindown_end,
-                            const struct timespec* spindown_end,
-                            const Pipeline pipeline,
-                            Profiling_info* prof);
+void extract_non_spindown_profiling_info(const size_t nifo, 
+                                         const struct timespec* pre_spindown_start,
+                                         const struct timespec* pre_spindown_end,
+                                         const struct timespec* spindown_end,
+                                         const Pipeline pipeline,
+                                         Profiling_info* prof);
+
+/// <summary>Extracts profiling info from OpenCL events and CRT time points.</summary>
+///
+void extract_spindown_profiling_info(const size_t nifo,
+                                     const Pipeline pipeline,
+                                     Profiling_info* prof);
 
 /// <summary>Prints profiling info to console.</summary>
 ///
