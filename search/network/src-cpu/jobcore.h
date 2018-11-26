@@ -28,19 +28,20 @@ void search(
  * (FLOAT_TYPE defined in struct.h)  
  */ 
 
-int job_core(
-	     int pm,                   // hemisphere
-	     int mm,                   // grid 'sky position'
-	     int nn,                   // other grid 'sky position'
-	     Search_settings *sett,    // search settings
-	     Command_line_opts *opts,  // cmd opts
-	     Search_range *s_range,    // range for searching
-	     FFTW_plans *plans,        // plans for fftw
-	     FFTW_arrays *fftw_arr,    // arrays for fftw
-	     Aux_arrays *aux,          // auxiliary arrays
-	     double *F,                // F-statistics array
-	     int *sgnlc,               // current number of candidates
-	     FLOAT_TYPE *sgnlv,        // candidate array
-	     int *FNum);               // candidate signal number
+int job_core(int pm,                   // hemisphere
+             int mm,                   // grid 'sky position'
+             int nn,                   // other grid 'sky position'
+             Search_settings *sett,    // search settings
+             Command_line_opts *opts,  // cmd opts
+             Search_range *s_range,    // range for searching
+             FFTW_plans *plans,        // plans for fftw
+             FFTW_arrays *fftw_arr,    // arrays for fftw
+             Aux_arrays *aux,          // auxiliary arrays
+             double *F,                // F-statistics array
+             int *sgnlc,               // current number of candidates
+             FLOAT_TYPE *sgnlv,        // candidate array
+             int *FNum,                // candidate signal number
+             double* pre_spindown_duration, // profiling info
+             double* spindown_duration);    // profiling info
 
 #endif

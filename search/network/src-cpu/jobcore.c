@@ -89,6 +89,9 @@ void search(
 #endif // WIN32
   FILE *state;
 
+  double pre_spindown_duration = 0,
+         spindown_duration = 0;
+
 #ifdef YEPPP
   status = yepLibrary_Init();
   assert(status == YepStatusOk);
@@ -120,7 +123,7 @@ void search(
 
   for (pm=s_range->pst; pm<=s_range->pmr[1]; ++pm) {
 
-    sprintf (outname, "%s/triggers_%03d_%04d%s_%d.bin", 
+    sprintf (outname, "%s/cpu_triggers_%03d_%04d%s_%d.bin", 
 	         opts->prefix,
              opts->ident,
              opts->band,
@@ -164,7 +167,9 @@ void search(
 			  F,            // F-statistics array
 			  &sgnlc,       // current number of candidates
 			  sgnlv,        // candidate array
-			  FNum);        // candidate signal number
+			  FNum,         // candidate signal number
+              &pre_spindown_duration, // profiling info
+              &spindown_duration);    // profiling info
 	
 	// Get back to regular spin-down range
 	s_range->sst = s_range->spndr[0];
@@ -175,8 +180,22 @@ void search(
       FILE* fc = fopen(outname, "w");
       if (fc == NULL) perror("Failed to open output file.");
   
-      size_t count = fwrite((void *)(sgnlv), sizeof(FLOAT_TYPE), sgnlc*NPAR, fc);
-      if (count < sgnlc*NPAR) perror("Failed to write output file.");
+      //size_t count = fwrite((void *)(sgnlv), sizeof(FLOAT_TYPE), sgnlc*NPAR, fc);
+      //if (count < sgnlc*NPAR) perror("Failed to write output file.");
+
+      // Gnuplot friendly
+      for (int i = 0; i < sgnlc; ++i)
+      {
+          int out_count = fprintf_s(fc,
+              "%e\t%e\t%e\t%e\t%e\n",
+              sgnlv[i*NPAR + 0],
+              sgnlv[i*NPAR + 1],
+              sgnlv[i*NPAR + 2],
+              sgnlv[i*NPAR + 3],
+              sgnlv[i*NPAR + 4]);
+
+          if (out_count < 0) perror("Failed to write output file.");
+      }
   
       int close = fclose(fc);
       if (close == EOF) perror("Failed to close output file.");
@@ -250,24 +269,30 @@ void search(
   /* Main job */ 
 
 int job_core(int pm,                   // Hemisphere
-	     int mm,                   // Grid 'sky position'
-	     int nn,                   // Second grid 'sky position'
-	     Search_settings *sett,    // Search settings
-	     Command_line_opts *opts,  // Search options 
-	     Search_range *s_range,    // Range for searching
-	     FFTW_plans *plans,        // Plans for fftw
-	     FFTW_arrays *fftw_arr,    // Arrays for fftw
-	     Aux_arrays *aux,          // Auxiliary arrays
-	     double *F,                // F-statistics array
-	     int *sgnlc,               // Candidate trigger parameters 
-	     FLOAT_TYPE *sgnlv,        // Candidate array 
-	     int *FNum) {              // Candidate signal number
-
+             int mm,                   // Grid 'sky position'
+             int nn,                   // Second grid 'sky position'
+             Search_settings *sett,    // Search settings
+             Command_line_opts *opts,  // Search options 
+             Search_range *s_range,    // Range for searching
+             FFTW_plans *plans,        // Plans for fftw
+             FFTW_arrays *fftw_arr,    // Arrays for fftw
+             Aux_arrays *aux,          // Auxiliary arrays
+             double *F,                // F-statistics array
+             int *sgnlc,               // Candidate trigger parameters 
+             FLOAT_TYPE *sgnlv,        // Candidate array 
+             int *FNum,                // candidate signal number
+             double* pre_spindown_duration, // profiling info
+             double* spindown_duration)     // profiling info
+{
   int i, j, n;//, m;
   int smin = s_range->sst, smax = s_range->spndr[1];
   double al1, al2, sinalt, cosalt, sindelt, cosdelt, sgnlt[NPAR], 
     nSource[3], het0, sgnl0, ft;
   
+  struct timespec pre_spindown_start, pre_spindown_end, spindown_end;
+  Profiling_info prof[MAX_DETECTORS];
+
+  pre_spindown_start = get_current_time();
   
   // VLA version
   //double _tmp1[sett->nifo][sett->N];
@@ -339,10 +364,12 @@ int job_core(int pm,                   // Hemisphere
   int nyqst = (sett->nfft)/2 + 1;
 
   // Loop for each detector 
-  for(n=0; n<sett->nifo; ++n) { 
+  for(n=0; n<sett->nifo; ++n) {
 
     memset(fftw_arr->xa, 0, fftw_arr->arr_len * sizeof(complex_t));
     memset(fftw_arr->xb, 0, fftw_arr->arr_len * sizeof(complex_t));
+
+    prof[n].modvir_start = get_current_time();
 
     /* Amplitude modulation functions aa and bb 
      * for each detector (in signal sub-struct 
@@ -351,6 +378,9 @@ int job_core(int pm,                   // Hemisphere
 
     modvir(sinalt, cosalt, sindelt, cosdelt,
 	   sett->N, &ifo[n], aux);
+
+    prof[n].modvir_end = get_current_time();
+
 #ifdef TESTING
     //save_numbered_real_array(aux->sinmodf, sett->N, n, "aux_sinmodf");
     //save_numbered_real_array(aux->cosmodf, sett->N, n, "aux_cosmodf");
@@ -366,6 +396,8 @@ int job_core(int pm,                   // Hemisphere
     shft1 = nSource[0]*ifo[n].sig.DetSSB[0]
           + nSource[1]*ifo[n].sig.DetSSB[1]
           + nSource[2]*ifo[n].sig.DetSSB[2];
+
+    prof[n].tshift_pmod_start = get_current_time();
 
     for(i=0; i<sett->N; ++i) {
       ifo[n].sig.shft[i] = nSource[0]*ifo[n].sig.DetSSB[i*3]
@@ -429,6 +461,9 @@ int job_core(int pm,                   // Hemisphere
     fftw_arr->xb[i] = 0.;
 #endif
     }
+
+    prof[n].tshift_pmod_end = prof[n].fft_interpolate_fw_fft_start = get_current_time();
+
 #ifdef TESTING
     //save_numbered_complex_array(fftw_arr->xa, sett->nfft/*fftw_arr->arr_len*/, n, "xa_time");
     //save_numbered_complex_array(fftw_arr->xb, sett->nfft/*fftw_arr->arr_len*/, n, "xb_time");
@@ -440,6 +475,9 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->pl_int, fftw_arr->xa, fftw_arr->xa);  //forward fft (len nfft)
     fftw_execute_dft(plans->pl_int, fftw_arr->xb, fftw_arr->xb);  //forward fft (len nfft)
 #endif
+
+    prof[n].fft_interpolate_fw_fft_end = prof[n].fft_interpolate_resample_copy_fill_start = get_current_time();
+
 #ifdef TESTING
 	//save_numbered_complex_array(fftw_arr->xa, sett->nfft/*fftw_arr->arr_len*/, n, "xa_fourier");
 	//save_numbered_complex_array(fftw_arr->xb, sett->nfft/*fftw_arr->arr_len*/, n, "xb_fourier");
@@ -467,6 +505,9 @@ int job_core(int pm,                   // Hemisphere
     fftw_arr->xb[j] = 0.;
 #endif 
     }
+
+    prof[n].fft_interpolate_resample_copy_fill_end = prof[n].fft_interpolate_inv_fft_start = get_current_time();
+
 #ifdef TESTING
 	save_numbered_complex_array(fftw_arr->xa, sett->Ninterp/*fftw_arr->arr_len*/, n, "xa_fourier_resampled");
 	save_numbered_complex_array(fftw_arr->xb, sett->Ninterp/*fftw_arr->arr_len*/, n, "xb_fourier_resampled");
@@ -580,6 +621,8 @@ int job_core(int pm,                   // Hemisphere
   // if spindown parameter is taken into account, smin != smax
   //exit(0);
   /* Spindown loop  */
+
+  pre_spindown_end = get_current_time();
   
   for(ss=smin; ss<=smax; ++ss) {
 
@@ -968,6 +1011,11 @@ int job_core(int pm,                   // Hemisphere
   printf("\nTotal spindown loop time: %e s, mean spindown time: %e s (%d runs)\n",
 	 spindown_timer, spindown_timer/spindown_counter, spindown_counter);
 #endif
+
+  spindown_end = get_current_time();
+
+  *pre_spindown_duration += get_time_difference(pre_spindown_start, pre_spindown_end);
+  *spindown_duration += get_time_difference(pre_spindown_end, spindown_end);
   
   return 0;
   

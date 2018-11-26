@@ -3,6 +3,7 @@
 
 // Polgraw includes
 #include <floats.h>     // COMPLEX_FLOAT
+#include <timer.h>      // struct timespec
 
 // FFTW
 #include <fftw3.h>
@@ -210,5 +211,37 @@ typedef struct _triggers {
   int frcount, goodcands; 
 
 } Candidate_triggers; 
+
+/// <summary>Holds execution durations of various sorts in nanoseconds.</summary>
+///
+typedef struct _profiling_info {
+
+    struct timespec modvir_start, modvir_end,
+                    tshift_pmod_start, tshift_pmod_end,
+                    fft_interpolate_fw_fft_start, fft_interpolate_fw_fft_end,
+                    fft_interpolate_resample_copy_fill_start, fft_interpolate_resample_copy_fill_end,
+                    fft_interpolate_inv_fft_start, fft_interpolate_inv_fft_end,
+        //tshift_pmod_exec,
+        //fft_interpolate_fw_fft_exec,
+        //fft_interpolate_resample_copy_exec,
+        //fft_interpolate_resample_fill_exec,
+        //fft_interpolate_inv_fft_exec,
+        //spline_map_exec,
+        //spline_unmap_exec,
+        //spline_blas_exec,
+        //blas_dot_exec,
+        //mxx_fill_exec,
+        //axpy_exec,
+        //phase_mod_exec,
+        //zero_pad_exec,
+        //fw2_fft_exec,
+        //compute_Fstat_exec,
+        //normalize_Fstat_exec,
+        //find_peak_exec;
+
+    unsigned long long pre_spindown_exec,
+        spindown_exec;
+
+} Profiling_info;
 
 #endif 
