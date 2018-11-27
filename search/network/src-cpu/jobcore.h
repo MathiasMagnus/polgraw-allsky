@@ -41,7 +41,12 @@ int job_core(int pm,                   // hemisphere
              int *sgnlc,               // current number of candidates
              FLOAT_TYPE *sgnlv,        // candidate array
              int *FNum,                // candidate signal number
-             double* pre_spindown_duration, // profiling info
-             double* spindown_duration);    // profiling info
+             Profiling_info* prof);    // profiling info
+
+void extract_non_spindown_profiling_info(int nifo, const Pipeline* pl, Profiling_info* prof);
+
+void extract_spindown_profiling_info(int nifo, const Pipeline* pl, Profiling_info* prof);
+
+void print_profiling_info(const Profiling_info prof);
 
 #endif

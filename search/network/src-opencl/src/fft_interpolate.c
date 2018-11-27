@@ -90,6 +90,7 @@ void resample_postfft(const cl_int idet,
   copy_events[1] = exec; clRetainEvent(exec);
   fill_events[0] = exec; clRetainEvent(exec);
   fill_events[1] = exec; clRetainEvent(exec);
+  clReleaseEvent(exec); // Release, because exec will go out of scope
 
 //  size_t src_off = sizeof(fft_complex) * nyqst,                     // src offset
 //      dst_off = sizeof(fft_complex) * (nyqst + Ninterp - nfft),  // dst offset

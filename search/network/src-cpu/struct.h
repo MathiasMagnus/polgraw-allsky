@@ -210,37 +210,62 @@ typedef struct _triggers {
 
   int frcount, goodcands; 
 
-} Candidate_triggers; 
+} Candidate_triggers;
+
+/// <summary>Used to store time points to profile the pipeline</summary>
+///
+typedef struct _pipeline {
+ 
+  struct timespec modvir_event[MAX_DETECTORS][2],
+                  tshift_pmod_event[MAX_DETECTORS][2],
+                  fft_interpolate_fw_fft_event[MAX_DETECTORS][2],
+                  fft_interpolate_resample_copy_fill_event[MAX_DETECTORS][2],
+                  fft_interpolate_inv_fft_event[MAX_DETECTORS][2],
+                  fft_interpolate_scale_event[MAX_DETECTORS][2],
+                  spline_interpolate_event[MAX_DETECTORS][2],
+                  blas_dot_event[MAX_DETECTORS][2],
+                  axpy_event[MAX_DETECTORS][2],
+                  phase_mod_event[MAX_DETECTORS][2],
+                  zero_pad_event[2],
+                  fw2_fft_event[2],
+                  compute_Fstat_event[2],
+                  normalize_Fstat_event[2],
+                  find_peak_event[2];
+
+  struct timespec pre_spindown_start,
+                  pre_spindown_end,
+                  spindown_end;
+
+} Pipeline;
+
+enum Pipeline_event
+{
+    start = 0,
+    end = 1
+};
 
 /// <summary>Holds execution durations of various sorts in nanoseconds.</summary>
 ///
 typedef struct _profiling_info {
 
-    struct timespec modvir_start, modvir_end,
-                    tshift_pmod_start, tshift_pmod_end,
-                    fft_interpolate_fw_fft_start, fft_interpolate_fw_fft_end,
-                    fft_interpolate_resample_copy_fill_start, fft_interpolate_resample_copy_fill_end,
-                    fft_interpolate_inv_fft_start, fft_interpolate_inv_fft_end,
-        //tshift_pmod_exec,
-        //fft_interpolate_fw_fft_exec,
-        //fft_interpolate_resample_copy_exec,
-        //fft_interpolate_resample_fill_exec,
-        //fft_interpolate_inv_fft_exec,
-        //spline_map_exec,
-        //spline_unmap_exec,
-        //spline_blas_exec,
-        //blas_dot_exec,
-        //mxx_fill_exec,
-        //axpy_exec,
-        //phase_mod_exec,
-        //zero_pad_exec,
-        //fw2_fft_exec,
-        //compute_Fstat_exec,
-        //normalize_Fstat_exec,
-        //find_peak_exec;
+  unsigned long long modvir_exec,
+                     tshift_pmod_exec,
+                     fft_interpolate_fw_fft_exec,
+                     fft_interpolate_resample_copy_fill_exec,
+                     fft_interpolate_inv_fft_exec,
+                     fft_interpolate_scale_exec,
+                     spline_interpolate_exec,
+                     blas_dot_exec,
+                     axpy_exec,
+                     phase_mod_exec,
+                     zero_pad_exec,
+                     fw2_fft_exec,
+                     compute_Fstat_exec,
+                     normalize_Fstat_exec,
+                     find_peak_exec;
 
-    unsigned long long pre_spindown_exec,
-        spindown_exec;
+  unsigned long long pre_spindown_exec,
+                     spindown_exec;
 
 } Profiling_info;
 

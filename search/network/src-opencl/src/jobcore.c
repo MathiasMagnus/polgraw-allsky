@@ -391,7 +391,7 @@ void save_and_free_results(const Command_line_opts* opts,
   for (int pm = s_range->pmr[0]; pm <= s_range->pmr[1]; ++pm)
   {
     char outname[512];
-    sprintf(outname, "%s/triggers_%03d_%03d%s_%d.bin",
+    sprintf(outname, "%s/ocl_triggers_%03d_%03d%s_%d.bin",
         opts->prefix,
         opts->ident,
         opts->band,
@@ -408,11 +408,26 @@ void save_and_free_results(const Command_line_opts* opts,
       FILE* fc = fopen(outname, "w");
       if (fc == NULL) perror("Failed to open output file.");
 
-      size_t count = fwrite((void *)(result.sgnlv),
-                            sizeof(double),
-                            result.sgnlc*NPAR,
-                            fc);
-      if (count < result.sgnlc*NPAR) perror("Failed to write output file.");
+      // Original
+      //size_t count = fwrite((void *)(result.sgnlv),
+      //                      sizeof(double),
+      //                      result.sgnlc*NPAR,
+      //                      fc);
+      //if (count < result.sgnlc*NPAR) perror("Failed to write output file.");
+
+      // Gnuplot friendly
+      for (int i = 0; i < result.sgnlc; ++i)
+      {
+        int out_count = fprintf_s(fc,
+                                  "%e\t%e\t%e\t%e\t%e\n",
+                                  result.sgnlv[i*NPAR + 0],
+                                  result.sgnlv[i*NPAR + 1],
+                                  result.sgnlv[i*NPAR + 2],
+                                  result.sgnlv[i*NPAR + 3],
+                                  result.sgnlv[i*NPAR + 4]);
+
+        if (out_count < 0) checkErr(out_count, "fprintf_s");
+      }
 
       int close = fclose(fc);
       if (close == EOF) perror("Failed to close output file.");
@@ -688,6 +703,24 @@ void extract_non_spindown_profiling_info(const size_t nifo,
       CL_err = clGetEventProfilingInfo(pipeline.tshift_pmod_events[n], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
       prof->tshift_pmod_exec += end - start;
 
+      for (size_t m = 0; m < 2; ++m)
+      {
+        CL_err = clGetEventProfilingInfo(pipeline.fft_interpolate_fw_fft_events[n][m], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+        CL_err = clGetEventProfilingInfo(pipeline.fft_interpolate_fw_fft_events[n][m], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+        prof->fft_interpolate_fw_fft_exec += end - start;
+      }
+
+      CL_err = clGetEventProfilingInfo(pipeline.fft_interpolate_resample_copy_events[n][0], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      CL_err = clGetEventProfilingInfo(pipeline.fft_interpolate_resample_copy_events[n][0], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+      prof->fft_interpolate_resample_copy_exec += end - start;
+
+      for (size_t m = 0; m < 2; ++m)
+      {
+          CL_err = clGetEventProfilingInfo(pipeline.fft_interpolate_inv_fft_events[n][m], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+          CL_err = clGetEventProfilingInfo(pipeline.fft_interpolate_inv_fft_events[n][m], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, &info_size); checkErr(CL_err, "clGetEventProfilingInfo");
+          prof->fft_interpolate_inv_fft_exec += end - start;
+      }
+
       cl_ulong earliest = CL_ULONG_MAX,
                latest = 0;
       for (size_t m = 0; m < 5; ++m)
@@ -776,6 +809,9 @@ void print_profiling_info(const Profiling_info prof)
     printf("Pre-spindown details:\n\n");
     printf("\tModvir        : %f seconds.\n", prof.modvir_exec / 1000000000.);
     printf("\tTShift_pmod   : %f seconds.\n", prof.tshift_pmod_exec / 1000000000.);
+    printf("\tFFT fw trans  : %f seconds.\n", prof.fft_interpolate_fw_fft_exec / 1000000000.);
+    printf("\tFFT resample  : %f seconds.\n", prof.fft_interpolate_resample_copy_exec / 1000000000.);
+    printf("\tFFT inv trans : %f seconds.\n", prof.fft_interpolate_inv_fft_exec / 1000000000.);
     printf("\tSpline interp : %f seconds.\n", prof.spline_map_exec / 1000000000.);
     printf("\tBLAS dot      : %f seconds.\n", prof.blas_dot_exec / 1000000000.);
     printf("\tCalc_mxx_fill : %f seconds.\n", prof.mxx_fill_exec / 1000000000.);

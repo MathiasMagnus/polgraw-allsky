@@ -260,3 +260,5 @@ if (BUILD_TESTING)
   endforeach (Index)
 		
 endif (BUILD_TESTING)
+
+add_subdirectory (doc)

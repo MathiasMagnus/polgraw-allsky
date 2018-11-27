@@ -281,18 +281,15 @@ int job_core(int pm,                   // Hemisphere
              int *sgnlc,               // Candidate trigger parameters 
              FLOAT_TYPE *sgnlv,        // Candidate array 
              int *FNum,                // candidate signal number
-             double* pre_spindown_duration, // profiling info
-             double* spindown_duration)     // profiling info
+             Profiling_info* prof)     // profiling info
 {
   int i, j, n;//, m;
   int smin = s_range->sst, smax = s_range->spndr[1];
   double al1, al2, sinalt, cosalt, sindelt, cosdelt, sgnlt[NPAR], 
     nSource[3], het0, sgnl0, ft;
-  
-  struct timespec pre_spindown_start, pre_spindown_end, spindown_end;
-  Profiling_info prof[MAX_DETECTORS];
+  Pipeline pl;
 
-  pre_spindown_start = get_current_time();
+  pl.pre_spindown_start = get_current_time();
   
   // VLA version
   //double _tmp1[sett->nifo][sett->N];
@@ -369,7 +366,7 @@ int job_core(int pm,                   // Hemisphere
     memset(fftw_arr->xa, 0, fftw_arr->arr_len * sizeof(complex_t));
     memset(fftw_arr->xb, 0, fftw_arr->arr_len * sizeof(complex_t));
 
-    prof[n].modvir_start = get_current_time();
+    pl.modvir_event[n][start] = get_current_time();
 
     /* Amplitude modulation functions aa and bb 
      * for each detector (in signal sub-struct 
@@ -379,7 +376,7 @@ int job_core(int pm,                   // Hemisphere
     modvir(sinalt, cosalt, sindelt, cosdelt,
 	   sett->N, &ifo[n], aux);
 
-    prof[n].modvir_end = get_current_time();
+    pl.modvir_event[n][end] = get_current_time();
 
 #ifdef TESTING
     //save_numbered_real_array(aux->sinmodf, sett->N, n, "aux_sinmodf");
@@ -397,7 +394,7 @@ int job_core(int pm,                   // Hemisphere
           + nSource[1]*ifo[n].sig.DetSSB[1]
           + nSource[2]*ifo[n].sig.DetSSB[2];
 
-    prof[n].tshift_pmod_start = get_current_time();
+    pl.tshift_pmod_event[n][start] = get_current_time();
 
     for(i=0; i<sett->N; ++i) {
       ifo[n].sig.shft[i] = nSource[0]*ifo[n].sig.DetSSB[i*3]
@@ -462,7 +459,7 @@ int job_core(int pm,                   // Hemisphere
 #endif
     }
 
-    prof[n].tshift_pmod_end = prof[n].fft_interpolate_fw_fft_start = get_current_time();
+    pl.tshift_pmod_event[n][end] = pl.fft_interpolate_fw_fft_event[n][start] = get_current_time();
 
 #ifdef TESTING
     //save_numbered_complex_array(fftw_arr->xa, sett->nfft/*fftw_arr->arr_len*/, n, "xa_time");
@@ -476,7 +473,7 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->pl_int, fftw_arr->xb, fftw_arr->xb);  //forward fft (len nfft)
 #endif
 
-    prof[n].fft_interpolate_fw_fft_end = prof[n].fft_interpolate_resample_copy_fill_start = get_current_time();
+    pl.fft_interpolate_fw_fft_event[n][end] = pl.fft_interpolate_resample_copy_fill_event[n][start] = get_current_time();
 
 #ifdef TESTING
 	//save_numbered_complex_array(fftw_arr->xa, sett->nfft/*fftw_arr->arr_len*/, n, "xa_fourier");
@@ -506,7 +503,7 @@ int job_core(int pm,                   // Hemisphere
 #endif 
     }
 
-    prof[n].fft_interpolate_resample_copy_fill_end = prof[n].fft_interpolate_inv_fft_start = get_current_time();
+    pl.fft_interpolate_resample_copy_fill_event[n][end] = pl.fft_interpolate_scale_event[n][start] = get_current_time();
 
 #ifdef TESTING
 	save_numbered_complex_array(fftw_arr->xa, sett->Ninterp/*fftw_arr->arr_len*/, n, "xa_fourier_resampled");
@@ -530,17 +527,17 @@ int job_core(int pm,                   // Hemisphere
     fftw_arr->xb[i] *= ft;
 #endif
     }
+    pl.fft_interpolate_scale_event[n][end] = pl.spline_interpolate_event[n][start] = get_current_time();
 #ifdef TESTING
 	//save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_time_resampled");
 	//save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_time_resampled");
 #endif
-    //  struct timeval tstart = get_current_time(), tend;
-
     // Spline interpolation to xDatma, xDatmb arrays
     splintpad(fftw_arr->xa, ifo[n].sig.shftf, sett->N, 
 	      sett->interpftpad, ifo[n].sig.xDatma);   
     splintpad(fftw_arr->xb, ifo[n].sig.shftf, sett->N, 
 	      sett->interpftpad, ifo[n].sig.xDatmb);
+    pl.spline_interpolate_event[n][end] = get_current_time();
 #ifdef TESTING
     //save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "ifo_sig_xDatma");
     //save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "ifo_sig_xDatmb");
@@ -552,12 +549,15 @@ int job_core(int pm,                   // Hemisphere
 
   for(n=0; n<sett->nifo; ++n) {
 
+    pl.blas_dot_event[n][start] = get_current_time();
+
     double aatemp = 0., bbtemp = 0.;
  
     for(i=0; i<sett->N; ++i) {
       aatemp += sqr(ifo[n].sig.aa[i]);
       bbtemp += sqr(ifo[n].sig.bb[i]);
     }
+    pl.blas_dot_event[n][end] = pl.saxpy_event[n][start] = get_current_time();
 
     for(i=0; i<sett->N; ++i) {
 #ifdef _MSC_VER
@@ -573,7 +573,9 @@ int job_core(int pm,                   // Hemisphere
     //save_numbered_complex_array(ifo[n].sig.xDatmb, sett->N, n, "rescaled_ifo_sig_xDatmb");
 #endif
     aa += aatemp/ifo[n].sig.sig2; 
-    bb += bbtemp/ifo[n].sig.sig2;   
+    bb += bbtemp/ifo[n].sig.sig2;
+
+    pl.saxpy_event[n][end] = get_current_time();
   }
 
 #ifdef YEPPP
@@ -622,7 +624,7 @@ int job_core(int pm,                   // Hemisphere
   //exit(0);
   /* Spindown loop  */
 
-  pre_spindown_end = get_current_time();
+  pl.pre_spindown_end = get_current_time();
   
   for(ss=smin; ss<=smax; ++ss) {
 
@@ -647,6 +649,7 @@ int job_core(int pm,                   // Hemisphere
     sgnl0 = het0 + het1;
 
     // phase modulation before fft
+    pl.phase_mod_event[0][start] = get_current_time();
 
 #if defined(SLEEF)
     // use simd sincos from the SLEEF library;
@@ -727,6 +730,7 @@ int job_core(int pm,                   // Hemisphere
 #endif
     }
 #endif
+    pl.phase_mod_event[0][end] = get_current_time();
 #ifdef TESTING
     //save_numbered_real_array(ifo[0].sig.shft, sett->N, 0, "pre_fft_phasemod_ifo_sig_shft");
     //save_numbered_complex_array(ifo[0].sig.xDatma, sett->N, 0, "pre_fft_phasemod_ifo_sig_xDatma");
@@ -801,21 +805,23 @@ int job_core(int pm,                   // Hemisphere
 	fftw_arr->xb[i] += ifo[n].sig.xDatmb[i]*exph; //*sig2inv;
       }
 #else
+      pl.phase_mod_event[n][start] = get_current_time();
       for(i=sett->N-1; i!=-1; --i) {
-	phase = het1*i + sgnlt[1]*_tmp1[n][i];
-	cp = cos(phase);
-	sp = sin(phase);
+	    phase = het1*i + sgnlt[1]*_tmp1[n][i];
+	    cp = cos(phase);
+	    sp = sin(phase);
 #ifndef _WIN32
-	exph = cp - I*sp;
-	fftw_arr->xa[i] += ifo[n].sig.xDatma[i]*exph; //*sig2inv;
-	fftw_arr->xb[i] += ifo[n].sig.xDatmb[i]*exph; //*sig2inv;
+	    exph = cp - I*sp;
+	    fftw_arr->xa[i] += ifo[n].sig.xDatma[i]*exph; //*sig2inv;
+	    fftw_arr->xb[i] += ifo[n].sig.xDatmb[i]*exph; //*sig2inv;
 #else
-  exph = cbuild(cp , -sp);
-	fftw_arr->xa[i] = caddcc(fftw_arr->xa[i], cmulcc(ifo[n].sig.xDatma[i],exph)); //*sig2inv;
-	fftw_arr->xb[i] = caddcc(fftw_arr->xb[i], cmulcc(ifo[n].sig.xDatmb[i],exph)); //*sig2inv;
+        exph = cbuild(cp , -sp);
+	    fftw_arr->xa[i] = caddcc(fftw_arr->xa[i], cmulcc(ifo[n].sig.xDatma[i],exph)); //*sig2inv;
+	    fftw_arr->xb[i] = caddcc(fftw_arr->xb[i], cmulcc(ifo[n].sig.xDatmb[i],exph)); //*sig2inv;
 #endif
       }
 #endif
+      pl.phase_mod_event[n][end] = get_current_time();
 #ifdef TESTING
       //save_numbered_real_array(ifo[n].sig.shft, sett->N, n, "pre_fft_phasemod_ifo_sig_shft");
       //save_numbered_complex_array(ifo[n].sig.xDatma, sett->N, n, "pre_fft_phasemod_ifo_sig_xDatma");
@@ -825,13 +831,15 @@ int job_core(int pm,                   // Hemisphere
 #endif 
     } // nifo
 
-      // Zero-padding 
+    // Zero-padding 
+    pl.zero_pad_event[start] = get_current_time();
     for(i = sett->fftpad*sett->nfft-1; i != sett->N-1; --i)
 #ifdef _MSC_VER
         fftw_arr->xa[i] = fftw_arr->xb[i] = cbuild(0., 0.);
 #else
         fftw_arr->xa[i] = fftw_arr->xb[i] = 0.;
 #endif
+    pl.zero_pad_event[end] = pl.fw2_fft_event[start] = get_current_time();
 #ifdef TESTING
     //// Wasteful because testing infrastructure is not more complex
     //save_numbered_complex_array(fftw_arr->xa, sett->fftpad*sett->nfft/*sett->Ninterp*/, 0, "pre_fft_post_zero_xa");
@@ -847,6 +855,7 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->plan, fftw_arr->xa, fftw_arr->xa);
     fftw_execute_dft(plans->plan, fftw_arr->xb, fftw_arr->xb);
 #endif
+    pl.fw2_fft_event[end] = pl.compute_Fstat_event[start] = get_current_time();
 #ifdef TESTING
     //// Wasteful because testing infrastructure is not more complex
     //save_numbered_complex_array(fftw_arr->xa, sett->nfftf, 0, "post_fft_phasemod_xa");
@@ -861,6 +870,7 @@ int job_core(int pm,                   // Hemisphere
       F[i] = (sqr(creal(fftw_arr->xa[i])) + sqr(cimag(fftw_arr->xa[i])))/aa +
 	(sqr(creal(fftw_arr->xb[i])) + sqr(cimag(fftw_arr->xb[i])))/bb;
     }
+    pl.compute_Fstat_event[end] = pl.normalize_Fstat_event[start] = get_current_time();
 #ifdef TESTING
     //save_numbered_real_array(F + sett->nmin, sett->nmax - sett->nmin, 0, "Fstat");
     //save_numbered_real_array(F + sett->nmin, sett->nmax - sett->nmin, 1, "Fstat");
@@ -871,11 +881,12 @@ int job_core(int pm,                   // Hemisphere
       fprintf(f1, "%d   %lf   %lf\n", i, F[i], 2.*M_PI*i/((double) sett->fftpad*sett->nfft) + sgnl0);
     fclose(f1);
 #endif 
-#ifndef NORMTOMAX
     //#define NAVFSTAT 4096
     // Normalize F-statistics 
     if(!(opts->white_flag))  // if the noise is not white noise
       FStat(F + sett->nmin, sett->nmax - sett->nmin, NAVFSTAT, 0);
+
+    pl.normalize_Fstat_event[end] = pl.find_peak_event[start] = get_current_time();
 
 #ifdef TESTING
     //save_numbered_real_array(F + sett->nmin, sett->nmax - sett->nmin, 0, "Fstat_norm");
@@ -925,81 +936,10 @@ int job_core(int pm,                   // Hemisphere
 	}
       } // if Fc > trl 
     } // for i
-    
-#else // new version
-    
-    imax = -1;
-    // find local maxima first
-    //printf("nmin=%d   nmax=%d    nfft=%d   nblocks=%d\n", sett->nmin, sett->nmax, nfft, nfft/blksize);
-    for(iblk=0; iblk < nfft/blksize; ++iblk) {
-      blkavg = 0.;
-      blkstart = sett->nmin + iblk*blksize; // block start index in F 
-      // in case the last block is shorter than blksize, include its elements in the previous block
-      if(iblk==(nfft/blksize-1)) {blksize = sett->nmax - blkstart;}
-      imax0 = imax+1;// index of first maximum in current block
-      //printf("\niblk=%d   blkstart=%d   blksize=%d    imax0=%d\n", iblk, blkstart, blksize, imax0);
-      for(i=1; i <= blksize; ++i) { // include first element of the next block
-	ii = blkstart + i;
-	if(ii < sett->nmax) 
-	  {ihi=ii+1;} 
-	else 
-	  {ihi = sett->nmax; /*printf("ihi=%d  ii=%d\n", ihi, ii);*/};
-	if(F[ii] > F[ii-1] && F[ii] > F[ihi]) {
-	  blkavg += F[ii];
-	  Fmax[++imax] = ii;
-	  ++i; // next element can't be maximum - skip it
-	}
-      } // i
-	// now imax points to the last element of Fmax
-	// normalize in blocks 
-      blkavg /= (double)(imax - imax0 + 1);
-      for(i=imax0; i <= imax; ++i)
-	F[Fmax[i]] /= blkavg;
-      
-    } // iblk
-    
-      //f1 = fopen("fmax.dat", "w");
-      //for(i=1; i < imax; i++)
-      //fprintf(f1, "%d   %lf \n", Fmax[i], F[Fmax[i]]);
-      //fclose(f1);
-      //exit(EXIT_SUCCESS);
 
-      // apply threshold limit
-    for(i=0; i <= imax; ++i){
-      //if(F[Fmax[i]] > opts->trl) {
-      if(F[Fmax[i]] > threshold) {
-	sgnlt[0] = 2.*M_PI*i/((FLOAT_TYPE)sett->fftpad*sett->nfft) + sgnl0;
-	// Signal-to-noise ratio
-	sgnlt[4] = sqrt(2.*(F[Fmax[i]] - sett->nd));
-	
-	// Checking if signal is within a known instrumental line 
-	int k, veto_status=0; 
-	for(k=0; k<sett->numlines_band; k++)
-	  if(sgnlt[0]>=sett->lines[k][0] && sgnlt[0]<=sett->lines[k][1]) { 
-	    veto_status=1; 
-	    break; 
-	  }   
-	
-	if(!veto_status) { 
-	  
-	  (*sgnlc)++; // increase number of found candidates
-	  // Add new parameters to buffer array 
-	  for (j=0; j<NPAR; ++j)
-	    sgnlv[NPAR*(*sgnlc-1)+j] = (FLOAT_TYPE)sgnlt[j];
-#ifdef VERBOSE
-	  printf ("\nSignal %d: %d %d %d %d %d snr=%.2f\n", 
-		  *sgnlc, pm, mm, nn, ss, Fmax[i], sgnlt[4]);
-#endif 
-	}
-      }
-    } // i
-#endif // old/new version
-    
-#if TIMERS>2
-      tend = get_current_time(CLOCK_PROCESS_CPUTIME_ID);
-      spindown_timer += get_time_difference(tstart, tend);
-      spindown_counter++;
-#endif
+    pl.find_peak_event[end] = get_current_time();
+
+    extract_spindown_profiling_info(sett->nifo, &pl, prof);
 
   } // for ss 
   
@@ -1012,11 +952,68 @@ int job_core(int pm,                   // Hemisphere
 	 spindown_timer, spindown_timer/spindown_counter, spindown_counter);
 #endif
 
-  spindown_end = get_current_time();
+  pl.spindown_end = get_current_time();
 
-  *pre_spindown_duration += get_time_difference(pre_spindown_start, pre_spindown_end);
-  *spindown_duration += get_time_difference(pre_spindown_end, spindown_end);
+  extract_non_spindown_profiling_info(sett->nifo, &pl, prof);
   
   return 0;
   
 } // jobcore
+
+void extract_non_spindown_profiling_info(int nifo, const Pipeline* pl, Profiling_info* prof)
+{
+  for (int n = 0; n < nifo; ++n)
+  {
+    prof->modvir_exec += get_time_difference(pl->modvir_event[n][start], pl->modvir_event[n][end]);
+    prof->tshift_pmod_exec += get_time_difference(pl->tshift_pmod_event[n][start], pl->tshift_pmod_event[n][end]);
+    prof->fft_interpolate_fw_fft_exec += get_time_difference(pl->fft_interpolate_fw_fft_event[n][start], pl->fft_interpolate_fw_fft_event[n][end]);
+    prof->fft_interpolate_resample_copy_fill_exec += get_time_difference(pl->fft_interpolate_resample_copy_fill_event[n][start], pl->fft_interpolate_resample_copy_fill_event[n][end]);
+    prof->fft_interpolate_inv_fft_exec += get_time_difference(pl->fft_interpolate_inv_fft_event[n][start], pl->fft_interpolate_inv_fft_event[n][end]);
+    prof->fft_interpolate_scale_exec += get_time_difference(pl->fft_interpolate_scale_event[n][start], pl->fft_interpolate_scale_event[n][end]);
+    prof->spline_interpolate_exec += get_time_difference(pl->spline_interpolate_event[n][start], pl->spline_interpolate_event[n][end]);
+    prof->blas_dot_exec += get_time_difference(pl->blas_dot_event[n][start], pl->blas_dot_event[n][end]);
+    prof->axpy_exec += get_time_difference(pl->axpy_event[n][start], pl->axpy_event[n][end]);
+  }
+
+  prof->pre_spindown_exec += get_time_difference(pl->pre_spindown_start, pl->pre_spindown_end);
+  prof->spindown_exec += get_time_difference(pl->pre_spindown_end, pl->spindown_end);
+}
+
+void extract_spindown_profiling_info(int nifo, const Pipeline* pl, Profiling_info* prof)
+{
+  for (int n = 0; n < nifo; ++n)
+  {
+    prof->phase_mod_exec += get_time_difference(pl->phase_mod_event[n][start], pl->phase_mod_event[n][end]);
+  }
+
+  prof->zero_pad_exec += get_time_difference(pl->zero_pad_event[start], pl->zero_pad_event[end]);
+  prof->fw2_fft_exec += get_time_difference(pl->fw2_fft_event[start], pl->fw2_fft_event[end]);
+  prof->compute_Fstat_exec += get_time_difference(pl->compute_Fstat_event[start], pl->compute_Fstat_event[end]);
+  prof->normalize_Fstat_exec += get_time_difference(pl->normalize_Fstat_event[start], pl->normalize_Fstat_event[end]);
+  prof->find_peak_exec += get_time_difference(pl->find_peak_event[start], pl->find_peak_event[end]);
+}
+
+void print_profiling_info(const Profiling_info prof)
+{
+    printf("Total pre-spindown calculation : %f seconds.\n", prof.pre_spindown_exec / 1000000000.);
+    printf("Total spindown calculation     : %f seconds.\n", prof.spindown_exec / 1000000000.);
+    printf("\n");
+    printf("Pre-spindown details:\n\n");
+    printf("\tModvir        : %f seconds.\n", prof.modvir_exec / 1000000000.);
+    printf("\tTShift_pmod   : %f seconds.\n", prof.tshift_pmod_exec / 1000000000.);
+    printf("\tFFT fw trans  : %f seconds.\n", prof.fft_interpolate_fw_fft_exec / 1000000000.);
+    printf("\tFFT resample  : %f seconds.\n", prof.fft_interpolate_resample_copy_fill_exec / 1000000000.);
+    printf("\tFFT inv trans : %f seconds.\n", prof.fft_interpolate_inv_fft_exec / 1000000000.);
+    printf("\tFFT scale     : %f seconds.\n", prof.fft_interpolate_scale_exec / 1000000000.);
+    printf("\tSpline interp : %f seconds.\n", prof.spline_interpolate_exec / 1000000000.);
+    printf("\tBLAS dot      : %f seconds.\n", prof.blas_dot_exec / 1000000000.);
+    printf("\taxpy          : %f seconds.\n", prof.axpy_exec / 1000000000.);
+    printf("\n");
+    printf("Spindown details:\n\n");
+    printf("\tPhase mod     : %f seconds.\n", prof.phase_mod_exec / 1000000000.);
+    printf("\tZero pad      : %f seconds.\n", prof.zero_pad_exec / 1000000000.);
+    printf("\tTime to freq  : %f seconds.\n", prof.fw2_fft_exec / 1000000000.);
+    printf("\tCompute FStat : %f seconds.\n", prof.compute_Fstat_exec / 1000000000.);
+    printf("\tNorm FStat    : %f seconds.\n", prof.normalize_Fstat_exec / 1000000000.);
+    printf("\tFind peaks    : %f seconds.\n", prof.find_peak_exec / 1000000000.);
+}
