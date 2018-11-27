@@ -89,7 +89,7 @@ void search(
 #endif // WIN32
   FILE *state;
 
-  Profiling_info prof;
+  Profiling_info prof = init_profiling_info();
 
 #ifdef YEPPP
   status = yepLibrary_Init();
@@ -495,7 +495,7 @@ int job_core(int pm,                   // Hemisphere
 #endif 
     }
 
-    pl.fft_interpolate_resample_copy_fill_event[n][end] = pl.fft_interpolate_scale_event[n][start] = get_current_time();
+    pl.fft_interpolate_resample_copy_fill_event[n][end] = pl.fft_interpolate_inv_fft_event[n][start] = get_current_time();
 
 #ifdef TESTING
 	save_numbered_complex_array(fftw_arr->xa, sett->Ninterp/*fftw_arr->arr_len*/, n, "xa_fourier_resampled");
@@ -509,6 +509,9 @@ int job_core(int pm,                   // Hemisphere
     fftw_execute_dft(plans->pl_inv, fftw_arr->xa, fftw_arr->xa);
     fftw_execute_dft(plans->pl_inv, fftw_arr->xb, fftw_arr->xb);
 #endif
+
+    pl.fft_interpolate_inv_fft_event[n][end] = pl.fft_interpolate_scale_event[n][start] = get_current_time();
+
     ft = (double)sett->interpftpad / sett->Ninterp; //scale FFT
     for (i=0; i < sett->Ninterp; ++i) {
 #ifdef _MSC_VER
@@ -519,7 +522,9 @@ int job_core(int pm,                   // Hemisphere
     fftw_arr->xb[i] *= ft;
 #endif
     }
+
     pl.fft_interpolate_scale_event[n][end] = pl.spline_interpolate_event[n][start] = get_current_time();
+
 #ifdef TESTING
 	//save_numbered_complex_array(fftw_arr->xa, fftw_arr->arr_len, n, "xa_time_resampled");
 	//save_numbered_complex_array(fftw_arr->xb, fftw_arr->arr_len, n, "xb_time_resampled");
@@ -951,6 +956,31 @@ int job_core(int pm,                   // Hemisphere
   return 0;
   
 } // jobcore
+
+Profiling_info init_profiling_info()
+{
+    Profiling_info result = {
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0 
+    };
+
+    return result;
+}
 
 void extract_non_spindown_profiling_info(int nifo, const Pipeline* pl, Profiling_info* prof)
 {

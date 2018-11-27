@@ -43,6 +43,8 @@ int job_core(int pm,                   // hemisphere
              int *FNum,                // candidate signal number
              Profiling_info* prof);    // profiling info
 
+Profiling_info init_profiling_info();
+
 void extract_non_spindown_profiling_info(int nifo, const Pipeline* pl, Profiling_info* prof);
 
 void extract_spindown_profiling_info(int nifo, const Pipeline* pl, Profiling_info* prof);

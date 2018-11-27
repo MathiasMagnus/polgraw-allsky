@@ -1,3 +1,5 @@
+#define NANO_INV 1000000000L
+
 // Custom include
 #include <timer.h>
 
@@ -23,5 +25,5 @@ struct timespec get_current_time()
 
 time_t get_time_difference(struct timespec t0, struct timespec t1)
 {
-    return (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec);
+    return (t1.tv_sec - t0.tv_sec) * NANO_INV + (t1.tv_nsec - t0.tv_nsec);
 }

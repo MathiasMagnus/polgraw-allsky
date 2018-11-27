@@ -483,6 +483,10 @@ Search_results combine_results(const Search_range* s_range,
 
       result.prof.modvir_exec += select->prof.modvir_exec;
       result.prof.tshift_pmod_exec += select->prof.tshift_pmod_exec;
+      result.prof.fft_interpolate_fw_fft_exec += select->prof.fft_interpolate_fw_fft_exec;
+      result.prof.fft_interpolate_resample_copy_exec += select->prof.fft_interpolate_resample_copy_exec;
+      result.prof.fft_interpolate_resample_fill_exec += select->prof.fft_interpolate_resample_fill_exec;
+      result.prof.fft_interpolate_inv_fft_exec += select->prof.fft_interpolate_inv_fft_exec;
       result.prof.spline_map_exec += select->prof.spline_map_exec;
       result.prof.blas_dot_exec += select->prof.blas_dot_exec;
       result.prof.mxx_fill_exec += select->prof.mxx_fill_exec;
