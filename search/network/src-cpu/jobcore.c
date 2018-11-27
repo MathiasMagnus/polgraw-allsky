@@ -89,8 +89,7 @@ void search(
 #endif // WIN32
   FILE *state;
 
-  double pre_spindown_duration = 0,
-         spindown_duration = 0;
+  Profiling_info prof;
 
 #ifdef YEPPP
   status = yepLibrary_Init();
@@ -168,8 +167,7 @@ void search(
 			  &sgnlc,       // current number of candidates
 			  sgnlv,        // candidate array
 			  FNum,         // candidate signal number
-              &pre_spindown_duration, // profiling info
-              &spindown_duration);    // profiling info
+              &prof);       // profiling info
 	
 	// Get back to regular spin-down range
 	s_range->sst = s_range->spndr[0];
@@ -223,7 +221,7 @@ void search(
   //        if (close(fd) < 0) perror ("close()");
 	//  sgnlc=0;
 
-	} /* if sgnlc > sett-nfft */
+	//} /* if sgnlc > sett-nfft */
       } // for nn
       s_range->nst = s_range->nr[0];
     } // for mm
@@ -247,7 +245,7 @@ void search(
   //  if (close(fd) < 0) perror ("close()");
   //  sgnlc=0; 
 //
-  //} // for pm
+  } // for pm
   //
   ////#mb state file has to be modified accordingly to the buffer
   //if(opts->checkp_flag) 
@@ -256,13 +254,7 @@ void search(
   //// Free triggers buffer
   //free(sgnlv);
 
-#ifdef TIMERS
-  tend = get_current_time(CLOCK_REALTIME);
-  // printf("tstart = %d . %d\ntend = %d . %d\n", tstart.tv_sec, tstart.tv_usec, tend.tv_sec, tend.tv_usec);
-  double time_elapsed = get_time_difference(tstart, tend);
-  printf("Time elapsed: %e s\n", time_elapsed);
-#endif
-
+  print_profiling_info(prof);
 }
 
 
