@@ -557,7 +557,7 @@ int job_core(int pm,                   // Hemisphere
       aatemp += sqr(ifo[n].sig.aa[i]);
       bbtemp += sqr(ifo[n].sig.bb[i]);
     }
-    pl.blas_dot_event[n][end] = pl.saxpy_event[n][start] = get_current_time();
+    pl.blas_dot_event[n][end] = pl.axpy_event[n][start] = get_current_time();
 
     for(i=0; i<sett->N; ++i) {
 #ifdef _MSC_VER
@@ -575,7 +575,7 @@ int job_core(int pm,                   // Hemisphere
     aa += aatemp/ifo[n].sig.sig2; 
     bb += bbtemp/ifo[n].sig.sig2;
 
-    pl.saxpy_event[n][end] = get_current_time();
+    pl.axpy_event[n][end] = get_current_time();
   }
 
 #ifdef YEPPP
