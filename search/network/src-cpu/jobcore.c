@@ -175,7 +175,7 @@ void search(
   // if any signals found (Fstat>Fc)
   if (sgnlc)
   {
-      FILE* fc = fopen(outname, "w");
+      FILE* fc = fopen(outname, "a");
       if (fc == NULL) perror("Failed to open output file.");
   
       //size_t count = fwrite((void *)(sgnlv), sizeof(FLOAT_TYPE), sgnlc*NPAR, fc);
