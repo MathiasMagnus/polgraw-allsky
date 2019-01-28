@@ -200,10 +200,19 @@ Search_results job_core(const int pm,                  // hemisphere
 
   if (timespec_get(&pre_spindown_start, TIME_UTC) != TIME_UTC) { checkErr(TIME_UTC, "timespec_get(&pre_spindown_start, TIME_UTC)"); }
 
-  sky_positions(pm, mm, nn,                                   // input
-	            sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
-	            sgnlt, &het0, &ft,                            // output
-	            &sinalt, &cosalt, &sindelt, &cosdelt);        // output
+  // If the sky coordinate is not valid, shortcircuit the search
+  if (!sky_positions(pm, mm, nn,                                   // input
+	                 sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
+	                 sgnlt, &het0, &ft,                            // output
+	                 &sinalt, &cosalt, &sindelt, &cosdelt))        // output
+  {
+    pre_spindown_end = spindown_end = pre_spindown_start;
+
+    // Free OpenCL event object storage
+    free_pipeline(sett->nifo, &pl);
+
+    return results;
+  }
 
   // Loop for each detector
   for (int n = 0; n<sett->nifo; ++n)
@@ -349,7 +358,8 @@ Search_results job_core(const int pm,                  // hemisphere
 #endif
 
   // Release OpenCL event objects and free their storage
-  free_pipeline(sett->nifo, &pl);
+    release_pipeline(sett->nifo, &pl);
+    free_pipeline(sett->nifo, &pl);
 
   return results;
 
@@ -578,8 +588,8 @@ Pipeline init_pipeline(const size_t nifo)
   return p;
 }
 
-void free_pipeline(const size_t nifo,
-                   Pipeline* p)
+void release_pipeline(const size_t nifo,
+                      Pipeline* p)
 {
   // Release OpenCL events
   for (size_t n = 0; n < nifo; ++n)
@@ -606,7 +616,11 @@ void free_pipeline(const size_t nifo,
   clReleaseEvent(p->normalize_Fstat_event);
   clReleaseEvent(p->peak_map_event);
   clReleaseEvent(p->peak_unmap_event);
+}
 
+void free_pipeline(const size_t nifo,
+                   Pipeline* p)
+{
   // Free host-side memory
   for (size_t n = 0; n < nifo; ++n)
   {

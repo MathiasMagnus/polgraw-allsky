@@ -76,6 +76,11 @@ Search_results*** init_results(const Search_range* s_range);
 ///
 Pipeline init_pipeline(const size_t nifo);
 
+/// <summary>Releases OpenCL event objects to synchronize and profile the pipeline.</summary>
+///
+void release_pipeline(const size_t nifo,
+                      Pipeline* p);
+
 /// <summary>Deallocates OpenCL event objects to synchronize and profile the pipeline.</summary>
 ///
 void free_pipeline(const size_t nifo,

@@ -10,7 +10,7 @@
 
 #define sqr(x) ((x)*(x))
 
-void sky_positions(const int pm,                  // hemisphere
+bool sky_positions(const int pm,                  // hemisphere
                    const int mm,                  // grid 'sky position'
                    const int nn,                  // other grid 'sky position'
                    double* M,                     // M matrix from grid point to linear coord
@@ -53,19 +53,23 @@ void sky_positions(const int pm,                  // hemisphere
            al2 = nn * M[11] + mm * M[15];
 
     // check if the search is in an appropriate region of the grid
-    // if not, returns NULL
-    //if ((sqr(al1) + sqr(al2)) / sqr(sett->oms) > 1.) return NULL;
+    // if not, returns false
+    if ((sqr(al1) + sqr(al2)) / sqr(oms) > 1.) return false;
+    else
+    {
+      // Change linear (grid) coordinates to real coordinates
+      lin2ast(al1 / oms, al2 / oms, pm, sepsm, cepsm, // input
+              sinalt, cosalt, sindelt, cosdelt);      // output
 
-    // Change linear (grid) coordinates to real coordinates
-    lin2ast(al1 / oms, al2 / oms, pm, sepsm, cepsm, // input
-            sinalt, cosalt, sindelt, cosdelt);      // output
+      // calculate declination and right ascention
+      // written in file as candidate signal sky positions
+      sgnlt[declination] = asin(*sindelt);
+      sgnlt[ascension] = fmod(atan2(*sinalt, *cosalt) + 2. * M_PI, 2. * M_PI);
 
-// calculate declination and right ascention
-// written in file as candidate signal sky positions
-    sgnlt[declination] = asin(*sindelt);
-    sgnlt[ascension] = fmod(atan2(*sinalt, *cosalt) + 2.*M_PI, 2.*M_PI);
+      *het0 = fmod(nn * M[8] + mm * M[12], M[0]);
 
-    *het0 = fmod(nn*M[8] + mm * M[12], M[0]);
+      return true;
+    }
 }
 
 void lin2ast(const double be1,
@@ -78,6 +82,7 @@ void lin2ast(const double be1,
              double *sindel,
              double *cosdel)
 {
+  double tmp = sqrt(1. - sqr(be1) - sqr(be2))*cepsm;
   *sindel = be1 * sepsm - (2 * pm - 3)*sqrt(1. - sqr(be1) - sqr(be2))*cepsm;
   *cosdel = sqrt(1. - sqr(*sindel));
   *sinal = (be1 - sepsm * (*sindel)) / (cepsm*(*cosdel));

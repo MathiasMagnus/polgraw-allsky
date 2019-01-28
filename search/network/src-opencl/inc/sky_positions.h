@@ -2,10 +2,12 @@
 
 // Polgraw includes
 #include <signal_params.h>  // signal_params_t
+#include <stdbool.h>        // bool
 
 /// <summary>Calculates sky-position dependant quantities.</summary>
+/// <returns>Returns true if the sky coordinate is valid, false otherwise.</returns>
 ///
-void sky_positions(const int pm,                  // hemisphere
+bool sky_positions(const int pm,                  // hemisphere
                    const int mm,                  // grid 'sky position'
                    const int nn,                  // other grid 'sky position'
                    double* M,                     // M matrix from grid point to linear coord
