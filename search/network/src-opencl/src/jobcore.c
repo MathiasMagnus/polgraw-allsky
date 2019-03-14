@@ -429,6 +429,7 @@ void save_and_free_results(const Command_line_opts* opts,
       // Gnuplot friendly
       for (int i = 0; i < result.sgnlc; ++i)
       {
+#ifdef _MSC_VER
         int out_count = fprintf_s(fc,
                                   "%e\t%e\t%e\t%e\t%e\n",
                                   result.sgnlv[i*NPAR + 0],
@@ -438,6 +439,15 @@ void save_and_free_results(const Command_line_opts* opts,
                                   result.sgnlv[i*NPAR + 4]);
 
         if (out_count < 0) checkErr(out_count, "fprintf_s");
+#else
+        fprintf(fc,
+                "%e\t%e\t%e\t%e\t%e\n",
+                result.sgnlv[i*NPAR + 0],
+                result.sgnlv[i*NPAR + 1],
+                result.sgnlv[i*NPAR + 2],
+                result.sgnlv[i*NPAR + 3],
+                result.sgnlv[i*NPAR + 4]);
+#endif
       }
 
       int close = fclose(fc);

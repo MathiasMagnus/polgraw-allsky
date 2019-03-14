@@ -115,7 +115,7 @@ target_link_libraries (${Target_NAME} PRIVATE OpenCL::OpenCL
 # Create project groups for IDEs
 set_target_properties (${Target_NAME} PROPERTIES C_STANDARD 11
                                                  C_STANDARD_REQUIRED ON
-												 C_EXTENSIONS OFF
+						 #												 C_EXTENSIONS OFF
                                                  FOLDER "GPU")
 
 # Add verbose output if opted in for

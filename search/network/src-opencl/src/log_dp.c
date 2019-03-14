@@ -1,7 +1,9 @@
 #include <log.h>
 
 #define COMP_DOUBLE 1
+#ifdef _WIN32
 #include <complex_op.h>
+#endif
 
 // Standard C includes
 #include <float.h>      // DBL_MAX

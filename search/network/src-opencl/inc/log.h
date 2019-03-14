@@ -56,8 +56,8 @@ void save_numbered_real_buffer_with_offset(cl_command_queue queue, cl_mem buf, i
 //                                           //
 ///////////////////////////////////////////////
 
-#ifdef _WIN32
 #include <complex.h>
+#ifdef _WIN32
 #define complex_float _Fcomplex
 #define complex_double _Dcomplex
 #else

@@ -575,7 +575,7 @@ cl_program build_program_with_sources(cl_context context,
 #ifdef _WIN32
       lengths[i] = strnlen_s(sources[i], UINT_MAX);
 #else
-      lengths[i] = strnlen(sources[i]);
+      lengths[i] = strnlen(sources[i], UINT_MAX);
 #endif
 
     cl_uint uint_kernel_path_count = (cl_uint)kernel_path_count;
