@@ -114,7 +114,7 @@ void search(Detector_settings* ifo,
     for (int mm = s_range->mst; mm <= s_range->mr[1]; ++mm)
     {
       int nn;
-      #pragma omp parallel for
+      #pragma omp parallel for schedule(dynamic)
       for (nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
       {
 //        if (opts->checkp_flag)
@@ -135,6 +135,7 @@ void search(Detector_settings* ifo,
 //          fprintf(state, "%d %d %d %d %d\n", pm, mm, nn, s_range->sst, *Fnum);
 //          fseek(state, 0, SEEK_SET);
 //        }
+        //printf("id %d trying %d %d %d\n", omp_get_thread_num(), pm, mm, nn);
 
         // Loop over spindowns is inside job_core() //
         results[pm - s_range->pmr[0]]
@@ -276,9 +277,9 @@ Search_results job_core(const int pm,                  // hemisphere
                  &smin, &smax);                           // output
 
   if (timespec_get(&pre_spindown_end, TIME_UTC) != TIME_UTC) { checkErr(TIME_UTC, "timespec_get(&pre_spindown_end, TIME_UTC)"); }
-
-  printf("\n>>%zu\t%d\t%d\t[%d..%d]\n", results.sgnlc, mm, nn, smin, smax);
-
+#ifndef VERBOSE
+  printf(">>%d:\t%d\t%d\t%d\t[%d..%d]\n", id, pm, mm, nn, smin, smax);
+#endif
   // Spindown loop
   for (int ss = smin; ss <= smax; ++ss)
   {
@@ -353,7 +354,7 @@ Search_results job_core(const int pm,                  // hemisphere
                                       &spindown_end,
                                       pl, &results.prof);
 
-#ifndef VERBOSE
+#ifdef VERBOSE
     printf("Number of signals found: %zu\n", results.sgnlc);
 #endif
 

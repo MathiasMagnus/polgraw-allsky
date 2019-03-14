@@ -152,7 +152,7 @@ void handle_opts(Search_settings* sett,
       printf("-s, -dt           data sampling time dt (default value: 0.5)\n");
       printf("-u, -usedet       Use only detectors from string (default is use all available)\n");
       printf("-x, -addsig       Add signal with parameters from <file>\n\n");
-      printf("-D, -device       OpenCL device type to use [cpu|gpu|acc] (default maps to CL_DEVICE_TYPE_DEFAULT)\n\n");
+      printf("-D, -device       OpenCL device type to use [cpu|gpu|acc|all] (default maps to CL_DEVICE_TYPE_DEFAULT)\n\n");
       printf("-P, -platform     OpenCL platform id to use (default is 0)\n\n");
 
 
@@ -296,6 +296,8 @@ void handle_opts(Search_settings* sett,
       cl_sett->dev_type = CL_DEVICE_TYPE_GPU;
     if (!strncmp(opts->dev, "acc", 3))
       cl_sett->dev_type = CL_DEVICE_TYPE_ACCELERATOR;
+    if (!strncmp(opts->dev, "all", 3))
+        cl_sett->dev_type = CL_DEVICE_TYPE_ALL;
   }
   else
   {
