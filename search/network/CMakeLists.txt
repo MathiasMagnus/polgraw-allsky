@@ -79,8 +79,8 @@ option (PG_VERBOSE "Verbose output of search suite" OFF)
 #
   # If compiling with Visual C++
   if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
-    # Change the CMake & Visual Studio default /W3 to /W4
-    string(REGEX REPLACE "/W[0-9]" "/W4" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+    # Remove the CMake & Visual Studio default /W3
+    string(REGEX REPLACE "/W[0-9]" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
   endif (CMAKE_C_COMPILER_ID MATCHES "MSVC")
 		
 #########################
