@@ -406,7 +406,7 @@ void save_and_free_results(const Command_line_opts* opts,
   // Loop over hemispheres //
   for (int pm = s_range->pmr[0]; pm <= s_range->pmr[1]; ++pm)
   {
-    char outname[512];
+    char outname[2048];
     sprintf(outname, "%s/ocl_triggers_%03d_%03d%s_%d.bin",
         opts->prefix,
         opts->ident,
@@ -414,7 +414,7 @@ void save_and_free_results(const Command_line_opts* opts,
         opts->label,
         pm);
 
-    Search_results result = combine_results(s_range, results[pm - s_range->pmr[0]]);
+    Search_results result = combine_results(s_range, (const Search_results**)results[pm - s_range->pmr[0]]);
 
     print_profiling_info(result.prof);
 
@@ -432,7 +432,7 @@ void save_and_free_results(const Command_line_opts* opts,
       //if (count < result.sgnlc*NPAR) perror("Failed to write output file.");
 
       // Gnuplot friendly
-      for (int i = 0; i < result.sgnlc; ++i)
+      for (size_t i = 0; i < result.sgnlc; ++i)
       {
 #ifdef _MSC_VER
         int out_count = fprintf_s(fc,
