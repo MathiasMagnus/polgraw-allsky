@@ -71,5 +71,7 @@ void time_to_frequency(const cl_int idet,
   save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 0, "post_fft_phasemod_xb", FFT_DOUBLE);
   save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xa_d, sett->nfftf, 1, "post_fft_phasemod_xa", FFT_DOUBLE);
   save_numbered_complex_buffer(cl_handles->read_queues[id][idet], xb_d, sett->nfftf, 1, "post_fft_phasemod_xb", FFT_DOUBLE);
+#else
+  (void*)sett; // unreferenced formal parameter
 #endif
 }

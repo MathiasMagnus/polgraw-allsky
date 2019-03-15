@@ -189,13 +189,16 @@ Search_results job_core(const int pm,                  // hemisphere
                         OpenCL_handles* cl_handles,    // handles to OpenCL resources
                         BLAS_handles* blas_handles)    // handle for scaling
 {
-  Search_results results = { 0, NULL, init_profiling_info() };
+  Search_results results;
+  results.sgnlc = 0;
+  results.sgnlv = NULL;
+  results.prof = init_profiling_info();
 
   // Allocate storage for events to synchronize pipeline
   Pipeline pl = init_pipeline(sett->nifo);
 
   signal_params_t sgnlt[NPAR], sgnl_freq;
-  double het0, ft, sinalt, cosalt, sindelt, cosdelt;
+  double het0, sinalt, cosalt, sindelt, cosdelt;
 
   struct timespec pre_spindown_start, pre_spindown_end, spindown_end;
 
@@ -204,7 +207,7 @@ Search_results job_core(const int pm,                  // hemisphere
   // If the sky coordinate is not valid, shortcircuit the search
   if (!sky_positions(pm, mm, nn,                                   // input
 	                 sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
-	                 sgnlt, &het0, &ft,                            // output
+	                 sgnlt, &het0,                                 // output
 	                 &sinalt, &cosalt, &sindelt, &cosdelt))        // output
   {
     pre_spindown_end = spindown_end = pre_spindown_start;
@@ -227,9 +230,11 @@ Search_results job_core(const int pm,                  // hemisphere
              cl_handles, 0, NULL);                      // sync
 
     // Calculate detector positions with respect to baricenter
-    cl_double3 nSource = { cosalt * cosdelt,
-                           sinalt * cosdelt,
-                           sindelt };
+    cl_double3 nSource;
+    nSource.s0 = cosalt * cosdelt;
+    nSource.s1 = sinalt * cosdelt;
+    nSource.s2 = sindelt;
+
     double shft1 = nSource.s[0] * ifo[n].sig.DetSSB[0].s[0] +
                    nSource.s[1] * ifo[n].sig.DetSSB[0].s[1] +
                    nSource.s[2] * ifo[n].sig.DetSSB[0].s[2];
@@ -308,20 +313,20 @@ Search_results job_core(const int pm,                  // hemisphere
                     cl_handles, 1, &pl.phase_mod_events[n - 1]);                             // sync
     }
 
-	zero_pad(0, id, sett,                                      // input
-             fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],       // input / output
-             cl_handles, sett->nifo, pl.phase_mod_events,      // sync
-             pl.zero_pad_events);                              // sync
+  zero_pad(0, id, sett,                                      // input
+           fft_arr->xa_d[id][0], fft_arr->xb_d[id][0],       // input / output
+           cl_handles, sett->nifo, pl.phase_mod_events,      // sync
+           pl.zero_pad_events);                              // sync
 
-	time_to_frequency(0, id, sett, plans,                         // input
-                      fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], // input / output
-                      cl_handles, 2, pl.zero_pad_events,          // sync
-                      pl.fw2_fft_events);                         // sync
+  time_to_frequency(0, id, sett, plans,                         // input
+                    fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], // input / output
+                    cl_handles, 2, pl.zero_pad_events,          // sync
+                    pl.fw2_fft_events);                         // sync
 
     (*FNum)++; // TODO: revisit this variable, needs atomic at least
 
     pl.compute_Fstat_event =
-	  compute_Fstat(0, id, sett->nmin, sett->nmax,
+      compute_Fstat(0, id, sett->nmin, sett->nmax,
                     fft_arr->xa_d[id][0], fft_arr->xb_d[id][0], aux->maa_d[id], aux->mbb_d[id],
                     aux->F_d[id],
                     cl_handles, 2, pl.fw2_fft_events);
@@ -331,7 +336,7 @@ Search_results job_core(const int pm,                  // hemisphere
                                 aux->F_d[id],                            // input / output
                                 cl_handles, 1, &pl.compute_Fstat_event); // sync
 
-    find_peaks(0, id, sett->nmin, sett->nmax, opts->trl,    // input
+    find_peaks(/*0,*/ id, sett->nmin, sett->nmax, opts->trl,    // input
                sgnl_freq, sett, aux->F_d[id],               // input
                &results, sgnlt,                             // output
                cl_handles, 1, &pl.normalize_Fstat_event,    // sync
@@ -479,10 +484,10 @@ void save_and_free_results(const Command_line_opts* opts,
 Search_results combine_results(const Search_range* s_range,
                                const Search_results** results)
 {
-  Search_results result = { 0, NULL, init_profiling_info() };
-
-  unsigned long long pre_spindown_duration,
-                     spindown_duration;
+  Search_results result;
+  result.sgnlc = 0;
+  result.sgnlv = NULL;
+  result.prof = init_profiling_info();
 
   // Two main loops over sky positions //
   for (int mm = s_range->mr[0]; mm <= s_range->mr[1]; ++mm)

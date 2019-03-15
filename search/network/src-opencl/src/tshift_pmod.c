@@ -44,10 +44,11 @@ cl_event tshift_pmod(const cl_int idet,
     real real_shft1 = (real)shft1,
          real_het0 = (real)het0,
          real_oms = (real)oms;
-    real3 real3_ns = { (real)ns.s0,
-                       (real)ns.s1,
-                       (real)ns.s2,
-                       (real)ns.s3 };
+    real3 real3_ns;
+    real3_ns.s0 = (real)ns.s0;
+    real3_ns.s1 = (real)ns.s1;
+    real3_ns.s2 = (real)ns.s2;
+    real3_ns.s3 = (real)ns.s3;
     size_t size_nfft = (size_t)nfft;
 
     CL_err = clSetKernelArg(cl_handles->kernels[id][TShiftPMod], 0, sizeof(cl_int), &N);            checkErr(CL_err, "clSetKernelArg(&N)");

@@ -16,7 +16,6 @@ bool sky_positions(const int pm,                  // hemisphere
                    double cepsm,
                    signal_params_t* sgnlt,
                    double* het0,
-                   double* ft,
                    double* sinalt,
                    double* cosalt,
                    double* sindelt,

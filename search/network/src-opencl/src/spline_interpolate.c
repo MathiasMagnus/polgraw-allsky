@@ -34,68 +34,68 @@ void spline_interpolate(const cl_int idet,
   cl_int CL_err = CL_SUCCESS;
 
   fft_complex* xa =
-    clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
-                       xa_d,
-                       CL_FALSE,
-                       CL_MAP_READ,
-                       0,
-                       arr_len * sizeof(fft_complex),
-                       num_events_in_wait_list,
-                       event_wait_list,
-                       &spline_map_events[0],
-                       &CL_err);
+    (fft_complex*)clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
+                                     xa_d,
+                                     CL_FALSE,
+                                     CL_MAP_READ,
+                                     0,
+                                     arr_len * sizeof(fft_complex),
+                                     num_events_in_wait_list,
+                                     event_wait_list,
+                                     &spline_map_events[0],
+                                     &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xa_d)");
 
   fft_complex* xb =
-    clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
-                       xb_d,
-                       CL_FALSE,
-                       CL_MAP_READ,
-                       0,
-                       arr_len * sizeof(fft_complex),
-                       num_events_in_wait_list,
-                       event_wait_list,
-                       &spline_map_events[1],
-                       &CL_err);
+    (fft_complex*)clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
+                                     xb_d,
+                                     CL_FALSE,
+                                     CL_MAP_READ,
+                                     0,
+                                     arr_len * sizeof(fft_complex),
+                                     num_events_in_wait_list,
+                                     event_wait_list,
+                                     &spline_map_events[1],
+                                     &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(fft_arr->xb_d)");
 
   shift_real* shftf =
-    clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
-                       shftf_d,
-                       CL_FALSE,
-                       CL_MAP_READ,
-                       0,
-                       N * sizeof(shift_real),
-                       num_events_in_wait_list,
-                       event_wait_list,
-                       &spline_map_events[2],
-                       &CL_err);
+    (shift_real*)clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
+                                    shftf_d,
+                                    CL_FALSE,
+                                    CL_MAP_READ,
+                                    0,
+                                    N * sizeof(shift_real),
+                                    num_events_in_wait_list,
+                                    event_wait_list,
+                                    &spline_map_events[2],
+                                    &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.shftf_d)");
 
   xDatm_complex* xDatma =
-    clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
-                       xDatma_d,
-                       CL_FALSE,
-                       CL_MAP_WRITE,
-                       0,
-                       N * sizeof(xDatm_complex),
-                       num_events_in_wait_list,
-                       event_wait_list,
-                       &spline_map_events[3],
-                       &CL_err);
+    (xDatm_complex*)clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
+                                       xDatma_d,
+                                       CL_FALSE,
+                                       CL_MAP_WRITE,
+                                       0,
+                                       N * sizeof(xDatm_complex),
+                                       num_events_in_wait_list,
+                                       event_wait_list,
+                                       &spline_map_events[3],
+                                       &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatma_d)");
 
   xDatm_complex* xDatmb =
-    clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
-                       xDatmb_d,
-                       CL_FALSE,
-                       CL_MAP_WRITE,
-                       0,
-                       N * sizeof(xDatm_complex),
-                       num_events_in_wait_list,
-                       event_wait_list,
-                       &spline_map_events[4],
-                       &CL_err);
+    (xDatm_complex*)clEnqueueMapBuffer(cl_handles->read_queues[id][idet],
+                                       xDatmb_d,
+                                       CL_FALSE,
+                                       CL_MAP_WRITE,
+                                       0,
+                                       N * sizeof(xDatm_complex),
+                                       num_events_in_wait_list,
+                                       event_wait_list,
+                                       &spline_map_events[4],
+                                       &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(ifo[n].sig.xDatmb_d)");
 
   // Wait for maps and do actual interpolation
@@ -142,6 +142,7 @@ void blas_scale(const cl_int idet,
                 cl_event* blas_exec)
 {
   clblasStatus status[2];
+  (void*)blas_handles; // Currently not needed, but maybe later
 
 #if XDATM_DOUBLE
   status[0] = clblasDscal(n * 2, a, a_d, 0, 1, 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasDscal(xa_d)");

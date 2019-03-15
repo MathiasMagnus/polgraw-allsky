@@ -7,6 +7,7 @@
 #include <CL/cl.h>      // cl_floatN, cl_doubleN
 
 // Standard C includes
+#define _CRT_USE_C_COMPLEX_H
 #include <complex.h>      // _Fcomplex, _Dcomplex
 
 #if AMPL_MOD_DOUBLE

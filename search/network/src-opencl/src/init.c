@@ -438,7 +438,10 @@ cl_context create_standard_context(cl_device_id* devices, cl_uint count)
                              NULL);
     checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_PLATFORM)");
 
-    cl_context_properties cps[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
+    cl_context_properties cps[3];
+    cps[0] = CL_CONTEXT_PLATFORM;
+    cps[1] = (cl_context_properties)platform;
+    cps[2] = 0;
 
     result = clCreateContext(cps, count, devices, NULL, NULL, &CL_err);
     checkErr(CL_err, "clCreateContext()");
@@ -599,12 +602,12 @@ cl_program build_program_with_sources(cl_context context,
     if (CL_err != CL_SUCCESS)
     {
         size_t len = 0;
-        char *buffer;
+        char* buffer;
 
         CL_err = clGetProgramBuildInfo(result, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
         checkErr(CL_err, "clGetProgramBuildInfo(CL_PROGRAM_BUILD_LOG)");
 
-        buffer = calloc(len, sizeof(char));
+        buffer = (char*)calloc(len, sizeof(char));
 
         clGetProgramBuildInfo(result, devices[0], CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
 
@@ -1064,16 +1067,16 @@ void init_aux_arrays(Search_settings* sett,
   }
 
   Ampl_mod_coeff* tmp =
-      clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
-          aux_arr->ifo_amod_d,
-          CL_TRUE,
-          CL_MAP_WRITE_INVALIDATE_REGION,
-          0,
-          sett->nifo * sizeof(Ampl_mod_coeff),
-          0,
-          NULL,
-          NULL,
-          &CL_err);
+      (Ampl_mod_coeff*)clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
+                                          aux_arr->ifo_amod_d,
+                                          CL_TRUE,
+                                          CL_MAP_WRITE_INVALIDATE_REGION,
+                                          0,
+                                          sett->nifo * sizeof(Ampl_mod_coeff),
+                                          0,
+                                          NULL,
+                                          NULL,
+                                          &CL_err);
 
   for (size_t i = 0; i < sett->nifo; ++i) tmp[i] = ifo[i].amod;
 
@@ -1106,7 +1109,6 @@ void set_search_range(Search_settings *sett,
     // within the range of grid parameters from an ascii file
     // ("-r range_file" from the command line)
     FILE *data;
-
     if (strlen(opts->range))
     {
         if ((data = fopen(opts->range, "rb")) != NULL)
@@ -1143,7 +1145,6 @@ void set_search_range(Search_settings *sett,
 
         if (strlen(opts->getrange))
         {
-            FILE *data;
             if ((data = fopen(opts->getrange, "w")) != NULL)
             {
                 fprintf(data, "%d %d\n%d %d\n%d %d\n%d %d\n",
@@ -1349,18 +1350,19 @@ void read_checkpoints(Command_line_opts *opts,
 void cleanup(Detector_settings* ifo,
              Search_settings *sett,
              Command_line_opts *opts,
-             Search_range *s_range,
              OpenCL_handles* cl_handles,
              BLAS_handles* blas_handles,
              FFT_plans *plans,
              FFT_arrays *fft_arr,
              Aux_arrays *aux)
 {
-    cleanup_fft(sett, cl_handles, plans);
+    cleanup_fft(cl_handles, plans);
 
     cleanup_blas(sett, cl_handles, blas_handles);
 
-    cleanup_arrays(ifo, sett, cl_handles, opts, aux, fft_arr);
+    cleanup_arrays(ifo, sett, cl_handles, aux, fft_arr);
+
+    free(opts->wd);
 
     cleanup_opencl(cl_handles);
 
@@ -1399,11 +1401,14 @@ void cleanup(Detector_settings* ifo,
 void cleanup_arrays(Detector_settings* ifo,
                     Search_settings* sett,
                     OpenCL_handles* cl_handles,
-                    Command_line_opts* opts,
                     Aux_arrays* aux_arr,
                     FFT_arrays* fft_arr)
 {
 	cleanup_fft_arrays(fft_arr, sett->nifo, cl_handles->dev_count);
+
+  cleanup_aux_arrays(sett, cl_handles, aux_arr);
+
+  cleanup_ifo_arrays(sett, cl_handles, ifo);
 }
 
 void cleanup_fft_arrays(FFT_arrays* fft_arr,
@@ -1426,6 +1431,74 @@ void cleanup_fft_arrays(FFT_arrays* fft_arr,
 
   free(fft_arr->xa_d);
   free(fft_arr->xb_d);
+}
+
+void cleanup_aux_arrays(Search_settings* sett,
+                        OpenCL_handles* cl_handles,
+                        Aux_arrays* aux_arr)
+{
+  cl_int CL_err = CL_SUCCESS;
+
+  CL_err = clReleaseMemObject(aux_arr->ifo_amod_d); checkErr(CL_err, "clReleaseMemObject(aux_arr->ifo_amod_d)");
+
+  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  {
+    for (int n = 0; n < sett->nifo; ++n)
+    {
+      CL_err = clReleaseMemObject(aux_arr->tshift_d[id][n]); checkErr(CL_err, "clReleaseMemObject(aux_arr->tshift_d[id][n])");
+      CL_err = clReleaseMemObject(aux_arr->aadots_d[id][n]); checkErr(CL_err, "clReleaseMemObject(aux_arr->aadots_d[id][n])");
+      CL_err = clReleaseMemObject(aux_arr->bbdots_d[id][n]); checkErr(CL_err, "clReleaseMemObject(aux_arr->bbdots_d[id][n])");
+    }
+
+    free(aux_arr->tshift_d[id]);
+    free(aux_arr->aadots_d[id]);
+    free(aux_arr->bbdots_d[id]);
+
+    CL_err = clReleaseMemObject(aux_arr->maa_d[id]); checkErr(CL_err, "clReleaseMemObject(aux_arr->maa_d[id]");
+    CL_err = clReleaseMemObject(aux_arr->mbb_d[id]); checkErr(CL_err, "clReleaseMemObject(aux_arr->mbb_d[id]");
+    CL_err = clReleaseMemObject(aux_arr->F_d[id]);   checkErr(CL_err, "clReleaseMemObject(aux_arr->F_d[id]");
+  }
+
+  free(aux_arr->tshift_d);
+  free(aux_arr->aadots_d);
+  free(aux_arr->bbdots_d);
+  free(aux_arr->maa_d);
+  free(aux_arr->mbb_d);
+
+  free(aux_arr->F_d);
+}
+
+void cleanup_ifo_arrays(Search_settings* sett,
+                        OpenCL_handles* cl_handles,
+                        Detector_settings* ifo)
+{
+  for (int i = 0; i < sett->nifo; i++)
+  {
+    free(ifo[i].sig.xDat);
+
+    cl_int CL_err = CL_SUCCESS;
+    CL_err = clReleaseMemObject(ifo[i].sig.xDat_d);   checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.xDat_d)");
+    CL_err = clReleaseMemObject(ifo[i].sig.DetSSB_d); checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.DetSSB_d)");
+
+    free(ifo[i].sig.DetSSB);
+
+    for (cl_uint j = 0; j < cl_handles->dev_count; ++j)
+    {
+      CL_err = clReleaseMemObject(ifo[i].sig.xDatma_d[j]); checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.xDatma_d[j])");
+      CL_err = clReleaseMemObject(ifo[i].sig.xDatmb_d[j]); checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.xDatmb_d[j])");
+      CL_err = clReleaseMemObject(ifo[i].sig.aa_d[j]);     checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.aa_d[j])");
+      CL_err = clReleaseMemObject(ifo[i].sig.bb_d[j]);     checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.bb_d[j])");
+      CL_err = clReleaseMemObject(ifo[i].sig.shft_d[j]);   checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.shft_d[j])");
+      CL_err = clReleaseMemObject(ifo[i].sig.shftf_d[j]);  checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.shftf_d[j])");
+    }
+
+    free(ifo[i].sig.xDatma_d);
+    free(ifo[i].sig.xDatmb_d);
+    free(ifo[i].sig.aa_d);
+    free(ifo[i].sig.bb_d);
+    free(ifo[i].sig.shft_d);
+    free(ifo[i].sig.shftf_d);
+  }
 }
 
 void cleanup_opencl(OpenCL_handles* cl_handles)
@@ -1527,18 +1600,17 @@ void cleanup_blas(Search_settings* sett,
 	clblasTeardown();
 }
 
-void cleanup_fft(Search_settings* sett,
-	             OpenCL_handles* cl_handles,
-	             FFT_plans* plans)
+void cleanup_fft(OpenCL_handles* cl_handles,
+                 FFT_plans* plans)
 {
-	clfftStatus status = CLFFT_SUCCESS;
-    for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
-    {
-        status = clfftDestroyPlan(&plans->plan[id]);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
-        status = clfftDestroyPlan(&plans->pl_int[id]); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
-        status = clfftDestroyPlan(&plans->pl_inv[id]); checkErrFFT(status, "clfftDestroyPlan(plans->pl_inv)");
-    }
-	clfftTeardown();
+  clfftStatus status = CLFFT_SUCCESS;
+  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  {
+    status = clfftDestroyPlan(&plans->plan[id]);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
+    status = clfftDestroyPlan(&plans->pl_int[id]); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
+    status = clfftDestroyPlan(&plans->pl_inv[id]); checkErrFFT(status, "clfftDestroyPlan(plans->pl_inv)");
+  }
+  clfftTeardown();
 }
 
 // Command line options handling: coincidences //

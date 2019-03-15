@@ -2,6 +2,8 @@
 #include <complex_op.h>
 
 _Dcomplex cbuild(const double real, const double imag) { return _Cbuild(real, imag); }
+//double creal(_Dcomplex cplx) { return cplx; }
+//double cimag(_Dcomplex cplx) { return cplx; }
 
 _Dcomplex cmulcc(const _Dcomplex lhs, const _Dcomplex rhs) { return _Cmulcc(lhs, rhs); }
 _Dcomplex cmulcr(const _Dcomplex lhs, const double rhs) { return _Cmulcr(lhs, rhs); }

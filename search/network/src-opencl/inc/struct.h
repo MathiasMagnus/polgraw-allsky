@@ -52,7 +52,7 @@ typedef struct _signals
     cl_mem DetSSB_d;          // Ephemeris of the detector
     cl_mem *aa_d, *bb_d;      // Amplitude modulation functions
     cl_mem *shftf_d, *shft_d; // Resampling and time-shifting
-	cl_mem *xDatma_d, *xDatmb_d;
+    cl_mem *xDatma_d, *xDatmb_d;
   
     double epsm,
            phir,

@@ -19,7 +19,6 @@ bool sky_positions(const int pm,                  // hemisphere
                    double cepsm,
                    signal_params_t* sgnlt,
                    double* het0,
-                   double* ft,
                    double* sinalt,
                    double* cosalt,
                    double* sindelt,
@@ -82,7 +81,6 @@ void lin2ast(const double be1,
              double *sindel,
              double *cosdel)
 {
-  double tmp = sqrt(1. - sqr(be1) - sqr(be2))*cepsm;
   *sindel = be1 * sepsm - (2 * pm - 3)*sqrt(1. - sqr(be1) - sqr(be2))*cepsm;
   *cosdel = sqrt(1. - sqr(*sindel));
   *sinal = (be1 - sepsm * (*sindel)) / (cepsm*(*cosdel));

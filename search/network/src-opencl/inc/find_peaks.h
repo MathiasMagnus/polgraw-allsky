@@ -9,7 +9,7 @@
 
 /// <summary>Looks for peaks above treshold <c>trl</c> and persists them.</summary>
 ///
-void find_peaks(const cl_int idet,
+void find_peaks(//const cl_int, //idet,
                 const cl_int id,
                 const cl_int nmin,
                 const cl_int nmax,

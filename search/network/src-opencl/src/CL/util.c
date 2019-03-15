@@ -13,6 +13,7 @@ void checkErr(cl_int err, const char * name)
     {
 #ifdef _WIN32
         int count = printf_s("ERROR: %s (%i)\n", name, err);
+        if (count <= 0) exit(count);
 #else
         printf("ERROR: %s (%i)\n", name, err);
 #endif

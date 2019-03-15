@@ -143,7 +143,6 @@ void read_checkpoints(Command_line_opts *opts,
 void cleanup(Detector_settings* ifo,
              Search_settings *sett,
 	         Command_line_opts *opts,
-	         Search_range *s_range,
              OpenCL_handles* cl_handles,
              BLAS_handles* blas_handles,
 	         FFT_plans *plans,
@@ -155,7 +154,6 @@ void cleanup(Detector_settings* ifo,
 void cleanup_arrays(Detector_settings* ifo,
                     Search_settings* sett,
                     OpenCL_handles* cl_handles,
-                    Command_line_opts* opts,
                     Aux_arrays* aux_arr,
                     FFT_arrays* fft_arr);
 
@@ -165,18 +163,17 @@ void cleanup_fft_arrays(FFT_arrays* fft_arr,
                         int nifo,
 	                    cl_uint count);
 
-/// <summary>Initialize interferometer arrays.</summary>
+/// <summary>Release interferometer arrays.</summary>
 ///
 void cleanup_ifo_arrays(Search_settings* sett,
-    OpenCL_handles* cl_handles,
-    Command_line_opts* opts,
-    Detector_settings* ifo);
+                        OpenCL_handles* cl_handles,
+                        Detector_settings* ifo);
 
-/// <summary>Initialize auxiliary arrays.</summary>
+/// <summary>Release auxiliary arrays.</summary>
 ///
 void cleanup_aux_arrays(Search_settings* sett,
-    OpenCL_handles* cl_handles,
-    Aux_arrays* aux_arr);
+                        OpenCL_handles* cl_handles,
+                        Aux_arrays* aux_arr);
 
 /// <summary>Frees OpenCL resources.</summary>
 ///
@@ -213,8 +210,7 @@ void cleanup_blas(Search_settings* sett,
 
 /// <summary>Cleanup FFT plans.</summary>
 ///
-void cleanup_fft(Search_settings* sett,
-	             OpenCL_handles* cl_handles,
+void cleanup_fft(OpenCL_handles* cl_handles,
 	             FFT_plans* plans);
 
 // Coincidences specific functions 

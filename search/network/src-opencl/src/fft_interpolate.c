@@ -82,7 +82,7 @@ void resample_postfft(const cl_int idet,
   cl_event exec;
   size_t resample_length = (size_t)Ninterp - (nyqst + nfft); // Helper variable to make pointer types match. Cast to silence warning
   
-  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][ResamplePostFFT], 1, NULL, &resample_length, NULL, 0, NULL, &exec);
+  CL_err = clEnqueueNDRangeKernel(cl_handles->exec_queues[id][idet], cl_handles->kernels[id][ResamplePostFFT], 1, NULL, &resample_length, NULL, num_events_in_wait_list, event_wait_list, &exec);
   checkErr(CL_err, "clEnqueueNDRangeKernel(cl_handles->kernels[ResamplePostFFT])");
 
   // Remove when API based version is properly in place

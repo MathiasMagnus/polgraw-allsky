@@ -45,7 +45,7 @@ set (SRCS src/main.c
           src/init.c
           src/jobcore.c
           src/sky_positions.c
-          src/spline_z.c
+          #src/spline_z.c
           src/CL/util.c
           src/modvir.c
           src/tshift_pmod.c

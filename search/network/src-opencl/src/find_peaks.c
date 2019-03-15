@@ -21,7 +21,7 @@
 #include <stdbool.h>    // _Bool, true, false
 #include <stdlib.h>     // realloc
 
-void find_peaks(const cl_int idet,
+void find_peaks(//const cl_int idet,
                 const cl_int id,
                 const cl_int nmin,
                 const cl_int nmax,
@@ -39,16 +39,17 @@ void find_peaks(const cl_int idet,
 {
   cl_int CL_err = CL_SUCCESS;
 
-  fstat_real* F = clEnqueueMapBuffer(cl_handles->read_queues[id][0],
-                                     F_d,
-                                     CL_TRUE,
-                                     CL_MAP_READ,
-                                     0,
-                                     (nmax - nmin) * sizeof(fstat_real),
-                                     num_events_in_wait_list,
-                                     event_wait_list,
-                                     peak_map_event,
-                                     &CL_err);
+  fstat_real* F =
+    (fstat_real*)clEnqueueMapBuffer(cl_handles->read_queues[id][0],
+                                    F_d,
+                                    CL_TRUE,
+                                    CL_MAP_READ,
+                                    0,
+                                    (nmax - nmin) * sizeof(fstat_real),
+                                    num_events_in_wait_list,
+                                    event_wait_list,
+                                    peak_map_event,
+                                    &CL_err);
   checkErr(CL_err, "clEnqueueMapBuffer(F_d)");
   double Fc;
   for (int i = nmin; i < nmax; i++)
@@ -70,7 +71,7 @@ void find_peaks(const cl_int idet,
       sgnlt[signal_to_noise] = (signal_params_t)sqrt(2.*(Fc - sett->nd));
 
       // Checking if signal is within a known instrumental line
-      _Bool veto = false;
+      bool veto = false;
       for (int k = 0; k < sett->numlines_band; k++)
         if (sgnlt[frequency] >= sett->lines[k][0] && sgnlt[frequency] <= sett->lines[k][1]) {
           veto = true;

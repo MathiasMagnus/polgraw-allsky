@@ -37,7 +37,7 @@ void calc_mxx(const cl_uint nifo,
 
   cl_event* input_wait_events = (cl_event*)malloc((nifo * 2 + 2) * sizeof(cl_event));
 
-  for (cl_uint i = 0; i < nifo; ++i)
+  for (cl_uint i = 0; i < num_events_in_wait_list; ++i)
   {
     input_wait_events[i * 2 + 0] = event_wait_list[i][0];
     input_wait_events[i * 2 + 1] = event_wait_list[i][1];
