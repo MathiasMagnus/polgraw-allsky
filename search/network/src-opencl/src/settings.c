@@ -122,7 +122,7 @@ void search_settings(Search_settings* sett)
 
 } // search settings
 
-#define buf_size 512
+#define buf_size 2048
 
 /// <summary>Reads the settings of the detectors.</summary>
 /// <remarks>Network of detectors' discovery: finds subdirectories in the main input directory, which by convention should be named like V1, L1, H1 and which contain input data and ephemerids; writes appropriate detector-related data into structs.</remarks>
@@ -136,7 +136,7 @@ void detectors_settings(Detector_settings* ifo,
     memset(x, 0, sizeof(x));
 
     // Main input directory name 
-#ifdef _WIN32
+#ifdef _MSC_VER
     int err = sprintf_s(dirname, buf_size, "%s/%03d", opts->dtaprefix, opts->ident);
 #else
     int err = sprintf(dirname, "%s/%03d", opts->dtaprefix, opts->ident);
@@ -174,12 +174,12 @@ void detectors_settings(Detector_settings* ifo,
                 // sprintf(x, "%s/%03d/%s/xdatc_%03d%s.bin",
                 //         opts->dtaprefix, opts->ident, ep->d_name,
                 //         opts->ident, opts->label);
-//#ifdef _WIN32
-//                int err = sprintf_s(x,
-//                    buf_size,
-//#else
-                int err = sprintf(x,
-//#endif
+#ifdef _MSC_VER
+                err = sprintf_s(x,
+                    buf_size,
+#else
+                err = sprintf(x,
+#endif
                     "%s/%03d/%s/xdatc_%03d_%04d%s.bin",
                     opts->dtaprefix,
                     opts->ident,
