@@ -33,7 +33,7 @@ void blas_dot(const cl_int idet,
   status[0] = clblasDdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasDdot()");
   status[1] = clblasDdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasDdot()");
 #else
-  status[1] = clblasSdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[0], "clblasDdot()");
-  status[0] = clblasSdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[1], "clblasDdot()");
+  status[0] = clblasSdot(n, aadot_d, 0, aa_d, 0, 1, aa_d, 0, 1, blas_handles->aaScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[0]); checkErrBLAS(status[0], "clblasDdot()");
+  status[1] = clblasSdot(n, bbdot_d, 0, bb_d, 0, 1, bb_d, 0, 1, blas_handles->bbScratch_d[id][idet], 1, &cl_handles->exec_queues[id][idet], num_events_in_wait_list, event_wait_list, &blas_exec[1]); checkErrBLAS(status[1], "clblasDdot()");
 #endif
 }
