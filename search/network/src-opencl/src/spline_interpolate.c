@@ -1,6 +1,6 @@
 #include <spline_interpolate.h>
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <complex_op.h>
 #endif
 

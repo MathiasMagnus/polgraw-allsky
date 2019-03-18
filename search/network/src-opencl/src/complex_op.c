@@ -1,9 +1,6 @@
-#ifdef _MSC_VER
 #include <complex_op.h>
 
 _Dcomplex cbuild(const double real, const double imag) { return _Cbuild(real, imag); }
-//double creal(_Dcomplex cplx) { return cplx; }
-//double cimag(_Dcomplex cplx) { return cplx; }
 
 _Dcomplex cmulcc(const _Dcomplex lhs, const _Dcomplex rhs) { return _Cmulcc(lhs, rhs); }
 _Dcomplex cmulcr(const _Dcomplex lhs, const double rhs) { return _Cmulcr(lhs, rhs); }
@@ -69,7 +66,3 @@ _Fcomplex fcaddrc(const float lhs, const _Fcomplex rhs) { return fcbuild(lhs + c
 _Fcomplex fcsubcc(const _Fcomplex lhs, const _Fcomplex rhs) { return fcbuild(crealf(lhs) - crealf(rhs), cimagf(lhs) - cimagf(rhs)); }
 _Fcomplex fcsubcr(const _Fcomplex lhs, const float rhs) { return fcbuild(crealf(lhs) - rhs, cimagf(lhs)); }
 _Fcomplex fcsubrc(const float lhs, const _Fcomplex rhs) { return fcbuild(lhs - crealf(rhs), cimagf(rhs)); }
-#else
-int asdfghjkl = 0;
-#endif
-

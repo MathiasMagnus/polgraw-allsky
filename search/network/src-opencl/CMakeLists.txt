@@ -11,8 +11,7 @@ cmake_minimum_required (VERSION 3.9)
 set (Target_NAME gwsearch-ocl)
 
 # Adding source code files according to configuration
-set (HDRS inc/complex_op.h
-          inc/auxi.h
+set (HDRS inc/auxi.h
           inc/precision.h
           inc/floats.h
           inc/log.h
@@ -33,10 +32,10 @@ set (HDRS inc/complex_op.h
           inc/phase_mod.h
           inc/time_to_frequency.h
           inc/fstat.h
-          inc/find_peaks.h)
+          inc/find_peaks.h
+		  $<$<C_COMPILER_ID:MSVC>:inc/complex_op.h>)
 
 set (SRCS src/main.c
-          src/complex_op.c
           src/auxi.c
           src/log.c
           src/log_sp.c
@@ -45,7 +44,6 @@ set (SRCS src/main.c
           src/init.c
           src/jobcore.c
           src/sky_positions.c
-          #src/spline_z.c
           src/CL/util.c
           src/modvir.c
           src/tshift_pmod.c
@@ -56,7 +54,8 @@ set (SRCS src/main.c
           src/phase_mod.c
           src/time_to_frequency.c
           src/fstat.c
-          src/find_peaks.c)
+          src/find_peaks.c
+		  $<$<C_COMPILER_ID:MSVC>:src/complex_op.c>)
 
 set (KRN_HDRS krn/floats.h.cl
               krn/complex_op.h.cl

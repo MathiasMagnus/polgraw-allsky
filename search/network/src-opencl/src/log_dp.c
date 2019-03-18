@@ -1,7 +1,7 @@
 #include <log.h>
 
 #define COMP_DOUBLE 1
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <complex_op.h>
 #endif
 
