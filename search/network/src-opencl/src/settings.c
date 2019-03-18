@@ -161,7 +161,7 @@ void detectors_settings(Detector_settings* ifo,
             // not a directory name of the type "./" or ".."
             // if usedef is not set (length equal 0), or is set and dir name is substring of it 
             if ((ep->d_type == DT_DIR) &&
-                (strlen(ep->d_name) == DETNAME_LENGTH) &&
+                (strlen(ep->d_name) == (DETNAME_LENGTH - 1)) &&
                 (strncmp(&ep->d_name[0], ".", 1)) &&
                 (!strlen(opts->usedet) || (strlen(opts->usedet) && (strstr(opts->usedet, ep->d_name)))))
             {
@@ -193,10 +193,10 @@ void detectors_settings(Detector_settings* ifo,
                 if ((data = fopen(x, "rb")) != NULL) {
 
                     xnames[i] = (char *)calloc(strlen(x) + 1, sizeof(char));
-                    detnames[i] = (char *)calloc(DETNAME_LENGTH + 1, sizeof(char));
+                    detnames[i] = (char *)calloc(DETNAME_LENGTH, sizeof(char));
 
                     strncpy(xnames[i], x, strlen(x) + 1);
-                    strncpy(detnames[i], ep->d_name, DETNAME_LENGTH + 1);
+                    strncpy(detnames[i], ep->d_name, DETNAME_LENGTH);
                     i++;
 
                 }

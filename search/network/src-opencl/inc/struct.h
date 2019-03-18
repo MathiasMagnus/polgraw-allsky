@@ -17,7 +17,7 @@
 #include <time.h>       // timespec
 
 #define MAX_DETECTORS 2        // Maximum number of detectors in network 
-#define DETNAME_LENGTH 2       // Detector name length (H1, L1, V1...)
+#define DETNAME_LENGTH 3       // Detector name length (H1, L1, V1...) + null terminator
 #define XDATNAME_LENGTH 512    // Maximum length of input file name xdat*bin  
 
 #define MAXL 2048              // Max number of known lines for a detector
