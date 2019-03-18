@@ -39,11 +39,11 @@ void calc_mxx(const cl_uint nifo,
 
   for (cl_uint i = 0; i < num_events_in_wait_list; ++i)
   {
-    input_wait_events[i * 2 + 0] = event_wait_list[i][0];
-    input_wait_events[i * 2 + 1] = event_wait_list[i][1];
+    input_wait_events[i * 2 + 0] = event_wait_list[i][0]; CL_err = clRetainEvent(event_wait_list[i][0]); checkErr(CL_err, "clRetainEvent(event_wait_list[i][0])");
+    input_wait_events[i * 2 + 1] = event_wait_list[i][1]; CL_err = clRetainEvent(event_wait_list[i][1]); checkErr(CL_err, "clRetainEvent(event_wait_list[i][1])");
   }
-  input_wait_events[nifo * 2 + 0] = mxx_fill_events[0];
-  input_wait_events[nifo * 2 + 1] = mxx_fill_events[1];
+  input_wait_events[nifo * 2 + 0] = mxx_fill_events[0]; clRetainEvent(mxx_fill_events[0]); checkErr(CL_err, "clRetainEvent(mxx_fill_events[0])");
+  input_wait_events[nifo * 2 + 1] = mxx_fill_events[1]; clRetainEvent(mxx_fill_events[1]); checkErr(CL_err, "clRetainEvent(mxx_fill_events[1])");
 
 #if AMPL_MOD_DOUBLE
   status[0] = clblasDaxpy(1, 1 / ifo[0].sig.sig2, aadots_d[0], 0, 1, maa_d, 0, 1, 1, &cl_handles->exec_queues[id][0], (nifo * 2 + 2), input_wait_events, &axpy_events[0]); checkErrBLAS(status[0], "clblasDaxpy()");
