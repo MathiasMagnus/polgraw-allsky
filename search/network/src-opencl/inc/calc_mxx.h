@@ -22,6 +22,6 @@ void calc_mxx(const cl_uint nifo,
               cl_mem mbb_d,
               OpenCL_handles* cl_handles,
               const cl_uint num_events_in_wait_list,
-              const cl_event** event_wait_list,
+              cl_event** event_wait_list,
               cl_event* mxx_fill_events,
               cl_event* axpy_events);

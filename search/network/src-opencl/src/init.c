@@ -327,7 +327,7 @@ void init_opencl(OpenCL_handles* cl_handles,
   {
     char** sources = load_kernel_sources();
 
-    cl_handles->prog = build_program_with_sources(cl_handles->ctx, sources);
+    cl_handles->prog = build_program_with_sources(cl_handles->ctx, (const char**)sources);
 
     free_kernel_sources(sources);
   }
@@ -550,7 +550,7 @@ char** load_kernel_sources()
 {
     char** result = (char**)malloc(kernel_path_count * sizeof(char*));
 
-    for (int i = 0; i < kernel_path_count; ++i)
+    for (size_t i = 0; i < kernel_path_count; ++i)
         result[i] = load_file(kernel_paths[i]);
 
     return result;
@@ -558,7 +558,7 @@ char** load_kernel_sources()
 
 void free_kernel_sources(char** sources)
 {
-    for (int i = 0; i < kernel_path_count; ++i)
+    for (size_t i = 0; i < kernel_path_count; ++i)
         free(sources[i]);
 
     free(sources);
@@ -574,7 +574,7 @@ cl_program build_program_with_sources(cl_context context,
     cl_device_id* devices = NULL;
 
     size_t* lengths = (size_t*)malloc(kernel_path_count * sizeof(size_t));
-    for(int i = 0 ; i < kernel_path_count; ++i)
+    for(size_t i = 0 ; i < kernel_path_count; ++i)
 #ifdef _WIN32
       lengths[i] = strnlen_s(sources[i], UINT_MAX);
 #else
@@ -701,7 +701,7 @@ void read_grid(Search_settings *sett,
     sett->M = (double *)calloc(16, sizeof(double));
 
     FILE *data;
-    char filename[512];
+    char filename[1024];
 
     // In case when -usedet option is used for one detector
     // i.e. opts->usedet has a length of 2 (e.g. H1 or V1), 
@@ -753,7 +753,7 @@ void init_ifo_arrays(Search_settings* sett,
 {
   // Allocates and initializes to zero the data, detector ephemeris
   // and the F-statistic arrays
-  size_t status;
+  size_t status = 0;
 
   for (int i = 0; i < sett->nifo; i++)
   {
@@ -764,14 +764,14 @@ void init_ifo_arrays(Search_settings* sett,
     // The file name ifo[i].xdatname is constructed 
     // in settings.c, while looking for the detector 
     // subdirectories
-	FILE *data;
+    FILE *data;
     if ((data = fopen(ifo[i].xdatname, "rb")) != NULL)
     {
-		status = fread((void *)(ifo[i].sig.xDat),
-                              sizeof(double),
-                              sett->N,
-                              data);
-        fclose(data);
+      status = fread((void *)(ifo[i].sig.xDat),
+                      sizeof(double),
+                      sett->N,
+                      data);
+      fclose(data);
     }
     else
     {
@@ -810,7 +810,7 @@ void init_ifo_arrays(Search_settings* sett,
     ifo[i].sig.DetSSB = (DetSSB_real3*)calloc(sett->N, sizeof(DetSSB_real3));
 
     // Ephemeris file handling
-    char filename[512];
+    char filename[1024];
 
     sprintf(filename,
             "%s/%03d/%s/DetSSB.bin",
@@ -1078,7 +1078,7 @@ void init_aux_arrays(Search_settings* sett,
                                           NULL,
                                           &CL_err);
 
-  for (size_t i = 0; i < sett->nifo; ++i) tmp[i] = ifo[i].amod;
+  for (int i = 0; i < sett->nifo; ++i) tmp[i] = ifo[i].amod;
 
   cl_event unmap_event;
   clEnqueueUnmapMemObject(cl_handles->exec_queues[0][0], aux_arr->ifo_amod_d, tmp, 0, NULL, &unmap_event);
