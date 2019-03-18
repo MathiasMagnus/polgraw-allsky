@@ -628,10 +628,6 @@ void release_pipeline(const size_t nifo,
       clReleaseEvent(p->blas_dot_events[n][m]);
     }
   }
-  clReleaseEvent(p->compute_Fstat_event);
-  clReleaseEvent(p->normalize_Fstat_event);
-  clReleaseEvent(p->peak_map_event);
-  clReleaseEvent(p->peak_unmap_event);
 }
 
 void free_pipeline(const size_t nifo,
