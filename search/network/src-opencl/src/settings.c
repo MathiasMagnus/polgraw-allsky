@@ -122,7 +122,7 @@ void search_settings(Search_settings* sett)
 
 } // search settings
 
-#define buf_size 2048
+#define buf_size 512
 
 /// <summary>Reads the settings of the detectors.</summary>
 /// <remarks>Network of detectors' discovery: finds subdirectories in the main input directory, which by convention should be named like V1, L1, H1 and which contain input data and ephemerids; writes appropriate detector-related data into structs.</remarks>
@@ -233,7 +233,7 @@ void detectors_settings(Detector_settings* ifo,
         if (!strcmp("V1", detnames[i]))
         {
             strncpy(ifo[i].xdatname, xnames[i], strlen(xnames[i]) + 1);
-            strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH + 1);
+            strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH);
 
             // Geographical latitude phi in radians
             ifo[i].ephi = (43. + 37. / 60. + 53.0880 / 3600.) / RAD_TO_DEG;
@@ -252,7 +252,7 @@ void detectors_settings(Detector_settings* ifo,
         else if (!strcmp("H1", detnames[i]))
         {
             strncpy(ifo[i].xdatname, xnames[i], strlen(xnames[i]) + 1);
-            strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH + 1);
+            strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH);
 
             // Geographical latitude phi in radians
             ifo[i].ephi = (46 + (27 + 18.528 / 60.) / 60.) / RAD_TO_DEG;
@@ -264,14 +264,14 @@ void detectors_settings(Detector_settings* ifo,
             ifo[i].egam = 170.9994 / RAD_TO_DEG;
 
             printf("Using %s IFO as detector #%d... %s as input time series data\n",
-                   ifo[i].name, i, ifo[i].xdatname);
+                   ifo[i].name, i, ifo[i].xdatname); fflush(NULL);
 
             // Livingston L1 detector
         }
         else if (!strcmp("L1", detnames[i]))
         {
             strncpy(ifo[i].xdatname, xnames[i], strlen(xnames[i]) + 1);
-            strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH + 1);
+            strncpy(ifo[i].name, detnames[i], DETNAME_LENGTH);
 
             // Geographical latitude phi in radians
             ifo[i].ephi = (30 + (33 + 46.4196 / 60.) / 60.) / RAD_TO_DEG;
