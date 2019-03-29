@@ -1,5 +1,4 @@
-#ifndef __INIT_H__
-#define __INIT_H__
+#pragma once
 
 // Polgraw includes
 #include <struct.h>
@@ -9,9 +8,9 @@
 ///
 void handle_opts(Search_settings* sett,
                  OpenCL_settings* cl_sett,
-		         Command_line_opts* opts,
-		         int argc,  
-		         char* argv[]);
+                 Command_line_opts* opts,
+                 int argc,  
+                 char* argv[]);
 
 /// <summary>Initialize OpenCL devices based on user preference.</summary>
 /// <remarks>Currently, only a single platform can be selected. At some point,
@@ -82,16 +81,16 @@ void read_grid(Search_settings *sett,
 void init_arrays(Detector_settings* ifo,
                  Search_settings* sett,
                  OpenCL_handles* cl_handles,
-		         Command_line_opts* opts, 
-		         Aux_arrays* aux_arr,
+                 Command_line_opts* opts, 
+                 Aux_arrays* aux_arr,
                  FFT_arrays* fft_arr);
 
 /// <summary>Initialize interferometer arrays.</summary>
 ///
 void init_ifo_arrays(Search_settings* sett,
-	                 OpenCL_handles* cl_handles,
+                     OpenCL_handles* cl_handles,
                      Command_line_opts* opts,
-	                 Detector_settings* ifo);
+                     Detector_settings* ifo);
 
 /// <summary>Initialize auxiliary arrays.</summary>
 ///
@@ -106,11 +105,10 @@ void init_fft_arrays(Search_settings* sett,
                      OpenCL_handles* cl_handles,
                      FFT_arrays* fft_arr);
 
-void add_signal(
-		Search_settings *sett,
-		Command_line_opts *opts,
-		Aux_arrays *aux_arr,
-		Search_range *s_range);
+void add_signal(Search_settings *sett,
+                Command_line_opts *opts,
+                Aux_arrays *aux_arr,
+                Search_range *s_range);
 
 /// <summary>Set search ranges based on user preference.</summary>
 ///
@@ -128,26 +126,26 @@ void init_blas(Search_settings* sett,
 ///
 void init_fft(Search_settings* sett,
               OpenCL_handles* cl_handles,
-	          FFT_plans* plans);
+              FFT_plans* plans);
 
 /// <summary>Initialize the OpenMP runtime</summary>
 ///
 void init_openmp(cl_uint count);
 
 void read_checkpoints(Command_line_opts *opts, 
-		              Search_range *s_range,
-		              int *Fnum);
+                      Search_range *s_range,
+                      int *Fnum);
 
 /// <summary>Release and free all resources in reverse order for termination.</summary>
 ///
 void cleanup(Detector_settings* ifo,
              Search_settings *sett,
-	         Command_line_opts *opts,
+             Command_line_opts *opts,
              OpenCL_handles* cl_handles,
              BLAS_handles* blas_handles,
-	         FFT_plans *plans,
-	         FFT_arrays *fft_arr,
-	         Aux_arrays *aux);
+             FFT_plans *plans,
+             FFT_arrays *fft_arr,
+             Aux_arrays *aux);
 
 /// <summary>Cleanup auxiliary and F-statistics arrays.</summary>
 ///
@@ -161,7 +159,7 @@ void cleanup_arrays(Detector_settings* ifo,
 ///
 void cleanup_fft_arrays(FFT_arrays* fft_arr,
                         int nifo,
-	                    cl_uint count);
+                        cl_uint count);
 
 /// <summary>Release interferometer arrays.</summary>
 ///
@@ -182,7 +180,7 @@ void cleanup_opencl(OpenCL_handles* cl_handles);
 /// <summary>Release and free OpenCL devices.</summary>
 ///
 void cleanup_devices(cl_device_id* devices,
-	                 cl_uint count);
+                     cl_uint count);
 
 /// <summary>Release OpenCL context.</summary>
 ///
@@ -191,7 +189,7 @@ void cleanup_context(cl_context ctx);
 /// <summary>Releases and frees a set of command queues.</summary>
 ///
 void cleanup_command_queue_set(cl_command_queue** queues,
-	                           size_t count);
+                               size_t count);
 
 /// <summary>Release program.</summary>
 ///
@@ -200,33 +198,28 @@ void cleanup_program(cl_program prog);
 /// <summary>Releases and frees all kernels.</summary>
 ///
 void cleanup_kernels(cl_kernel** kernels,
-	                cl_uint count);
+                     cl_uint count);
 
 /// <summary>Cleanup BLAS internal states.</summary>
 ///
 void cleanup_blas(Search_settings* sett,
-	              OpenCL_handles* cl_handles,
-	              BLAS_handles* blas_handles);
+                  OpenCL_handles* cl_handles,
+                  BLAS_handles* blas_handles);
 
 /// <summary>Cleanup FFT plans.</summary>
 ///
 void cleanup_fft(OpenCL_handles* cl_handles,
-	             FFT_plans* plans);
+                 FFT_plans* plans);
 
 // Coincidences specific functions 
-void handle_opts_coinc(
-		       Search_settings *sett,
-		       Command_line_opts_coinc *opts,
-		       int argc,  
-		       char* argv[]);  
+void handle_opts_coinc(Search_settings *sett,
+                       Command_line_opts_coinc *opts,
+                       int argc,  
+                       char* argv[]);  
 
-void manage_grid_matrix(
-			Search_settings *sett,
-			Command_line_opts_coinc *opts);
+void manage_grid_matrix(Search_settings *sett,
+                        Command_line_opts_coinc *opts);
 
-void convert_to_linear(
-		       Search_settings *sett,
-		       Command_line_opts_coinc *opts, 
-		       Candidate_triggers *trig);
-
-#endif // __INIT_H__
+void convert_to_linear(Search_settings *sett,
+                       Command_line_opts_coinc *opts, 
+                       Candidate_triggers *trig);

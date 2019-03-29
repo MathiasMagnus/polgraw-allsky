@@ -56,7 +56,7 @@ void handle_opts(Search_settings* sett,
                  Command_line_opts* opts,
                  int argc, 
                  char* argv[]) {
-  
+
   opts->hemi=0;
   opts->wd=NULL;
 
@@ -126,10 +126,12 @@ void handle_opts(Search_settings* sett,
       {"usedet", required_argument, 0, 'u'}, 
       // data sampling time 
       {"dt", required_argument, 0, 's'},
-      // which device type to use
-      {"device", required_argument, 0, 'D'}, 
       // which platform id to use
       {"platform", required_argument, 0, 'P'},
+      // which device type to use
+      {"type", required_argument, 0, 'T'}, 
+      // which device id to use
+      {"device", required_argument, 0, 'D'},
       {0, 0, 0, 0}
     };
 
@@ -152,9 +154,9 @@ void handle_opts(Search_settings* sett,
       printf("-s, -dt           data sampling time dt (default value: 0.5)\n");
       printf("-u, -usedet       Use only detectors from string (default is use all available)\n");
       printf("-x, -addsig       Add signal with parameters from <file>\n\n");
-      printf("-D, -device       OpenCL device type to use [cpu|gpu|acc|all] (default maps to CL_DEVICE_TYPE_DEFAULT)\n\n");
-      printf("-P, -platform     OpenCL platform id to use (default is 0)\n\n");
-
+      printf("-P, -platform     OpenCL platform ids to use [int],... (default is 0)\n\n");
+      printf("-T, -type         OpenCL device types to use [cpu|gpu|acc|all],... (default maps to CL_DEVICE_TYPE_DEFAULT)\n\n");
+      printf("-D, -device       OpenCL device ids to use [int],... (default is 0)\n\n");
 
       printf("Also:\n\n");
       printf("--whitenoise      White Gaussian noise assumed\n");
@@ -166,8 +168,8 @@ void handle_opts(Search_settings* sett,
     }
 
     int option_index = 0;
-    int c = getopt_long_only(argc, argv, "i:b:o:d:l:r:g:c:t:h:p:x:s:u:D:P:", 
-                 long_options, &option_index);
+    int c = getopt_long_only(argc, argv, "i:b:o:d:l:r:g:c:t:h:p:x:s:u:P:T:D:", 
+                             long_options, &option_index);
     if (c == -1)
       break;
 
