@@ -9,7 +9,7 @@ kernel void modvir(const int idet,
                    const modvir_real c2d,
                    const modvir_real c2sd,
                    const modvir_real omr,
-                   constant Ampl_mod_coeff* amod,
+                   global Ampl_mod_coeff* amod,
                    global ampl_mod_real* aa,
                    global ampl_mod_real* bb)
 {

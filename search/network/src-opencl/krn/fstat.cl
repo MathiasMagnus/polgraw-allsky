@@ -7,8 +7,8 @@
 kernel void compute_Fstat(global fft_complex* xa,
                           global fft_complex* xb,
                           global fstat_real* F,
-                          constant ampl_mod_real* maa_d,
-                          constant ampl_mod_real* mbb_d,
+                          global ampl_mod_real* maa_d,
+                          global ampl_mod_real* mbb_d,
                           int N)
 {
   size_t i = get_global_id(0);
