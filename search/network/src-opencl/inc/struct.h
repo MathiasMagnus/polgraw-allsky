@@ -23,12 +23,12 @@
 #define MAXL 2048              // Max number of known lines for a detector
 
 // Command line option struct for search 
-typedef struct _comm_line_opts {
-  
-  int white_flag, 		// white noise flag
-      s0_flag,			// no spin-down flag
-      checkp_flag,		// checkpointing flag
-      veto_flag,                // veto lines flag 
+typedef struct _comm_line_opts
+{  
+  int white_flag,  // white noise flag
+      s0_flag,     // no spin-down flag
+      checkp_flag, // checkpointing flag
+      veto_flag,   // veto lines flag 
       help_flag;
   
   int ident, band, hemi;
@@ -38,30 +38,31 @@ typedef struct _comm_line_opts {
   int plat;
   
   char prefix[512], dtaprefix[512], label[512], 
-    range[512], getrange[512], qname[512], usedet[32], addsig[512], dev[512], *wd;
-  
+       range[512], getrange[512], qname[512],
+       usedet[32], addsig[512], dev[512], *wd;
+
 } Command_line_opts;
 
 
 /* input signal arrays */
 typedef struct _signals
 {	
-    double* xDat;
-    cl_mem xDat_d;
-    DetSSB_real3* DetSSB;
-    cl_mem DetSSB_d;          // Ephemeris of the detector
-    cl_mem *aa_d, *bb_d;      // Amplitude modulation functions
-    cl_mem *shftf_d, *shft_d; // Resampling and time-shifting
-    cl_mem *xDatma_d, *xDatmb_d;
+  double* xDat;
+  cl_mem xDat_d;
+  DetSSB_real3* DetSSB;
+  cl_mem DetSSB_d;          // Ephemeris of the detector
+  cl_mem *aa_d, *bb_d;      // Amplitude modulation functions
+  cl_mem *shftf_d, *shft_d; // Resampling and time-shifting
+  cl_mem *xDatma_d, *xDatmb_d;
   
-    double epsm,
-           phir,
-           sepsm,           // sin(epsm)
-           cepsm,           // cos(epsm)
-           sphir,           // sin(phi_r)
-           cphir,           // cos(phi_r)
-           crf0,            // number of 0s as: N/(N-Nzeros)
-           sig2;            // variance of signal
+  double epsm,
+         phir,
+         sepsm,           // sin(epsm)
+         cepsm,           // cos(epsm)
+         sphir,           // sin(phi_r)
+         cphir,           // cos(phi_r)
+         crf0,            // number of 0s as: N/(N-Nzeros)
+         sig2;            // variance of signal
 
   int Nzeros;
 
@@ -69,18 +70,18 @@ typedef struct _signals
 
 
 /* fftw arrays */
-typedef struct _fft_arrays {
-
+typedef struct _fft_arrays
+{
   cl_mem **xa_d,
-	     **xb_d;
+         **xb_d;
   int arr_len;
 
 } FFT_arrays;
 
 /// <summary>Persistent storage of temporary arrays for BLAS operations.</summary>
 ///
-typedef struct _blas_handles {
-
+typedef struct _blas_handles
+{
   cl_mem **aaScratch_d,
          **bbScratch_d;
 
@@ -88,18 +89,20 @@ typedef struct _blas_handles {
 
 
 /* Search range  */ 
-typedef struct _search_range {
+typedef struct _search_range
+{
   int pmr[2], mr[2], nr[2], spndr[2];
   int pst, mst, nst, sst;
+
 } Search_range;
 
 /// <summary>Struct holding OpenCL-related user preferences.</summary>
 ///
 typedef struct _opencl_settings
 {
-    cl_uint plat_id;
-    cl_device_type dev_type;
-	cl_uint dev_count;
+  cl_uint plat_id;
+  cl_device_type dev_type;
+  cl_uint dev_count;
 
 } OpenCL_settings;
 
@@ -107,15 +110,15 @@ typedef struct _opencl_settings
 ///
 typedef struct _opencl_handles
 {
-    cl_platform_id plat;
-    cl_uint dev_count;
-    cl_device_id* devs;
-    cl_context ctx;
-    cl_command_queue **write_queues,
-                     **exec_queues,
-                     **read_queues;
-    cl_program prog;
-    cl_kernel** kernels;
+  cl_platform_id plat;
+  cl_uint dev_count;
+  cl_device_id* devs;
+  cl_context ctx;
+  cl_command_queue **write_queues,
+                   **exec_queues,
+                   **read_queues;
+  cl_program prog;
+  cl_kernel** kernels;
 
 } OpenCL_handles;
 
@@ -123,50 +126,40 @@ typedef struct _opencl_handles
 ///
 enum Kernel
 {
-    Modvir = 0,
-    TShiftPMod,
-    ResamplePostFFT,
-    //ComputeB,
-    //TriDiagMul,
-    //Interpolate,
-    PhaseMod1,
-    PhaseMod2,
-    ComputeFStat,
-    NormalizeFStatWG
+  Modvir = 0,
+  TShiftPMod,
+  ResamplePostFFT,
+  PhaseMod1,
+  PhaseMod2,
+  ComputeFStat,
+  NormalizeFStatWG
 };
 static const cl_uint kernel_count = 7;
 
 /* FFTW plans  */ 
-typedef struct _fft_plans {
-
+typedef struct _fft_plans
+{
   clfftPlanHandle *plan,    // main plan
                   *pl_int,  // interpolation forward
                   *pl_inv;  // interpolation backward
-
 } FFT_plans;
 
 
 /* Auxiluary arrays  */ 
-typedef struct _aux_arrays {
-
+typedef struct _aux_arrays
+{
   cl_mem ifo_amod_d;             // constant buffer of detector settings
-  //cl_mem sinmodf_d, cosmodf_d;   // Earth position
   cl_mem **tshift_d;
-  //cl_mem *aadot_d, *bbdot_d;     // dot-products of xx_d
   cl_mem **aadots_d, **bbdots_d; // array of sub-buffers pointing into xxdot_d
   cl_mem *maa_d, *mbb_d;
   cl_mem *F_d;                   // F-statistics
-
-  //cl_mem t2_d;                   // time^2
-  //cl_mem diag_d, ldiag_d, udiag_d, B_d; //used in spline interpolation
-  //cl_mem mu_d, mu_t_d;           // arrays for smoothing F-stat
 
 } Aux_arrays;
 
 
 // Search settings //
-typedef struct _search_settings {
-
+typedef struct _search_settings
+{
   double fpo,    // Band frequency
          dt,     // Sampling time
          B,      // Bandwidth
@@ -175,21 +168,21 @@ typedef struct _search_settings {
                  // (dimensionless Earth's angular frequency)
          Smin,   // Minimum spindown
          Smax,   // Maximum spindown
-         sepsm,	 // sin(epsm)
-         cepsm;	 // cos(epsm)
+         sepsm,  // sin(epsm)
+         cepsm;  // cos(epsm)
   
   int nfft,       // length of fft
-	  nyqst,      // Nyquist frequency
+      nyqst,      // Nyquist frequency
       nod,        // number of days of observation
       N,          // number of data points
       nfftf,      // nfft * fftpad
       nmax,       // first and last point
-      nmin, 	  // of Fstat
+      nmin,       // of Fstat
       s,          // number of spindowns
       nd,         // degrees of freedom
       interpftpad,
       fftpad,     // zero padding
-      Ninterp, 	  // for resampling (set in plan_fftw() init.c)
+      Ninterp,    // for resampling (set in plan_fftw() init.c)
       nifo;       // number of detectors
 
   double* M;      // Grid-generating matrix (or Fisher matrix, 
@@ -209,7 +202,7 @@ typedef struct _search_settings {
 ///
 typedef struct _ampl_mod_coeff
 {
-    ampl_mod_real c1, c2, c3, c4, c5, c6, c7, c8, c9;
+  ampl_mod_real c1, c2, c3, c4, c5, c6, c7, c8, c9;
 
 } Ampl_mod_coeff;
 
@@ -217,15 +210,15 @@ typedef struct _ampl_mod_coeff
   /* Detector and its data related settings 
    */ 
 
-typedef struct _detector {
-
+typedef struct _detector
+{
   char xdatname[XDATNAME_LENGTH]; 
   char name[DETNAME_LENGTH]; 
  
-  double ephi, 		// Geographical latitude phi in radians
-         elam, 		// Geographical longitude in radians 
+  double ephi,      // Geographical latitude phi in radians
+         elam,      // Geographical longitude in radians 
          eheight,   // Height h above the Earth ellipsoid in meters
-         egam; 		// Orientation of the detector gamma  
+         egam;      // Orientation of the detector gamma  
 
   Ampl_mod_coeff amod; 
   Signals sig;  
@@ -243,8 +236,8 @@ typedef struct _detector {
 //extern Detector_settings ifo[MAX_DETECTORS]; // moved to main()
 
 // Command line option struct for coincidences 
-typedef struct _comm_line_opts_coinc {
-  
+typedef struct _comm_line_opts_coinc
+{  
   int help_flag; 
   
   int shift, // Cell shifts  (4 digit number corresponding to fsda, e.g. 0101)  
@@ -260,8 +253,8 @@ typedef struct _comm_line_opts_coinc {
   
 } Command_line_opts_coinc;
 
-typedef struct _triggers { 
-
+typedef struct _triggers
+{ 
   int frameinfo[256][3];    // Info about candidates in frames: 
                             // - [0] frame number, [1] initial number 
                             // of candidates, [2] number of candidates
@@ -273,8 +266,8 @@ typedef struct _triggers {
 
 /// <summary>Used to store OpenCL event objects to synchronize and profile the pipeline</summary>
 ///
-typedef struct _pipeline {
-
+typedef struct _pipeline
+{
   cl_event *modvir_events,
            *tshift_pmod_events;
   cl_event **fft_interpolate_fw_fft_events,
@@ -299,8 +292,8 @@ typedef struct _pipeline {
 
 /// <summary>Holds execution durations of various sorts in nanoseconds.</summary>
 ///
-typedef struct _profiling_info {
-
+typedef struct _profiling_info
+{
   cl_ulong modvir_exec,
            tshift_pmod_exec,
            fft_interpolate_fw_fft_exec,
@@ -327,8 +320,8 @@ typedef struct _profiling_info {
 
 /// <summary>Used to communicate candidate signals between each <c>job_core</c> invocation and <c>search</c>.</summary>
 ///
-typedef struct _search_results {
-
+typedef struct _search_results
+{
     size_t sgnlc;       // Size of candidate signal array
     double* sgnlv;      // Array of candidate signals
     Profiling_info prof;// Profiling info of pipeline exec
