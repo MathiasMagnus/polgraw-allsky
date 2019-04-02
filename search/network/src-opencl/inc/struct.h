@@ -19,6 +19,7 @@
 #define MAX_DETECTORS 2        // Maximum number of detectors in network
 #define DETNAME_LENGTH 3       // Detector name length (H1, L1, V1...) + null terminator
 #define XDATNAME_LENGTH 512    // Maximum length of input file name xdat*bin
+#define MAX_DEVICES 8
 
 #define MAXL 2048              // Max number of known lines for a detector
 
@@ -34,12 +35,11 @@ typedef struct _comm_line_opts
   int ident, band, hemi;
   double trl;
   double fpo_val;
-
-  int plat;
   
   char prefix[512], dtaprefix[512], label[512],
        range[512], getrange[512], qname[512],
-       usedet[32], addsig[512], dev[512], *wd;
+       usedet[32], addsig[512], *wd,
+       plat_ids[512], dev_types[512], dev_ids[512];
 
 } Command_line_opts;
 
@@ -101,9 +101,10 @@ typedef struct _search_range
 ///
 typedef struct _opencl_settings
 {
-  cl_uint* plat_ids;
-  cl_device_type* dev_types;
-  cl_uint* dev_ids;
+  cl_uint count;
+  cl_uint plat_ids[MAX_DEVICES];
+  cl_device_type dev_types[MAX_DEVICES];
+  cl_uint dev_ids[MAX_DEVICES];
 
 } OpenCL_settings;
 

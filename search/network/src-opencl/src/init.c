@@ -2,6 +2,8 @@
 //
 // MSVC: macro to include constants, such as M_PI (include before math.h)
 #define _USE_MATH_DEFINES
+// ISO: request safe versions of functions
+#define __STDC_WANT_LIB_EXT1__ 1
 
 // OpenCL behavioral defines
 //
@@ -85,8 +87,9 @@ void handle_opts(Search_settings* sett,
   opts->s0_flag=0;
   opts->checkp_flag=0;
 
-  opts->dev[0] = '\0';
-  opts->plat = 0;
+  strcpy(opts->plat_ids, "0");
+  strcpy(opts->dev_types, "def");
+  strcpy(opts->dev_ids, "0");
 
   static int help_flag=0, white_flag=0, s0_flag=0, checkp_flag=1;
 
@@ -218,13 +221,15 @@ void handle_opts(Search_settings* sett,
     case 'u':
       strcpy(opts->usedet, optarg);
       break;
-    case 'D':
-      strcpy(opts->dev, optarg);
-      break;
     case 'P':
-      opts->plat = atoi(optarg);
+      strcpy(opts->plat_ids, optarg);
       break;
-
+    case 'T':
+      strcpy(opts->dev_types, optarg);
+      break;
+    case 'D':
+      strcpy(opts->dev_ids, optarg);
+      break;
     case '?':
       break;
     default:
@@ -290,23 +295,65 @@ void handle_opts(Search_settings* sett,
 #endif
   }
 
-  if (strlen(opts->dev))
+  if (strlen(opts->plat_ids))
   {
-    if (!strncmp(opts->dev, "cpu", 3))
-      cl_sett->dev_type = CL_DEVICE_TYPE_CPU;
-    if (!strncmp(opts->dev, "gpu", 3))
-      cl_sett->dev_type = CL_DEVICE_TYPE_GPU;
-    if (!strncmp(opts->dev, "acc", 3))
-      cl_sett->dev_type = CL_DEVICE_TYPE_ACCELERATOR;
-    if (!strncmp(opts->dev, "all", 3))
-        cl_sett->dev_type = CL_DEVICE_TYPE_ALL;
-  }
-  else
-  {
-    cl_sett->dev_type = CL_DEVICE_TYPE_DEFAULT;
+    cl_sett->count = 0;
+
+    char* token = strtok(opts->plat_ids, ",");
+    while (token != NULL)
+    {
+      char tmp[2];
+      strncpy(tmp, token, 1); tmp[1] = '\0';
+
+      cl_sett->plat_ids[cl_sett->count++] = atoi(tmp);
+
+      token = strtok(NULL, ",");
+    }
   }
 
-  cl_sett->plat_id = opts->plat;
+  if (strlen(opts->dev_types))
+  {
+      int count = 0;
+
+      char* token = strtok(opts->plat_ids, ",");
+      while (token != NULL)
+      {
+          if (!strncmp(token, "def", 3))
+              cl_sett->dev_types[count++] = CL_DEVICE_TYPE_DEFAULT;
+          if (!strncmp(token, "cpu", 3))
+              cl_sett->dev_types[count++] = CL_DEVICE_TYPE_CPU;
+          if (!strncmp(token, "gpu", 3))
+              cl_sett->dev_types[count++] = CL_DEVICE_TYPE_GPU;
+          if (!strncmp(token, "acc", 3))
+              cl_sett->dev_types[count++] = CL_DEVICE_TYPE_ACCELERATOR;
+          if (!strncmp(token, "all", 3))
+              cl_sett->dev_types[count++] = CL_DEVICE_TYPE_ALL;
+
+          token = strtok(NULL, ",");
+      }
+
+      if (count != cl_sett->count)
+          printf("ERROR: Different number of platform ids and device types provided: %d vs. %d\n", cl_sett->count, count);
+  }
+
+  if (strlen(opts->dev_ids))
+  {
+      int count = 0;
+
+      char* token = strtok(opts->dev_ids, ",");
+      while (token != NULL)
+      {
+          char tmp[2];
+          strncpy(tmp, token, 1); tmp[1] = '\0';
+
+          cl_sett->dev_ids[count++] = atoi(tmp);
+
+          token = strtok(NULL, ",");
+      }
+
+      if (count != cl_sett->count)
+          printf("ERROR: Different number of platform ids and device ids provided: %d vs. %d\n", cl_sett->count, count);
+  }
 
 } // end of command line options handling 
 
