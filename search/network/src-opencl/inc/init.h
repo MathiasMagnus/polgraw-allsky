@@ -35,7 +35,7 @@ cl_context* create_contexts(cl_uint count,
 
 /// <summary>Create a set of command queues to all the devices in the context.</summary>
 ///
-cl_command_queue** create_command_queue_set(cl_context context);
+cl_command_queue** create_command_queue_set(cl_uint count, cl_context context);
 
 /// <summary>Load kernel file from disk.</summary>
 ///

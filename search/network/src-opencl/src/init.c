@@ -374,9 +374,9 @@ void init_opencl(OpenCL_handles* cl_handles,
                                      cl_handles->plats,
                                      cl_handles->devs);
 
-  cl_handles->write_queues = create_command_queue_set(cl_handles->ctx);
-  cl_handles->exec_queues  = create_command_queue_set(cl_handles->ctx);
-  cl_handles->read_queues  = create_command_queue_set(cl_handles->ctx);
+  cl_handles->write_queues = create_command_queue_set(cl_handles->count, cl_handles->ctxs);
+  cl_handles->exec_queues  = create_command_queue_set(cl_handles->count, cl_handles->ctxs);
+  cl_handles->read_queues  = create_command_queue_set(cl_handles->count, cl_handles->ctxs);
 
   {
     char** sources = load_kernel_sources();
@@ -502,36 +502,26 @@ cl_context* create_contexts(cl_uint count,
     return result;
 }
 
-cl_command_queue** create_command_queue_set(cl_context context)
+cl_command_queue** create_command_queue_set(cl_uint count, cl_context* contexts)
 {
     cl_int CL_err = CL_SUCCESS;
 
-    cl_uint count = 0;
-    CL_err = clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &count, NULL);
-    checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_NUM_DEVICES)");
-
-	cl_device_id* devices = (cl_device_id*)malloc(count * sizeof(cl_device_id));
-
-    CL_err = clGetContextInfo(context, CL_CONTEXT_DEVICES, count * sizeof(cl_device_id), devices, NULL);
-    checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_DEVICES)");
-
-	cl_command_queue** result = (cl_command_queue**)malloc(count * sizeof(cl_command_queue*));
+    cl_command_queue** result = (cl_command_queue**)malloc(count * sizeof(cl_command_queue*));
 
     for (cl_uint i = 0; i < count; ++i)
     {
-		result[i] = (cl_command_queue*)malloc(MAX_DETECTORS * sizeof(cl_command_queue));
+        result[i] = (cl_command_queue*)malloc(MAX_DETECTORS * sizeof(cl_command_queue));
 
-		for (cl_uint j = 0; j < MAX_DETECTORS; ++j)
-		{
-			result[i][j] = clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &CL_err);
-			checkErr(CL_err, "clCreateCommandQueue()");
-		}
+        cl_device_id device;
+        CL_err = clGetContextInfo(contexts[i], CL_CONTEXT_DEVICES, sizeof(cl_device_id), &device, NULL); checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_DEVICES)");
 
-        CL_err = clReleaseDevice(devices[i]);
-        checkErr(CL_err, "clReleaseDevice()");
+        for (cl_uint j = 0; j < MAX_DETECTORS; ++j)
+        {
+            result[i][j] = clCreateCommandQueue(contexts[i], device, CL_QUEUE_PROFILING_ENABLE, &CL_err); checkErr(CL_err, "clCreateCommandQueue()");
+        }
+
+        CL_err = clReleaseDevice(device); checkErr(CL_err, "clReleaseDevice()");
     }
-
-    free(devices);
 
     return result;
 }
