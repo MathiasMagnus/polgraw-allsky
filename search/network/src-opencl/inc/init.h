@@ -49,10 +49,11 @@ char** load_kernel_sources();
 ///
 void free_kernel_sources(char** sources);
 
-/// <summary>Build program file</summary>
+/// <summary>Build programs</summary>
 ///
-cl_program build_program_with_sources(cl_context context,
-                                      const char** sources);
+cl_program* build_programs_with_sources(cl_uint count,
+                                        cl_context* contexts,
+                                        const char** sources);
 
 /// <summary>Create a kernel for all entry points in the program for each device.</summary>
 ///

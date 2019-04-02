@@ -381,12 +381,14 @@ void init_opencl(OpenCL_handles* cl_handles,
   {
     char** sources = load_kernel_sources();
 
-    cl_handles->prog = build_program_with_sources(cl_handles->ctx, (const char**)sources);
+    cl_handles->progs = build_programs_with_sources(cl_handles->count,
+                                                    cl_handles->ctxs,
+                                                    (const char**)sources);
 
     free_kernel_sources(sources);
   }
 
-  cl_handles->kernels = create_kernels(cl_handles->prog,
+  cl_handles->kernels = create_kernels(cl_handles->progs,
                                        cl_handles->dev_count);
 }
 
@@ -607,14 +609,11 @@ void free_kernel_sources(char** sources)
     free(sources);
 }
 
-cl_program build_program_with_sources(cl_context context,
-                                      const char** sources)
+cl_program* build_programs_with_sources(cl_uint count,
+                                        cl_context* contexts,
+                                        const char** sources)
 {
     cl_int CL_err = CL_SUCCESS;
-    cl_program result = NULL;
-
-    cl_uint numDevices = 0;
-    cl_device_id* devices = NULL;
 
     size_t* lengths = (size_t*)malloc(kernel_path_count * sizeof(size_t));
     for(size_t i = 0 ; i < kernel_path_count; ++i)
@@ -624,41 +623,43 @@ cl_program build_program_with_sources(cl_context context,
       lengths[i] = strnlen(sources[i], UINT_MAX);
 #endif
 
-    cl_uint uint_kernel_path_count = (cl_uint)kernel_path_count;
-    result = clCreateProgramWithSource(context, uint_kernel_path_count, sources, lengths, &CL_err);
-    checkErr(CL_err, "clCreateProgramWithSource()");
-
-    CL_err = clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &numDevices, NULL);
-    checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_NUM_DEVICES)");
-    devices = (cl_device_id*)malloc(numDevices * sizeof(cl_device_id));
-    CL_err = clGetContextInfo(context, CL_CONTEXT_DEVICES, numDevices * sizeof(cl_device_id), devices, NULL);
-    checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_DEVICES)");
-
-    char build_params[1024];
-    strcpy(build_params, " -I");
-    strcat(build_params, kernel_inc_path );
-    strcat(build_params, " -cl-opt-disable" );
-    strcat(build_params, " -cl-std=CL1.2" );
-    strcat(build_params, " -Werror" ); // Warnings will be treated like errors, this is useful for debug
-    CL_err = clBuildProgram(result, numDevices, devices, build_params, NULL, NULL);
-
-    if (CL_err != CL_SUCCESS)
+    cl_program* result = (cl_program*)maloc(count * sizeof(cl_program));
+    for (cl_uint i = 0; i < count; ++i)
     {
-        size_t len = 0;
-        char* buffer;
+        cl_device_id device;
+        CL_err = clGetContextInfo(contexts[i], CL_CONTEXT_DEVICES, sizeof(cl_device_id), &device, NULL); checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_DEVICES)");
 
-        CL_err = clGetProgramBuildInfo(result, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
-        checkErr(CL_err, "clGetProgramBuildInfo(CL_PROGRAM_BUILD_LOG)");
+        cl_uint uint_kernel_path_count = (cl_uint)kernel_path_count;
+        result[i] = clCreateProgramWithSource(contexts[i], uint_kernel_path_count, sources, lengths, &CL_err);
+        checkErr(CL_err, "clCreateProgramWithSource()");
 
-        buffer = (char*)calloc(len, sizeof(char));
+        char build_params[1024];
+        strcpy(build_params, " -I");
+        strcat(build_params, kernel_inc_path);
+        strcat(build_params, " -cl-opt-disable");
+        strcat(build_params, " -cl-std=CL1.2");
+        strcat(build_params, " -Werror"); // Warnings will be treated like errors, this is useful for debug
+        CL_err = clBuildProgram(result, 1, device, build_params, NULL, NULL);
 
-        clGetProgramBuildInfo(result, devices[0], CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
+        if (CL_err != CL_SUCCESS)
+        {
+            cl_int build_err = CL_err;
+            size_t len = 0;
+            char* buffer;
 
-        fprintf(stderr, "%s\n", buffer);
+            CL_err = clGetProgramBuildInfo(result, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+            checkErr(CL_err, "clGetProgramBuildInfo(CL_PROGRAM_BUILD_LOG)");
 
-        free(buffer);
+            buffer = (char*)calloc(len, sizeof(char));
 
-        checkErr(-111, "clBuildProgram");
+            clGetProgramBuildInfo(result, device, CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
+
+            fprintf(stderr, "%s\n", buffer);
+
+            free(buffer);
+
+            checkErr(build_err, "clBuildProgram");
+        }
     }
 
     free(lengths);

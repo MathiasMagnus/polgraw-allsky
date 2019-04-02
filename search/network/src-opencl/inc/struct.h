@@ -119,7 +119,7 @@ typedef struct _opencl_handles
   cl_command_queue **write_queues,
                    **exec_queues,
                    **read_queues;
-  cl_program* prog;
+  cl_program* progs;
   cl_kernel** kernels;
 
 } OpenCL_handles;
