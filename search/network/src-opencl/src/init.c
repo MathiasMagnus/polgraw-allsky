@@ -1225,10 +1225,10 @@ void init_blas(Search_settings* sett,
   clblasStatus status = clblasSetup();
   checkErrBLAS(status, "clblasSetup()");
 
-  blas_handles->aaScratch_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem));
-  blas_handles->bbScratch_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem));
+  blas_handles->aaScratch_d = (cl_mem**)malloc(cl_handles->count * sizeof(cl_mem));
+  blas_handles->bbScratch_d = (cl_mem**)malloc(cl_handles->count * sizeof(cl_mem));
 
-  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  for (cl_uint id = 0; id < cl_handles->count; ++id)
   {
     blas_handles->aaScratch_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem*));
     blas_handles->bbScratch_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem*));
@@ -1237,20 +1237,20 @@ void init_blas(Search_settings* sett,
     {
       cl_int CL_err = CL_SUCCESS;
       blas_handles->aaScratch_d[id][idet] =
-        clCreateBuffer(cl_handles->ctx,
+        clCreateBuffer(cl_handles->ctxs[id],
                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                        sett->N * sizeof(ampl_mod_real),
                        NULL,
                        &CL_err);
-	  checkErr(CL_err, "clCreateBuffer(blas_handles->aaScratch_d)");
+      checkErr(CL_err, "clCreateBuffer(blas_handles->aaScratch_d)");
 
       blas_handles->bbScratch_d[id][idet] =
-        clCreateBuffer(cl_handles->ctx,
+        clCreateBuffer(cl_handles->ctxs[id],
                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                        sett->N * sizeof(ampl_mod_real),
                        NULL,
                        &CL_err);
-	  checkErr(CL_err, "clCreateBuffer(blas_handles->bbScratch_d)");
+      checkErr(CL_err, "clCreateBuffer(blas_handles->bbScratch_d)");
     }
   }
 }
@@ -1259,78 +1259,78 @@ void init_fft(Search_settings* sett,
               OpenCL_handles* cl_handles,
               FFT_plans* plans)
 {
-	size_t nfftf_size = (size_t)sett->nfftf,
-           nfft_size = (size_t)sett->nfft,
-		   Ninterp_size = (size_t)sett->Ninterp;
+  size_t nfftf_size = (size_t)sett->nfftf,
+         nfft_size = (size_t)sett->nfft,
+         Ninterp_size = (size_t)sett->Ninterp;
 
-    plans->plan =   (clfftPlanHandle*)malloc(cl_handles->dev_count * sizeof(clfftPlanHandle));
-    plans->pl_int = (clfftPlanHandle*)malloc(cl_handles->dev_count * sizeof(clfftPlanHandle));
-    plans->pl_inv = (clfftPlanHandle*)malloc(cl_handles->dev_count * sizeof(clfftPlanHandle));
+  plans->plan =   (clfftPlanHandle*)malloc(cl_handles->count * sizeof(clfftPlanHandle));
+  plans->pl_int = (clfftPlanHandle*)malloc(cl_handles->count * sizeof(clfftPlanHandle));
+  plans->pl_inv = (clfftPlanHandle*)malloc(cl_handles->count * sizeof(clfftPlanHandle));
 
-	clfftSetupData fftSetup;
-	clfftStatus CLFFT_status = clfftSetup(&fftSetup);
-	checkErrFFT(CLFFT_status, "clffftSetup");
+   clfftSetupData fftSetup;
+   clfftStatus CLFFT_status = clfftSetup(&fftSetup);
+   checkErrFFT(CLFFT_status, "clffftSetup");
 
-    for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
-    {
-        // Phasemod FFT
-        CLFFT_status = clfftCreateDefaultPlan(&plans->plan[id], cl_handles->ctx, CLFFT_1D, &nfftf_size);
-        checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
+  for (cl_uint id = 0; id < cl_handles->count; ++id)
+  {
+    // Phasemod FFT
+    CLFFT_status = clfftCreateDefaultPlan(&plans->plan[id], cl_handles->ctxs[id], CLFFT_1D, &nfftf_size);
+    checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
-        clfftPrecision clfft_precision = sizeof(fft_complex) == 8 ? CLFFT_SINGLE : CLFFT_DOUBLE;
+    clfftPrecision clfft_precision = sizeof(fft_complex) == 8 ? CLFFT_SINGLE : CLFFT_DOUBLE;
 
-        CLFFT_status = clfftSetPlanPrecision(plans->plan[id], clfft_precision);
-        checkErrFFT(CLFFT_status, "clfftSetPlanPrecision()");
-        CLFFT_status = clfftSetLayout(plans->plan[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
-        checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
-        CLFFT_status = clfftSetResultLocation(plans->plan[id], CLFFT_INPLACE);
-        checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
+    CLFFT_status = clfftSetPlanPrecision(plans->plan[id], clfft_precision);
+    checkErrFFT(CLFFT_status, "clfftSetPlanPrecision()");
+    CLFFT_status = clfftSetLayout(plans->plan[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
+    checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
+    CLFFT_status = clfftSetResultLocation(plans->plan[id], CLFFT_INPLACE);
+    checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
-        CLFFT_status = clfftBakePlan(plans->plan[id],
-                                     1,
-                                     &cl_handles->exec_queues[id][0],
-                                     NULL,
-                                     NULL);
-        checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
+    CLFFT_status = clfftBakePlan(plans->plan[id],
+                                 1,
+                                 &cl_handles->exec_queues[id][0],
+                                 NULL,
+                                 NULL);
+    checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
 
-        // Interpolation FFT
-        CLFFT_status = clfftCreateDefaultPlan(&plans->pl_int[id], cl_handles->ctx, CLFFT_1D, &nfft_size);
-        checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
+    // Interpolation FFT
+    CLFFT_status = clfftCreateDefaultPlan(&plans->pl_int[id], cl_handles->ctxs[id], CLFFT_1D, &nfft_size);
+    checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
-        CLFFT_status = clfftSetPlanPrecision(plans->pl_int[id], clfft_precision);
-        checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
-        CLFFT_status = clfftSetLayout(plans->pl_int[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
-        checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
-        CLFFT_status = clfftSetResultLocation(plans->pl_int[id], CLFFT_INPLACE);
-        checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
+    CLFFT_status = clfftSetPlanPrecision(plans->pl_int[id], clfft_precision);
+    checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
+    CLFFT_status = clfftSetLayout(plans->pl_int[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
+    checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
+    CLFFT_status = clfftSetResultLocation(plans->pl_int[id], CLFFT_INPLACE);
+    checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
-        CLFFT_status = clfftBakePlan(plans->pl_int[id],
-                                     1,
-                                     &cl_handles->exec_queues[id][0],
-                                     NULL,
-                                     NULL);
-        checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
+    CLFFT_status = clfftBakePlan(plans->pl_int[id],
+                                 1,
+                                 &cl_handles->exec_queues[id][0],
+                                 NULL,
+                                 NULL);
+    checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
 
-        // Inverse FFT
-        CLFFT_status = clfftCreateDefaultPlan(&plans->pl_inv[id], cl_handles->ctx, CLFFT_1D, &Ninterp_size);
-        checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
+    // Inverse FFT
+    CLFFT_status = clfftCreateDefaultPlan(&plans->pl_inv[id], cl_handles->ctxs[id], CLFFT_1D, &Ninterp_size);
+    checkErrFFT(CLFFT_status, "clCreateDefaultPlan");
 
-        CLFFT_status = clfftSetPlanPrecision(plans->pl_inv[id], clfft_precision);
-        checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
-        CLFFT_status = clfftSetLayout(plans->pl_inv[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
-        checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
-        CLFFT_status = clfftSetResultLocation(plans->pl_inv[id], CLFFT_INPLACE);
-        checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
-        CLFFT_status = clfftSetPlanScale(plans->pl_inv[id], CLFFT_BACKWARD, (cl_float)((double)sett->interpftpad / sett->Ninterp));
-        checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
+    CLFFT_status = clfftSetPlanPrecision(plans->pl_inv[id], clfft_precision);
+    checkErrFFT(CLFFT_status, "clfftSetPlanPrecision(CLFFT_SINGLE)");
+    CLFFT_status = clfftSetLayout(plans->pl_inv[id], CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED);
+    checkErrFFT(CLFFT_status, "clfftSetLayout(CLFFT_COMPLEX_INTERLEAVED, CLFFT_COMPLEX_INTERLEAVED)");
+    CLFFT_status = clfftSetResultLocation(plans->pl_inv[id], CLFFT_INPLACE);
+    checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
+    CLFFT_status = clfftSetPlanScale(plans->pl_inv[id], CLFFT_BACKWARD, (cl_float)((double)sett->interpftpad / sett->Ninterp));
+    checkErrFFT(CLFFT_status, "clfftSetResultLocation(CLFFT_INPLACE)");
 
-        CLFFT_status = clfftBakePlan(plans->pl_inv[id],
-                                     1,
-                                     &cl_handles->exec_queues[id][0],
-                                     NULL,
-                                     NULL);
-        checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
-    }
+    CLFFT_status = clfftBakePlan(plans->pl_inv[id],
+                                 1,
+                                 &cl_handles->exec_queues[id][0],
+                                 NULL,
+                                 NULL);
+    checkErrFFT(CLFFT_status, "clfftBakePlan(plans->pl_int)");
+  }
 
 } // plan_fft
 
