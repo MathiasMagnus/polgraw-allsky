@@ -112,7 +112,8 @@ typedef struct _opencl_settings
 ///
 typedef struct _opencl_handles
 {
-  cl_uint dev_count;
+  cl_uint count;
+  cl_platform_id* plats;
   cl_device_id* devs;
   cl_context* ctx;
   cl_command_queue **write_queues,

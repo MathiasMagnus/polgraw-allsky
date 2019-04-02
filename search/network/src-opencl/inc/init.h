@@ -13,17 +13,13 @@ void handle_opts(Search_settings* sett,
                  char* argv[]);
 
 /// <summary>Initialize OpenCL devices based on user preference.</summary>
-/// <remarks>Currently, only a single platform can be selected. At some point,
-///          multi-platform may be implemented. This is mighty useful for
-///          Intel CPU+IGP & Nvidia/AMD dGPU setups, primarily notebooks.
-///          In non-mobile form factors dGPU significantly outweights CPU+IGP.</remarks>
 ///
 void init_opencl(OpenCL_handles* cl_handles,
                  OpenCL_settings* cl_sett);
 
-/// <summary>Tries selecting the platform with the specified index.</summary>
+/// <summary>Tries selecting the platforms with the specified indices.</summary>
 ///
-cl_platform_id select_platform(cl_uint plat_id);
+cl_platform_id* select_platforms(cl_uint count, cl_uint ids[MAX_DEVICES]);
 
 /// <summary>Selects all devices of the specified type.</summary>
 ///

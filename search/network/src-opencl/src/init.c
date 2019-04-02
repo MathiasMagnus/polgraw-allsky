@@ -360,7 +360,9 @@ void handle_opts(Search_settings* sett,
 void init_opencl(OpenCL_handles* cl_handles,
                  OpenCL_settings* cl_sett)
 {
-  cl_handles->plat = select_platform(cl_sett->plat_id);
+  cl_handles->count = cl_sett->count;
+
+  cl_handles->plats = select_platforms(cl_sett->count, cl_sett->plat_ids);
 
   cl_handles->devs = select_devices(cl_handles->plat,
                                     cl_sett->dev_type,
@@ -385,7 +387,7 @@ void init_opencl(OpenCL_handles* cl_handles,
                                        cl_handles->dev_count);
 }
 
-cl_platform_id select_platform(cl_uint plat_id)
+cl_platform_id* select_platforms(cl_uint count, cl_uint ids[MAX_DEVICES])
 {
     cl_int CL_err = CL_SUCCESS;
     cl_platform_id result = NULL;
@@ -394,29 +396,27 @@ cl_platform_id select_platform(cl_uint plat_id)
     CL_err = clGetPlatformIDs(0, NULL, &numPlatforms);
     checkErr(CL_err, "clGetPlatformIDs(numPlatforms)");
 
-    if (plat_id > (numPlatforms - 1))
+    if (numPlatforms == 0)
     {
-        perror("Platform of the specified index does not exist.");
+        perror("No OpenCL platform detected.");
         exit(-1);
     }
-    else
+
+    cl_platform_id *platforms = (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id)),
+                   *result = (cl_platform_id*)malloc(count * sizeof(cl_platform_id));
+    CL_err = clGetPlatformIDs(numPlatforms, platforms, NULL); checkErr(CL_err, "clGetPlatformIDs(platforms)");
+
+    for (cl_uint i = 0; i < count; ++i)
     {
-        cl_platform_id* platforms = (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id));
-        CL_err = clGetPlatformIDs(numPlatforms, platforms, NULL);
-        checkErr(CL_err, "clGetPlatformIDs(platforms)");
-
-        result = platforms[plat_id];
-
-        char pbuf[100];
-        CL_err = clGetPlatformInfo( result, CL_PLATFORM_VENDOR, sizeof( pbuf ), pbuf, NULL );
-            checkErr( CL_err, "clGetPlatformInfo(CL_PLATFORM_VENDOR)" );
-#ifdef WIN32
-            printf_s( "Selected OpenCL platform vendor:\n\t%s\n", pbuf ); // TODO: don't throw away error code.
-#else
-            printf( "Selected OpenCL platform vendor:\n\t%s\n", pbuf );
-#endif
-        
-        free(platforms);
+        if (ids[i] < numPlatforms)
+        {
+            result[i] = platforms[ids[i]];
+        }
+        else
+        {
+            printf("ERROR: User requested platform id does not exist. Id %d vs. numPlatforms %d\n", ids[i], numPlatforms);
+            exit(-1);
+        }
     }
 
     return result;
