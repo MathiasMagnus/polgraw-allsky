@@ -206,9 +206,9 @@ Search_results job_core(const int pm,                  // hemisphere
 
   // If the sky coordinate is not valid, shortcircuit the search
   if (!sky_positions(pm, mm, nn,                                   // input
-	                 sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
-	                 sgnlt, &het0,                                 // output
-	                 &sinalt, &cosalt, &sindelt, &cosdelt))        // output
+                     sett->M, sett->oms, sett->sepsm, sett->cepsm, // input
+                     sgnlt, &het0,                                 // output
+                     &sinalt, &cosalt, &sindelt, &cosdelt))        // output
   {
     pre_spindown_end = spindown_end = pre_spindown_start;
 
@@ -225,7 +225,7 @@ Search_results job_core(const int pm,                  // hemisphere
       modvir(n, id, sett->N,                            // input
              sinalt, cosalt, sindelt, cosdelt,          // input
              ifo[n].sig.cphir, ifo[n].sig.sphir,        // input
-             sett->omr, aux->ifo_amod_d,                // input
+             sett->omr, aux->ifo_amod_d[id],            // input
              ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id],  // output
              cl_handles, 0, NULL);                      // sync
 
@@ -240,32 +240,32 @@ Search_results job_core(const int pm,                  // hemisphere
                    nSource.s[2] * ifo[n].sig.DetSSB[0].s[2];
 
     pl.tshift_pmod_events[n] =
-      tshift_pmod(n, id, sett->N, sett->nfft, sett->interpftpad,               // input
-                  shft1, het0, sett->oms, nSource,                             // input
-                  ifo[n].sig.xDat_d, ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
-                  ifo[n].sig.DetSSB_d,                                         // input
-                  fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],                  // output
-                  ifo[n].sig.shft_d[id], ifo[n].sig.shftf_d[id],               // output
-                  aux->tshift_d[id][n],                                        // output
-                  cl_handles, 1, &pl.modvir_events[n]);                        // sync
+      tshift_pmod(n, id, sett->N, sett->nfft, sett->interpftpad,                   // input
+                  shft1, het0, sett->oms, nSource,                                 // input
+                  ifo[n].sig.xDat_d[id], ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
+                  ifo[n].sig.DetSSB_d[id],                                         // input
+                  fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],                      // output
+                  ifo[n].sig.shft_d[id], ifo[n].sig.shftf_d[id],                   // output
+                  aux->tshift_d[id][n],                                            // output
+                  cl_handles, 1, &pl.modvir_events[n]);                            // sync
 
-	fft_interpolate(n, id, sett->nfft, sett->Ninterp, sett->nyqst, plans,    // input
-		            fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],              // input / output
-		            cl_handles, 1, &pl.tshift_pmod_events[n],                // sync
+    fft_interpolate(n, id, sett->nfft, sett->Ninterp, sett->nyqst, plans,    // input
+                    fft_arr->xa_d[id][n], fft_arr->xb_d[id][n],              // input / output
+                    cl_handles, 1, &pl.tshift_pmod_events[n],                // sync
                     pl.fft_interpolate_fw_fft_events[n],                     // sync
                     pl.fft_interpolate_resample_copy_events[n],              // sync
                     pl.fft_interpolate_resample_fill_events[n],              // sync
                     pl.fft_interpolate_inv_fft_events[n]);                   // sync
 
-	spline_interpolate(n, id, fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2,          // input
-		               fft_arr->xa_d[id][n], fft_arr->xb_d[id][n], ifo[n].sig.shftf_d[id],            // input
-		               ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id],                              // output
-		               blas_handles, cl_handles, 2, pl.fft_interpolate_inv_fft_events[n],             // sync
+    spline_interpolate(n, id, fft_arr->arr_len, sett->N, sett->interpftpad, ifo[n].sig.sig2,          // input
+                       fft_arr->xa_d[id][n], fft_arr->xb_d[id][n], ifo[n].sig.shftf_d[id],            // input
+                       ifo[n].sig.xDatma_d[id], ifo[n].sig.xDatmb_d[id],                              // output
+                       blas_handles, cl_handles, 2, pl.fft_interpolate_inv_fft_events[n],             // sync
                        pl.spline_map_events[n], pl.spline_unmap_events[n], pl.spline_blas_events[n]); // sync
 
-	blas_dot(n, id, sett->N, ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
-		     aux->aadots_d[id][n], aux->bbdots_d[id][n],               // output
-		     blas_handles, cl_handles, 1, &pl.modvir_events[n],        // sync
+    blas_dot(n, id, sett->N, ifo[n].sig.aa_d[id], ifo[n].sig.bb_d[id], // input
+             aux->aadots_d[id][n], aux->bbdots_d[id][n],               // output
+             blas_handles, cl_handles, 1, &pl.modvir_events[n],        // sync
              pl.blas_dot_events[n]);                                   // sync
 
   } // end of detector loop
@@ -290,13 +290,13 @@ Search_results job_core(const int pm,                  // hemisphere
   {
     sgnlt[spindown] = ss*sett->M[5] + nn*sett->M[9] + mm*sett->M[13];
 
-	double het1 = fmod(ss*sett->M[4], sett->M[0]);
+    double het1 = fmod(ss*sett->M[4], sett->M[0]);
 
     if (het1<0) het1 += sett->M[0];
-	
+
     sgnl_freq = het0 + het1; // are we reusing memory here? What does 'sgnl0' mean?
 
-	// spline_interpolate_cpu is the last operation we should wait on for args to be ready
+    // spline_interpolate_cpu is the last operation we should wait on for args to be ready
     pl.phase_mod_events[0] =
       phase_mod_1(0, id, sett->N, het1, sgnlt[spindown],                                   // input
                   ifo[0].sig.xDatma_d[id], ifo[0].sig.xDatmb_d[id], ifo[0].sig.shft_d[id], // input
@@ -379,23 +379,23 @@ void spindown_range(const int mm,                  // grid 'sky position'
                     const double* M,               // M matrix from grid point to linear coord
                     const Search_range* s_range,
                     const Command_line_opts *opts,
-	                int* smin,
-	                int* smax)
+                    int* smin,
+                    int* smax)
 {
-	// Check if the signal is added to the data 
-	// or the range file is given:  
-	// if not, proceed with the wide range of spindowns 
-	// if yes, use smin = s_range->sst, smax = s_range->spndr[1]
-	*smin = s_range->sst, *smax = s_range->spndr[1];
-	if (!strcmp(opts->addsig, "") && !strcmp(opts->range, "")) {
+  // Check if the signal is added to the data 
+  // or the range file is given:  
+  // if not, proceed with the wide range of spindowns 
+  // if yes, use smin = s_range->sst, smax = s_range->spndr[1]
+  *smin = s_range->sst, *smax = s_range->spndr[1];
+  if (!strcmp(opts->addsig, "") && !strcmp(opts->range, ""))
+  {
+    // Spindown range defined using Smin and Smax (settings.c)  
+    *smin = (int)trunc((Smin - nn * M[9] - mm * M[13]) / M[5]);  // Cast is intentional and safe (silences warning).
+    *smax = (int)trunc(-(nn * M[9] + mm * M[13] + Smax) / M[5]); // Cast is intentional and safe (silences warning).
+  }
 
-		// Spindown range defined using Smin and Smax (settings.c)  
-		*smin = (int)trunc((Smin - nn * M[9] - mm * M[13]) / M[5]);  // Cast is intentional and safe (silences warning).
-		*smax = (int)trunc(-(nn * M[9] + mm * M[13] + Smax) / M[5]); // Cast is intentional and safe (silences warning).
-	}
-
-	// No-spindown calculations
-	if (opts->s0_flag) *smin = *smax;
+  // No-spindown calculations
+  if (opts->s0_flag) *smin = *smax;
 }
 
 
