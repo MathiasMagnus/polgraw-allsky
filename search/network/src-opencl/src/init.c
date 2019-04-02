@@ -388,8 +388,7 @@ void init_opencl(OpenCL_handles* cl_handles,
     free_kernel_sources(sources);
   }
 
-  cl_handles->kernels = create_kernels(cl_handles->progs,
-                                       cl_handles->dev_count);
+  cl_handles->kernels = create_kernels(cl_handles->count, cl_handles->progs);
 }
 
 cl_platform_id* select_platforms(cl_uint count, cl_uint ids[MAX_DEVICES])
