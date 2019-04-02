@@ -770,13 +770,13 @@ void init_arrays(Detector_settings* ifo,
                  OpenCL_handles* cl_handles,
                  Command_line_opts* opts,
                  Aux_arrays *aux_arr,
-	             FFT_arrays* fft_arr)
+                 FFT_arrays* fft_arr)
 {
-	init_ifo_arrays(sett, cl_handles, opts, ifo);
+  init_ifo_arrays(sett, cl_handles, opts, ifo);
 
-	init_aux_arrays(sett, ifo, cl_handles, aux_arr);
+  init_aux_arrays(sett, ifo, cl_handles, aux_arr);
 
-	init_fft_arrays(sett, cl_handles, fft_arr);
+  init_fft_arrays(sett, cl_handles, fft_arr);
 
 } // end of init arrays
 
@@ -819,12 +819,16 @@ void init_ifo_arrays(Search_settings* sett,
       xDat_real* tmp = (xDat_real*)malloc(sett->N * sizeof(xDat_real));
       for (int ii = 0 ; ii < sett->N ; ++ii) tmp[ii] = (xDat_real)ifo[i].sig.xDat[ii]; // Cast silences warning
 
-      ifo[i].sig.xDat_d = clCreateBuffer(cl_handles->ctx,
-                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                         sett->N * sizeof(xDat_real),
-                                         tmp,
-                                         &CL_err);
-      checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
+      ifo[i].sig.xDat_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+      for (cl_uint j = 0; j < cl_handles->count; ++j)
+      {
+        ifo[i].sig.xDat_d[j] = clCreateBuffer(cl_handles->ctxs[j],
+                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                              sett->N * sizeof(xDat_real),
+                                              tmp,
+                                              &CL_err);
+        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDat_d)");
+      }
       free(tmp);
     }
 
@@ -893,12 +897,16 @@ void init_ifo_arrays(Search_settings* sett,
       return;
     }
 
-    ifo[i].sig.DetSSB_d = clCreateBuffer(cl_handles->ctx,
-                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                         sett->N * sizeof(DetSSB_real3),
-                                         ifo[i].sig.DetSSB,
-                                         &CL_err);
-    checkErr(CL_err, "clCreateBuffer(ifo[i].sig.DetSSB_d)");
+    ifo[i].sig.DetSSB_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+    for (cl_uint j = 0; j < cl_handles->count; ++j)
+    {
+        ifo[i].sig.DetSSB_d[j] = clCreateBuffer(cl_handles->ctxs[j],
+                                                CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                                sett->N * sizeof(DetSSB_real3),
+                                                ifo[i].sig.DetSSB,
+                                                &CL_err);
+        checkErr(CL_err, "clCreateBuffer(ifo[i].sig.DetSSB_d)");
+    }
 
     // sincos 
     ifo[i].sig.sphir = sin(ifo[i].sig.phir);
@@ -909,51 +917,51 @@ void init_ifo_arrays(Search_settings* sett,
     sett->sepsm = ifo[i].sig.sepsm;
     sett->cepsm = ifo[i].sig.cepsm;
 
-	ifo[i].sig.xDatma_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-	ifo[i].sig.xDatmb_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-	ifo[i].sig.aa_d =     (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-	ifo[i].sig.bb_d =     (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-	ifo[i].sig.shft_d =   (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-	ifo[i].sig.shftf_d =  (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
+	ifo[i].sig.xDatma_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+	ifo[i].sig.xDatmb_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+	ifo[i].sig.aa_d =     (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+	ifo[i].sig.bb_d =     (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+	ifo[i].sig.shft_d =   (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+	ifo[i].sig.shftf_d =  (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
 
-	for (cl_uint j = 0; j < cl_handles->dev_count; ++j)
+	for (cl_uint j = 0; j < cl_handles->count; ++j)
 	{
-      ifo[i].sig.xDatma_d[j] = clCreateBuffer(cl_handles->ctx,
+      ifo[i].sig.xDatma_d[j] = clCreateBuffer(cl_handles->ctxs[j],
                                               CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                                               sett->N * sizeof(xDatm_complex),
                                               NULL,
                                               &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatma_d)");
 	  
-      ifo[i].sig.xDatmb_d[j] = clCreateBuffer(cl_handles->ctx,
+      ifo[i].sig.xDatmb_d[j] = clCreateBuffer(cl_handles->ctxs[j],
                                               CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                                               sett->N * sizeof(xDatm_complex),
                                               NULL,
                                               &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.xDatmb_d)");
 	  
-      ifo[i].sig.aa_d[j] = clCreateBuffer(cl_handles->ctx,
+      ifo[i].sig.aa_d[j] = clCreateBuffer(cl_handles->ctxs[j],
                                           CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                                           sett->N * sizeof(ampl_mod_real),
                                           NULL,
                                           &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.aa_d)");
 	  
-      ifo[i].sig.bb_d[j] = clCreateBuffer(cl_handles->ctx,
+      ifo[i].sig.bb_d[j] = clCreateBuffer(cl_handles->ctxs[j],
                                           CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                                           sett->N * sizeof(ampl_mod_real),
                                           NULL,
                                           &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.bb_d)");
 	  
-      ifo[i].sig.shft_d[j] = clCreateBuffer(cl_handles->ctx,
+      ifo[i].sig.shft_d[j] = clCreateBuffer(cl_handles->ctxs[j],
                                             CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                                             sett->N * sizeof(shift_real),
                                             NULL,
                                             &CL_err);
       checkErr(CL_err, "clCreateBuffer(ifo[i].sig.shft_d)");
 	  
-      ifo[i].sig.shftf_d[j] = clCreateBuffer(cl_handles->ctx,
+      ifo[i].sig.shftf_d[j] = clCreateBuffer(cl_handles->ctxs[j],
                                              CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
                                              sett->N * sizeof(shift_real),
                                              NULL,
@@ -989,10 +997,10 @@ void init_fft_arrays(Search_settings* sett,
        sett->fftpad*sett->nfft :
        sett->Ninterp);
 
-  fft_arr->xa_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
-  fft_arr->xb_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
+  fft_arr->xa_d = (cl_mem**)malloc(cl_handles->count * sizeof(cl_mem*));
+  fft_arr->xb_d = (cl_mem**)malloc(cl_handles->count * sizeof(cl_mem*));
 
-  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  for (cl_uint id = 0; id < cl_handles->count; ++id)
   {
     fft_arr->xa_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
     fft_arr->xb_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
@@ -1001,7 +1009,7 @@ void init_fft_arrays(Search_settings* sett,
     {
       cl_int CL_err = CL_SUCCESS;
       fft_arr->xa_d[id][n] =
-        clCreateBuffer(cl_handles->ctx,
+        clCreateBuffer(cl_handles->ctxs[id],
                        CL_MEM_READ_WRITE,
                        fft_arr->arr_len * sizeof(fft_complex),
                        NULL,
@@ -1009,7 +1017,7 @@ void init_fft_arrays(Search_settings* sett,
       checkErr(CL_err, "clCreateBuffer(fft_arr->xa_d)");
     
       fft_arr->xb_d[id][n] =
-        clCreateBuffer(cl_handles->ctx,
+        clCreateBuffer(cl_handles->ctxs[id],
                        CL_MEM_READ_WRITE,
                        fft_arr->arr_len * sizeof(fft_complex),
                        NULL,
@@ -1025,33 +1033,34 @@ void init_aux_arrays(Search_settings* sett,
                      Aux_arrays* aux_arr)
 {
   cl_int CL_err = CL_SUCCESS;
-
-  aux_arr->ifo_amod_d =
-    clCreateBuffer(cl_handles->ctx,
-                   CL_MEM_READ_ONLY,
-                   sett->nifo * sizeof(Ampl_mod_coeff),
-                   NULL,
-                   &CL_err);
-  checkErr(CL_err, "clCreateBuffer(aux_arr->ifo_amod_d)");
   
-  aux_arr->tshift_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
-  aux_arr->aadots_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
-  aux_arr->bbdots_d = (cl_mem**)malloc(cl_handles->dev_count * sizeof(cl_mem*));
-  aux_arr->maa_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
-  aux_arr->mbb_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
+  aux_arr->ifo_amod_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+  aux_arr->tshift_d = (cl_mem**)malloc(cl_handles->count * sizeof(cl_mem*));
+  aux_arr->aadots_d = (cl_mem**)malloc(cl_handles->count * sizeof(cl_mem*));
+  aux_arr->bbdots_d = (cl_mem**)malloc(cl_handles->count * sizeof(cl_mem*));
+  aux_arr->maa_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
+  aux_arr->mbb_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
 
-  aux_arr->F_d = (cl_mem*)malloc(cl_handles->dev_count * sizeof(cl_mem));
+  aux_arr->F_d = (cl_mem*)malloc(cl_handles->count * sizeof(cl_mem));
 
-  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  for (cl_uint id = 0; id < cl_handles->count; ++id)
   {
     aux_arr->tshift_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
     aux_arr->aadots_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
     aux_arr->bbdots_d[id] = (cl_mem*)malloc(sett->nifo * sizeof(cl_mem));
 
+    aux_arr->ifo_amod_d[id] =
+      clCreateBuffer(cl_handles->ctxs[id],
+                     CL_MEM_READ_ONLY,
+                     sett->nifo * sizeof(Ampl_mod_coeff),
+                     NULL,
+                     &CL_err);
+    checkErr(CL_err, "clCreateBuffer(aux_arr->ifo_amod_d)");
+
     for (int n = 0; n < sett->nifo; ++n)
     {
       aux_arr->tshift_d[id][n] =
-        clCreateBuffer(cl_handles->ctx,
+        clCreateBuffer(cl_handles->ctxs[id],
                        CL_MEM_READ_WRITE,
                        sett->N * sizeof(shift_real),
                        NULL,
@@ -1059,7 +1068,7 @@ void init_aux_arrays(Search_settings* sett,
       checkErr(CL_err, "clCreateBuffer(aux_arr->tshift_d)");
 
       aux_arr->aadots_d[id][n] =
-        clCreateBuffer(cl_handles->ctx,
+        clCreateBuffer(cl_handles->ctxs[id],
                        CL_MEM_READ_ONLY,
                        sizeof(ampl_mod_real),
                        NULL,
@@ -1067,7 +1076,7 @@ void init_aux_arrays(Search_settings* sett,
       checkErr(CL_err, "clCreateBuffer(aux_arr->aadots_d)");
 
       aux_arr->bbdots_d[id][n] =
-        clCreateBuffer(cl_handles->ctx,
+        clCreateBuffer(cl_handles->ctxs[id],
                        CL_MEM_READ_ONLY,
                        sizeof(ampl_mod_real),
                        NULL,
@@ -1076,7 +1085,7 @@ void init_aux_arrays(Search_settings* sett,
     }
 
     aux_arr->maa_d[id] =
-      clCreateBuffer(cl_handles->ctx,
+      clCreateBuffer(cl_handles->ctxs[id],
                      CL_MEM_READ_ONLY,
                      sizeof(ampl_mod_real),
                      NULL,
@@ -1084,7 +1093,7 @@ void init_aux_arrays(Search_settings* sett,
     checkErr(CL_err, "clCreateBuffer(aux_arr->maa_d)");
 
     aux_arr->mbb_d[id] =
-      clCreateBuffer(cl_handles->ctx,
+      clCreateBuffer(cl_handles->ctxs[id],
                      CL_MEM_READ_ONLY,
                      sizeof(ampl_mod_real),
                      NULL,
@@ -1092,17 +1101,17 @@ void init_aux_arrays(Search_settings* sett,
     checkErr(CL_err, "clCreateBuffer(aux_arr->mbb_d)");
 
     aux_arr->F_d[id] =
-      clCreateBuffer(cl_handles->ctx,
+      clCreateBuffer(cl_handles->ctxs[id],
                      CL_MEM_READ_WRITE,
                      2 * sett->nfft * sizeof(fstat_real),
                      NULL,
                      &CL_err);
     checkErr(CL_err, "clCreateBuffer(F_d)");
-  }
 
-  Ampl_mod_coeff* tmp =
+
+    Ampl_mod_coeff* tmp =
       (Ampl_mod_coeff*)clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
-                                          aux_arr->ifo_amod_d,
+                                          aux_arr->ifo_amod_d[id],
                                           CL_TRUE,
                                           CL_MAP_WRITE_INVALIDATE_REGION,
                                           0,
@@ -1112,15 +1121,16 @@ void init_aux_arrays(Search_settings* sett,
                                           NULL,
                                           &CL_err);
 
-  for (int i = 0; i < sett->nifo; ++i) tmp[i] = ifo[i].amod;
+    for (int i = 0; i < sett->nifo; ++i) tmp[i] = ifo[i].amod;
 
-  cl_event unmap_event;
-  clEnqueueUnmapMemObject(cl_handles->exec_queues[0][0], aux_arr->ifo_amod_d, tmp, 0, NULL, &unmap_event);
+    cl_event unmap_event;
+    clEnqueueUnmapMemObject(cl_handles->exec_queues[0][0], aux_arr->ifo_amod_d[id], tmp, 0, NULL, &unmap_event);
 
-  clWaitForEvents(1, &unmap_event);
+    clWaitForEvents(1, &unmap_event);
 
-  // OpenCL cleanup
-  clReleaseEvent(unmap_event);
+    // OpenCL cleanup
+    clReleaseEvent(unmap_event);
+  }
 }
 
 void set_search_range(Search_settings *sett,

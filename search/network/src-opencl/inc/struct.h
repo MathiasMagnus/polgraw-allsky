@@ -48,9 +48,9 @@ typedef struct _comm_line_opts
 typedef struct _signals
 {
   double* xDat;
-  cl_mem xDat_d;
+  cl_mem* xDat_d;
   DetSSB_real3* DetSSB;
-  cl_mem DetSSB_d;          // Ephemeris of the detector
+  cl_mem *DetSSB_d;          // Ephemeris of the detector
   cl_mem *aa_d, *bb_d;      // Amplitude modulation functions
   cl_mem *shftf_d, *shft_d; // Resampling and time-shifting
   cl_mem *xDatma_d, *xDatmb_d;
