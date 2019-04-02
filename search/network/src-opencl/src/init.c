@@ -332,7 +332,7 @@ void handle_opts(Search_settings* sett,
           token = strtok(NULL, ",");
       }
 
-      if (count != cl_sett->count)
+      if (count != (int)cl_sett->count)
           printf("ERROR: Different number of platform ids and device types provided: %d vs. %d\n", cl_sett->count, count);
   }
 
@@ -351,7 +351,7 @@ void handle_opts(Search_settings* sett,
           token = strtok(NULL, ",");
       }
 
-      if (count != cl_sett->count)
+      if (count != (int)cl_sett->count)
           printf("ERROR: Different number of platform ids and device ids provided: %d vs. %d\n", cl_sett->count, count);
   }
 
@@ -371,7 +371,6 @@ void init_opencl(OpenCL_handles* cl_handles,
                                     cl_sett->dev_ids);
 
   cl_handles->ctxs = create_contexts(cl_handles->count,
-                                     cl_handles->plats,
                                      cl_handles->devs);
 
   cl_handles->write_queues = create_command_queue_set(cl_handles->count, cl_handles->ctxs);
@@ -448,7 +447,7 @@ cl_device_id* select_devices(cl_uint count,
         }
         else
         {
-            printf("ERROR: User requested device id %d on platform %d not exist.\n", dev_ids[i], plat_ids[i]);
+            printf("ERROR: User requested device id %d on platform %d not exist.\n", dev_ids[i], i);
             exit(-1);
         }
 
@@ -497,7 +496,7 @@ cl_context* create_contexts(cl_uint count,
         cps[1] = (cl_context_properties)platform;
         cps[2] = 0;
 
-        result = clCreateContext(cps, 1, devices[i], NULL, NULL, &CL_err); checkErr(CL_err, "clCreateContext()");
+        result[i] = clCreateContext(cps, 1, &devices[i], NULL, NULL, &CL_err); checkErr(CL_err, "clCreateContext()");
     }
 
     return result;
@@ -622,7 +621,7 @@ cl_program* build_programs_with_sources(cl_uint count,
       lengths[i] = strnlen(sources[i], UINT_MAX);
 #endif
 
-    cl_program* result = (cl_program*)maloc(count * sizeof(cl_program));
+    cl_program* result = (cl_program*)malloc(count * sizeof(cl_program));
     for (cl_uint i = 0; i < count; ++i)
     {
         cl_device_id device;
@@ -638,7 +637,7 @@ cl_program* build_programs_with_sources(cl_uint count,
         strcat(build_params, " -cl-opt-disable");
         strcat(build_params, " -cl-std=CL1.2");
         strcat(build_params, " -Werror"); // Warnings will be treated like errors, this is useful for debug
-        CL_err = clBuildProgram(result, 1, device, build_params, NULL, NULL);
+        CL_err = clBuildProgram(result[i], 1, &device, build_params, NULL, NULL);
 
         if (CL_err != CL_SUCCESS)
         {
@@ -646,12 +645,12 @@ cl_program* build_programs_with_sources(cl_uint count,
             size_t len = 0;
             char* buffer;
 
-            CL_err = clGetProgramBuildInfo(result, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+            CL_err = clGetProgramBuildInfo(result[i], device, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
             checkErr(CL_err, "clGetProgramBuildInfo(CL_PROGRAM_BUILD_LOG)");
 
             buffer = (char*)calloc(len, sizeof(char));
 
-            clGetProgramBuildInfo(result, device, CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
+            clGetProgramBuildInfo(result[i], device, CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
 
             fprintf(stderr, "%s\n", buffer);
 
@@ -1469,7 +1468,7 @@ void cleanup_aux_arrays(Search_settings* sett,
     CL_err = clReleaseMemObject(aux_arr->maa_d[id]); checkErr(CL_err, "clReleaseMemObject(aux_arr->maa_d[id]");
     CL_err = clReleaseMemObject(aux_arr->mbb_d[id]); checkErr(CL_err, "clReleaseMemObject(aux_arr->mbb_d[id]");
     CL_err = clReleaseMemObject(aux_arr->F_d[id]);   checkErr(CL_err, "clReleaseMemObject(aux_arr->F_d[id]");
-    CL_err = clReleaseMemObject(aux_arr->ifo_amod_d); checkErr(CL_err, "clReleaseMemObject(aux_arr->ifo_amod_d)");
+    CL_err = clReleaseMemObject(aux_arr->ifo_amod_d[id]); checkErr(CL_err, "clReleaseMemObject(aux_arr->ifo_amod_d)");
   }
 
   free(aux_arr->tshift_d);
@@ -1527,7 +1526,7 @@ void cleanup_opencl(OpenCL_handles* cl_handles)
   cleanup_command_queue_set(cl_handles->exec_queues, cl_handles->count);
   cleanup_command_queue_set(cl_handles->write_queues, cl_handles->count);
 
-  cleanup_context(cl_handles->ctxs);
+  cleanup_contexts(cl_handles->ctxs, cl_handles->count);
 
   cleanup_devices(cl_handles->devs, cl_handles->count);
 }
