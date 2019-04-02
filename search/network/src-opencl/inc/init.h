@@ -180,18 +180,20 @@ void cleanup_opencl(OpenCL_handles* cl_handles);
 void cleanup_devices(cl_device_id* devices,
                      cl_uint count);
 
-/// <summary>Release OpenCL context.</summary>
+/// <summary>Release and free OpenCL contexts.</summary>
 ///
-void cleanup_context(cl_context ctx);
+void cleanup_contexts(cl_context* ctxs,
+                      cl_uint count);
 
 /// <summary>Releases and frees a set of command queues.</summary>
 ///
 void cleanup_command_queue_set(cl_command_queue** queues,
                                size_t count);
 
-/// <summary>Release program.</summary>
+/// <summary>Release programs.</summary>
 ///
-void cleanup_program(cl_program prog);
+void cleanup_program(cl_program* progs,
+                     cl_uint count);
 
 /// <summary>Releases and frees all kernels.</summary>
 ///

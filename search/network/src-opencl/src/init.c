@@ -1336,7 +1336,7 @@ void init_fft(Search_settings* sett,
 
 void init_openmp(cl_uint count)
 {
-	omp_set_num_threads(count);
+  omp_set_num_threads(count);
 }
 
 void read_checkpoints(Command_line_opts *opts,
@@ -1400,45 +1400,15 @@ void cleanup(Detector_settings* ifo,
              FFT_arrays *fft_arr,
              Aux_arrays *aux)
 {
-    cleanup_fft(cl_handles, plans);
+  cleanup_fft(cl_handles, plans);
 
-    cleanup_blas(sett, cl_handles, blas_handles);
+  cleanup_blas(sett, cl_handles, blas_handles);
 
-    cleanup_arrays(ifo, sett, cl_handles, aux, fft_arr);
+  cleanup_arrays(ifo, sett, cl_handles, aux, fft_arr);
 
-    free(opts->wd);
+  free(opts->wd);
 
-    cleanup_opencl(cl_handles);
-
-	//for (int i = 0; i<sett->nifo; i++)
-    //{
-    //    free(ifo[i].sig.xDat);
-    //    free(ifo[i].sig.DetSSB);
-    //
-    //    clReleaseMemObject(ifo[i].sig.xDatma_d);
-    //    clReleaseMemObject(ifo[i].sig.xDatmb_d);
-    //
-    //    clReleaseMemObject(ifo[i].sig.aa_d);
-    //    clReleaseMemObject(ifo[i].sig.bb_d);
-    //
-    //    clReleaseMemObject(ifo[i].sig.shft_d);
-    //    clReleaseMemObject(ifo[i].sig.shftf_d);
-    //}
-    //
-    //clReleaseMemObject(aux->cosmodf_d);
-    //clReleaseMemObject(aux->sinmodf_d);
-    //
-    //clReleaseMemObject(F_d);
-    //
-    //clReleaseMemObject(fft_arr->xa_d);
-    //
-    //free(sett->M);
-    //
-    //clfftDestroyPlan(&plans->plan);
-    //clfftDestroyPlan(&plans->pl_int);
-    //clfftDestroyPlan(&plans->pl_inv);
-    //
-	//clblasTeardown();
+  cleanup_opencl(cl_handles);
 
 } // end of cleanup & memory free
 
@@ -1448,7 +1418,7 @@ void cleanup_arrays(Detector_settings* ifo,
                     Aux_arrays* aux_arr,
                     FFT_arrays* fft_arr)
 {
-	cleanup_fft_arrays(fft_arr, sett->nifo, cl_handles->dev_count);
+  cleanup_fft_arrays(fft_arr, sett->nifo, cl_handles->count);
 
   cleanup_aux_arrays(sett, cl_handles, aux_arr);
 
@@ -1459,14 +1429,14 @@ void cleanup_fft_arrays(FFT_arrays* fft_arr,
                         int nifo,
                         cl_uint count)
 {
-    for (cl_uint id = 0; id < count; ++id)
+  for (cl_uint id = 0; id < count; ++id)
+  {
+    for (int n = 0; n < nifo; ++n)
     {
-      for (int n = 0; n < nifo; ++n)
-      {
-        cl_int CL_err = CL_SUCCESS;
-        
-        CL_err = clReleaseMemObject(fft_arr->xa_d[id][n]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xa_d[i][j])");
-        CL_err = clReleaseMemObject(fft_arr->xb_d[id][n]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xb_d[i][j])");
+      cl_int CL_err = CL_SUCCESS;
+      
+      CL_err = clReleaseMemObject(fft_arr->xa_d[id][n]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xa_d[i][j])");
+      CL_err = clReleaseMemObject(fft_arr->xb_d[id][n]); checkErr(CL_err, "clReleaseMemObject(fft_arr->xb_d[i][j])");
     }
 
     free(fft_arr->xa_d[id]);
@@ -1483,9 +1453,7 @@ void cleanup_aux_arrays(Search_settings* sett,
 {
   cl_int CL_err = CL_SUCCESS;
 
-  CL_err = clReleaseMemObject(aux_arr->ifo_amod_d); checkErr(CL_err, "clReleaseMemObject(aux_arr->ifo_amod_d)");
-
-  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  for (cl_uint id = 0; id < cl_handles->count; ++id)
   {
     for (int n = 0; n < sett->nifo; ++n)
     {
@@ -1501,6 +1469,7 @@ void cleanup_aux_arrays(Search_settings* sett,
     CL_err = clReleaseMemObject(aux_arr->maa_d[id]); checkErr(CL_err, "clReleaseMemObject(aux_arr->maa_d[id]");
     CL_err = clReleaseMemObject(aux_arr->mbb_d[id]); checkErr(CL_err, "clReleaseMemObject(aux_arr->mbb_d[id]");
     CL_err = clReleaseMemObject(aux_arr->F_d[id]);   checkErr(CL_err, "clReleaseMemObject(aux_arr->F_d[id]");
+    CL_err = clReleaseMemObject(aux_arr->ifo_amod_d); checkErr(CL_err, "clReleaseMemObject(aux_arr->ifo_amod_d)");
   }
 
   free(aux_arr->tshift_d);
@@ -1510,6 +1479,7 @@ void cleanup_aux_arrays(Search_settings* sett,
   free(aux_arr->mbb_d);
 
   free(aux_arr->F_d);
+  free(aux_arr->ifo_amod_d);
 }
 
 void cleanup_ifo_arrays(Search_settings* sett,
@@ -1521,12 +1491,10 @@ void cleanup_ifo_arrays(Search_settings* sett,
     free(ifo[i].sig.xDat);
 
     cl_int CL_err = CL_SUCCESS;
-    CL_err = clReleaseMemObject(ifo[i].sig.xDat_d);   checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.xDat_d)");
-    CL_err = clReleaseMemObject(ifo[i].sig.DetSSB_d); checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.DetSSB_d)");
 
     free(ifo[i].sig.DetSSB);
 
-    for (cl_uint j = 0; j < cl_handles->dev_count; ++j)
+    for (cl_uint j = 0; j < cl_handles->count; ++j)
     {
       CL_err = clReleaseMemObject(ifo[i].sig.xDatma_d[j]); checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.xDatma_d[j])");
       CL_err = clReleaseMemObject(ifo[i].sig.xDatmb_d[j]); checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.xDatmb_d[j])");
@@ -1534,6 +1502,8 @@ void cleanup_ifo_arrays(Search_settings* sett,
       CL_err = clReleaseMemObject(ifo[i].sig.bb_d[j]);     checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.bb_d[j])");
       CL_err = clReleaseMemObject(ifo[i].sig.shft_d[j]);   checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.shft_d[j])");
       CL_err = clReleaseMemObject(ifo[i].sig.shftf_d[j]);  checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.shftf_d[j])");
+      CL_err = clReleaseMemObject(ifo[i].sig.xDat_d[j]);   checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.xDat_d[j])");
+      CL_err = clReleaseMemObject(ifo[i].sig.DetSSB_d[j]); checkErr(CL_err, "clReleaseMemObject(ifo[i].sig.DetSSB_d[j])");
     }
 
     free(ifo[i].sig.xDatma_d);
@@ -1542,113 +1512,118 @@ void cleanup_ifo_arrays(Search_settings* sett,
     free(ifo[i].sig.bb_d);
     free(ifo[i].sig.shft_d);
     free(ifo[i].sig.shftf_d);
+    free(ifo[i].sig.xDat_d);
+    free(ifo[i].sig.DetSSB_d);
   }
 }
 
 void cleanup_opencl(OpenCL_handles* cl_handles)
 {
-	cleanup_kernels(cl_handles->kernels, cl_handles->dev_count);
+  cleanup_kernels(cl_handles->kernels, cl_handles->count);
 
-	cleanup_program(cl_handles->prog);
+  cleanup_program(cl_handles->progs, cl_handles->count);
 
-	cleanup_command_queue_set(cl_handles->read_queues, cl_handles->dev_count);
-	cleanup_command_queue_set(cl_handles->exec_queues, cl_handles->dev_count);
-	cleanup_command_queue_set(cl_handles->write_queues, cl_handles->dev_count);
+  cleanup_command_queue_set(cl_handles->read_queues, cl_handles->count);
+  cleanup_command_queue_set(cl_handles->exec_queues, cl_handles->count);
+  cleanup_command_queue_set(cl_handles->write_queues, cl_handles->count);
 
-	cleanup_context(cl_handles->ctx);
+  cleanup_context(cl_handles->ctxs);
 
-	cleanup_devices(cl_handles->devs, cl_handles->dev_count);
+  cleanup_devices(cl_handles->devs, cl_handles->count);
 }
 
 void cleanup_devices(cl_device_id* devices,
                      cl_uint count)
 {
-	for (cl_uint i = 0; i < count; ++i)
-	{
-		cl_int CL_err = clReleaseDevice(devices[i]);
-		checkErr(CL_err, "clReleaseDevice(devices[i])");
-	}
+  for (cl_uint i = 0; i < count; ++i)
+  {
+    cl_int CL_err = clReleaseDevice(devices[i]);checkErr(CL_err, "clReleaseDevice(devices[i])");
+  }
 
-	free(devices);
+  free(devices);
 }
 
-void cleanup_context(cl_context ctx)
+void cleanup_contexts(cl_context* ctxs,
+                      cl_uint count)
 {
-	cl_int CL_err = CL_SUCCESS;
-
-	CL_err = clReleaseContext(ctx);
-	checkErr(CL_err, "clReleaseContext(ctx)");
+  for (cl_uint i = 0; i < count; ++i)
+  {
+    cl_int CL_err = clReleaseContext(ctxs[i]); checkErr(CL_err, "clReleaseContext(ctxs[i]);");
+  }
 }
 
 void cleanup_command_queue_set(cl_command_queue** queues,
                                size_t count)
 {
-	for (cl_uint i = 0; i < count; ++i)
-	{
-		for (cl_uint j = 0; j < MAX_DETECTORS; ++j)
-		{
-			cl_int CL_err = clReleaseCommandQueue(queues[i][j]);
-			checkErr(CL_err, "clReleaseCommandQueue(queues[i][j])");
-		}
+  for (cl_uint i = 0; i < count; ++i)
+  {
+    for (cl_uint j = 0; j < MAX_DETECTORS; ++j)
+    {
+      cl_int CL_err = clReleaseCommandQueue(queues[i][j]);
+      checkErr(CL_err, "clReleaseCommandQueue(queues[i][j])");
+    }
 
-		free(queues[i]);
-	}
+    free(queues[i]);
+  }
 
-	free(queues);
+  free(queues);
 }
 
-void cleanup_program(cl_program prog)
+void cleanup_program(cl_program* progs,
+                     cl_uint count)
 {
-	cl_int CL_err = clReleaseProgram(prog);
-	checkErr(CL_err, "clReleaseProgram(prog);");
+  for (cl_uint i = 0; i < count; ++i)
+  {
+    cl_int CL_err = clReleaseProgram(progs[i]); checkErr(CL_err, "clReleaseProgram(progs[i]);");
+  }
 }
 
 void cleanup_kernels(cl_kernel** kernels,
                      cl_uint count)
 {
-	for (cl_uint i = 0; i < count; ++i)
-	{
-		for (cl_uint j = 0; j < kernel_count; ++j)
-		{
-			cl_int CL_err = clReleaseKernel(kernels[i][j]);
-			checkErr(CL_err, "clReleaseKernel(kernels[i][j])");
-		}
+  for (cl_uint i = 0; i < count; ++i)
+  {
+    for (cl_uint j = 0; j < kernel_count; ++j)
+    {
+      cl_int CL_err = clReleaseKernel(kernels[i][j]);
+      checkErr(CL_err, "clReleaseKernel(kernels[i][j])");
+    }
 
-		free(kernels[i]);
-	}
+    free(kernels[i]);
+  }
 
-	free(kernels);
+  free(kernels);
 }
 
 void cleanup_blas(Search_settings* sett,
-	              OpenCL_handles* cl_handles,
-	              BLAS_handles* blas_handles)
+                  OpenCL_handles* cl_handles,
+                  BLAS_handles* blas_handles)
 {
-    cl_int CL_err = CL_SUCCESS;
+  cl_int CL_err = CL_SUCCESS;
 
-    for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  for (cl_uint id = 0; id < cl_handles->count; ++id)
+  {
+    for (int idet = 0; idet < sett->nifo; ++idet)
     {
-        for (int idet = 0; idet < sett->nifo; ++idet)
-        {
-            CL_err = clReleaseMemObject(blas_handles->aaScratch_d[id][idet]); checkErr(CL_err, "clReleaseMemObject(blas_handles->aaScratch_d)");
-            CL_err = clReleaseMemObject(blas_handles->bbScratch_d[id][idet]); checkErr(CL_err, "clReleaseMemObject(blas_handles->bbScratch_d)");
-        }
-
-        free(blas_handles->aaScratch_d[id]);
-        free(blas_handles->bbScratch_d[id]);
+      CL_err = clReleaseMemObject(blas_handles->aaScratch_d[id][idet]); checkErr(CL_err, "clReleaseMemObject(blas_handles->aaScratch_d)");
+      CL_err = clReleaseMemObject(blas_handles->bbScratch_d[id][idet]); checkErr(CL_err, "clReleaseMemObject(blas_handles->bbScratch_d)");
     }
 
-    free(blas_handles->aaScratch_d);
-    free(blas_handles->bbScratch_d);
+    free(blas_handles->aaScratch_d[id]);
+    free(blas_handles->bbScratch_d[id]);
+  }
 
-	clblasTeardown();
+  free(blas_handles->aaScratch_d);
+  free(blas_handles->bbScratch_d);
+
+  clblasTeardown();
 }
 
 void cleanup_fft(OpenCL_handles* cl_handles,
                  FFT_plans* plans)
 {
   clfftStatus status = CLFFT_SUCCESS;
-  for (cl_uint id = 0; id < cl_handles->dev_count; ++id)
+  for (cl_uint id = 0; id < cl_handles->count; ++id)
   {
     status = clfftDestroyPlan(&plans->plan[id]);   checkErrFFT(status, "clfftDestroyPlan(plans->plan)");
     status = clfftDestroyPlan(&plans->pl_int[id]); checkErrFFT(status, "clfftDestroyPlan(plans->pl_int)");
@@ -1656,270 +1631,3 @@ void cleanup_fft(OpenCL_handles* cl_handles,
   }
   clfftTeardown();
 }
-
-// Command line options handling: coincidences //
-
-/*void handle_opts_coinc(Search_settings *sett,
-                       Command_line_opts_coinc *opts,
-                       int argc, 
-                       char* argv[])
-{
-
-  opts->wd=NULL;
-
-  strcpy (opts->prefix, TOSTR(PREFIX));
-  strcpy (opts->dtaprefix, TOSTR(DTAPREFIX));
-
-  // Default initial value of the data sampling time 
-  sett->dt = 0.5;
-
-  opts->help_flag=0;
-  static int help_flag=0;
-
-  // Default value of the minimal number of coincidences 
-  opts->mincoin=3; 
-
-  // Default value of the narrow-down parameter 
-  opts->narrowdown=0.5; 
-
-  // Default value of the cell shift: 0000 (no shifts)
-  opts->shift=0;
-
-  // Default value of the cell scaling: 1111 (no scaling)
-  opts->scale=1111;
-
-  // Default signal-to-noise threshold cutoff
-  opts->snrcutoff=6;
-
-  // Reading arguments 
-
-  while (1) {
-    static struct option long_options[] = {
-      {"help", no_argument, &help_flag, 1},
-      // Cell shifts  
-      {"shift", required_argument, 0, 's'},
-      // Cell scaling 
-      {"scale", required_argument, 0, 'z'},
-      // Reference frame number 
-      {"refr", required_argument, 0, 'r'},
-      // output directory
-      {"output", required_argument, 0, 'o'},
-      // input data directory
-      {"data", required_argument, 0, 'd'},
-      // fpo value
-      {"fpo", required_argument, 0, 'p'},
-      // data sampling time 
-      {"dt", required_argument, 0, 't'},
-      // triggers' name prefactor 
-      {"trigname", required_argument, 0, 'e'},
-      // Location of the reference grid.bin and starting_date files  
-      {"refloc", required_argument, 0, 'g'},
-      // Minimal number of coincidences recorded in the output  
-      {"mincoin", required_argument, 0, 'm'},
-      // Narrow down the frequency band (+- the center of band) 
-      {"narrowdown", required_argument, 0, 'n'},
-      // Signal-to-noise threshold cutoff  
-      {"snrcutoff", required_argument, 0, 'c'},
-      {0, 0, 0, 0}
-    };
-
-    if (help_flag) {
-
-      printf("polgraw-allsky periodic GWs: search for concidences among candidates\n");
-      printf("Usage: ./coincidences -[switch1] <value1> -[switch2] <value2> ...\n") ;
-      printf("Switches are:\n\n");
-      printf("-data         Data directory (default is ./candidates)\n");
-      printf("-output       Output directory (default is ./coinc-results)\n");
-      printf("-shift        Cell shifts in fsda directions (4 digit number, e.g. 0101, default 0000)\n");
-      printf("-scale        Cell scaling in fsda directions (4 digit number, e.g. 4824, default 1111)\n");
-      printf("-refr         Reference frame number\n");
-      printf("-fpo          Reference band frequency fpo value\n");
-      printf("-dt           Data sampling time dt (default value: 0.5)\n");
-      printf("-trigname     Part of triggers' name (for identifying files)\n");
-      printf("-refloc       Location of the reference grid.bin and starting_date files\n");
-      printf("-mincoin      Minimal number of coincidences recorded\n");
-      printf("-narrowdown   Narrow-down the frequency band (range [0, 0.5] +- around center)\n");
-      printf("-snrcutoff    Signal-to-noise threshold cutoff (default value: 6)\n\n");
-
-      printf("Also:\n\n");
-      printf("--help		This help\n");
-
-      exit (0);
-    }
-
-    int option_index = 0;
-    int c = getopt_long_only (argc, argv, "p:o:d:s:z:r:t:e:g:m:n:c:", long_options, &option_index);
-    if (c == -1)
-      break;
-
-    switch (c) {
-    case 'p':
-      sett->fpo = atof(optarg);
-      break;
-    case 's': // Cell shifts 
-      opts->shift = (int)atof(optarg); // WARNING: Why atof when assigning to int?
-      break;
-    case 'z': // Cell scaling   
-      opts->scale = atoi(optarg);
-      break;
-    case 'r':
-      opts->refr = atoi(optarg);
-      break;
-    case 'o':
-      strcpy(opts->prefix, optarg);
-      break;
-    case 'd':
-      strcpy(opts->dtaprefix, optarg);
-      break;
-    case 't':
-      sett->dt = atof(optarg);
-      break;
-    case 'e':
-      strcpy(opts->trigname, optarg);
-      break;
-    case 'g':
-      strcpy(opts->refloc, optarg);
-      break;
-    case 'm':
-      opts->mincoin = atoi(optarg);
-      break;
-    case 'n':
-      opts->narrowdown = atof(optarg);
-      break;
-    case 'c':
-      opts->snrcutoff = atof(optarg);
-      break;
-    case '?':
-      break;
-    default:
-      break ;
-    } // switch c
-  } // while 1
-
-  // Putting the parameter in triggers' frequency range [0, pi] 
-  opts->narrowdown *= M_PI; 
-
-  printf("#mb add info at the beginning...\n"); 
-  printf("The SNR threshold cutoff is %.12f, ", opts->snrcutoff); 
-  printf("corresponding to F-statistic value of %.12f\n", 
-    pow(opts->snrcutoff, 2)/2. + 2); 
-
-}*/ // end of command line options handling: coincidences  
-
-
-
-#if 0
-/* Manage grid matrix (read from grid.bin, find eigenvalues 
- * and eigenvectors) and reference GPS time from starting_time
- * (expected to be in the same directory)    
- */ 
-
-void manage_grid_matrix(
-            Search_settings *sett, 
-            Command_line_opts_coinc *opts) {
-
-  sett->M = (double *)calloc(16, sizeof (double));
-
-  FILE *data;
-  char filename[512];
-  sprintf (filename, "%s/grid.bin", opts->refloc);
-
-  if ((data=fopen (filename, "r")) != NULL) {
-
-    printf("Reading the reference grid.bin at %s\n", opts->refloc);
-
-    fread ((void *)&sett->fftpad, sizeof (int), 1, data);
-
-    printf("fftpad from the grid file: %d\n", sett->fftpad); 
-
-    fread ((void *)sett->M, sizeof(double), 16, data);
-    // We actually need the second (Fisher) matrix from grid.bin, 
-    // hence the second fread: 
-    fread ((void *)sett->M, sizeof(double), 16, data);
-    fclose (data);
-  } else {
-    perror (filename);
-    exit(EXIT_FAILURE);
-  }
-
-  /* //#mb seems not needed at the moment 
-     sprintf (filename, "%s/starting_date", opts->refloc);
-
-     if ((data=fopen (filename, "r")) != NULL) {
-     fscanf(data, "%le", &opts->refgps);
-
-     printf("Reading the reference starting_date file at %s The GPS time is %12f\n", opts->refloc, opts->refgps);
-     fclose (data);
-     } else {
-     perror (filename);
-     exit(EXIT_FAILURE);
-     }
-  */ 
-
-  // Calculating the eigenvectors and eigenvalues 
-  gsl_matrix_view m = gsl_matrix_view_array(sett->M, 4, 4);
-
-  gsl_vector *eval = gsl_vector_alloc(4);
-  gsl_matrix *evec = gsl_matrix_alloc(4, 4);
-
-  gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(4); 
-  gsl_eigen_symmv(&m.matrix, eval, evec, w);
-  gsl_eigen_symmv_free(w);
-
-  double eigval[4], eigvec[4][4]; 
-  // Saving the results to the settings struct sett->vedva[][]
-  { int i, j;
-    for(i=0; i<4; i++) { 
-      eigval[i] = gsl_vector_get(eval, i); 
-      gsl_vector_view evec_i = gsl_matrix_column(evec, i);
-
-      for(j=0; j<4; j++)   
-    eigvec[j][i] = gsl_vector_get(&evec_i.vector, j);               
-    } 
-
-    // This is an auxiliary matrix composed of the eigenvector 
-    // columns multiplied by a matrix with sqrt(eigenvalues) on diagonal  
-    for(i=0; i<4; i++) { 
-      for(j=0; j<4; j++) { 
-    sett->vedva[i][j]  = eigvec[i][j]*sqrt(eigval[j]); 
-    //        printf("%.12le ", sett->vedva[i][j]); 
-      } 
-      //      printf("\n"); 
-    }
-
-  } 
-
-  /* 
-  //#mb matrix generated in matlab, for tests 
-  double _tmp[4][4] = { 
-  {-2.8622034614137332e-001, -3.7566564762376159e-002, -4.4001551065376701e-012, -3.4516253934827171e-012}, 
-  {-2.9591999145463371e-001, 3.6335210834374479e-002, 8.1252443441098394e-014, -6.8170555119669981e-014}, 
-  {1.5497867603229576e-005, 1.9167007413107127e-006, 1.0599051611325639e-008, -5.0379548388381567e-008}, 
-  {2.4410008440913992e-005, 3.2886518554938671e-006, -5.7338464150027107e-008, -9.3126913365595100e-009},
-  };
-
-  { int i,j; 
-  for(i=0; i<4; i++) 
-  for(j=0; j<4; j++) 
-  sett->vedva[i][j]  = _tmp[i][j]; 
-  }
-
-  printf("\n"); 
-
-  { int i, j; 
-  for(i=0; i<4; i++) { 
-  for(j=0; j<4; j++) {
-  printf("%.12le ", sett->vedva[i][j]);
-  }
-  printf("\n"); 
-  } 
-
-  } 
-  */ 
-
-  gsl_vector_free (eval);
-  gsl_matrix_free (evec);
-
-} // end of manage grid matrix  
-
-#endif
