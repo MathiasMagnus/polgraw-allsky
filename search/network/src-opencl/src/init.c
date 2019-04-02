@@ -315,7 +315,7 @@ void handle_opts(Search_settings* sett,
   {
       int count = 0;
 
-      char* token = strtok(opts->plat_ids, ",");
+      char* token = strtok(opts->dev_types, ",");
       while (token != NULL)
       {
           if (!strncmp(token, "def", 3))
@@ -1109,7 +1109,7 @@ void init_aux_arrays(Search_settings* sett,
 
 
     Ampl_mod_coeff* tmp =
-      (Ampl_mod_coeff*)clEnqueueMapBuffer(cl_handles->exec_queues[0][0],
+      (Ampl_mod_coeff*)clEnqueueMapBuffer(cl_handles->write_queues[id][0],
                                           aux_arr->ifo_amod_d[id],
                                           CL_TRUE,
                                           CL_MAP_WRITE_INVALIDATE_REGION,
@@ -1123,7 +1123,7 @@ void init_aux_arrays(Search_settings* sett,
     for (int i = 0; i < sett->nifo; ++i) tmp[i] = ifo[i].amod;
 
     cl_event unmap_event;
-    clEnqueueUnmapMemObject(cl_handles->exec_queues[0][0], aux_arr->ifo_amod_d[id], tmp, 0, NULL, &unmap_event);
+    clEnqueueUnmapMemObject(cl_handles->write_queues[id][0], aux_arr->ifo_amod_d[id], tmp, 0, NULL, &unmap_event);
 
     clWaitForEvents(1, &unmap_event);
 
