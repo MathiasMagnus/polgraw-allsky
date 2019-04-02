@@ -667,18 +667,18 @@ cl_program* build_programs_with_sources(cl_uint count,
     return result;
 }
 
-cl_kernel** create_kernels(cl_program program,
-	                       cl_uint count)
+cl_kernel** create_kernels(cl_uint count,
+                           cl_program* programs)
 {
     cl_kernel** result = (cl_kernel**)malloc(count * sizeof(cl_kernel*));
 
-	for (cl_uint i = 0; i < count; ++i)
-	{
-		result[i] = (cl_kernel*)malloc(kernel_count * sizeof(cl_kernel));
-
-		for (cl_uint j = 0; j < kernel_count; ++j)
-			result[i][j] = obtain_kernel(program, j);
-	}
+    for (cl_uint i = 0; i < count; ++i)
+    {
+        result[i] = (cl_kernel*)malloc(kernel_count * sizeof(cl_kernel));
+        
+        for (cl_uint j = 0; j < kernel_count; ++j)
+            result[i][j] = obtain_kernel(programs[i], j);
+    }
 
     return result;
 }
@@ -698,15 +698,6 @@ const char* obtain_kernel_name(cl_uint i)
     case ResamplePostFFT:
         result = "resample_postfft";
         break;
-    //case ComputeB:
-    //    result = "computeB";
-    //    break;
-    //case TriDiagMul:
-    //    result = "tridiagMul";
-    //    break;
-    //case Interpolate:
-    //    result = "interpolate";
-    //    break;
     case PhaseMod1:
         result = "phase_mod_1";
         break;

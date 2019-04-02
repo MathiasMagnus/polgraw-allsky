@@ -55,10 +55,10 @@ cl_program* build_programs_with_sources(cl_uint count,
                                         cl_context* contexts,
                                         const char** sources);
 
-/// <summary>Create a kernel for all entry points in the program for each device.</summary>
+/// <summary>Create a kernel for all entry points in the programs for each device.</summary>
 ///
-cl_kernel** create_kernels(cl_program program,
-	                       cl_uint count);
+cl_kernel** create_kernels(cl_uint count,
+                           cl_program* programs);
 
 /// <summary>Obtain the name of the kernel of a given index.</summary>
 ///
