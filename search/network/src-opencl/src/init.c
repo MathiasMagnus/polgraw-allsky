@@ -362,11 +362,13 @@ void init_opencl(OpenCL_handles* cl_handles,
 {
   cl_handles->count = cl_sett->count;
 
-  cl_handles->plats = select_platforms(cl_sett->count, cl_sett->plat_ids);
+  cl_handles->plats = select_platforms(cl_sett->count,
+                                       cl_sett->plat_ids);
 
-  cl_handles->devs = select_devices(cl_handles->plat,
-                                    cl_sett->dev_type,
-                                    &cl_handles->dev_count);
+  cl_handles->devs = select_devices(cl_sett->count,
+                                    cl_sett->dev_types,
+                                    cl_handles->plats,
+                                    cl_sett->dev_ids);
 
   cl_handles->ctx = create_standard_context(cl_handles->devs,
                                             cl_handles->dev_count);
@@ -390,7 +392,6 @@ void init_opencl(OpenCL_handles* cl_handles,
 cl_platform_id* select_platforms(cl_uint count, cl_uint ids[MAX_DEVICES])
 {
     cl_int CL_err = CL_SUCCESS;
-    cl_platform_id result = NULL;
     cl_uint numPlatforms = 0;
 
     CL_err = clGetPlatformIDs(0, NULL, &numPlatforms);
@@ -422,53 +423,55 @@ cl_platform_id* select_platforms(cl_uint count, cl_uint ids[MAX_DEVICES])
     return result;
 }
 
-cl_device_id* select_devices(cl_platform_id platform,
-                             cl_device_type dev_type,
-                             cl_uint* count)
+cl_device_id* select_devices(cl_uint count,
+                             cl_device_type* dev_types,
+                             cl_platform_id* plat_ids,
+                             cl_uint* dev_ids)
 {
     cl_int CL_err = CL_SUCCESS;
-    cl_device_id* result = NULL;
+    cl_device_id* result = (cl_device_id*)malloc(count * sizeof(cl_device_id));
 
-    CL_err = clGetDeviceIDs(platform, dev_type, 0, 0, count);
-    checkErr(CL_err, "clGetDeviceIDs(numDevices)");
-
-    if (*count == 0u)
+    for (cl_uint i = 0; i < count; ++i)
     {
-        perror("No devices of the specified type are found on the specified platform.");
-        exit(-1);
-    }
-    else
-    {
-        // Original
-        result = (cl_device_id*)malloc(*count * sizeof(cl_device_id));
-        CL_err = clGetDeviceIDs(platform, dev_type, *count, result, 0);
-        checkErr(CL_err, "clGetDeviceIDs(devices)");
+        cl_uint plat_devs;
+        CL_err = clGetDeviceIDs(plat_ids[i], dev_types[i], 0, 0, &plat_devs); checkErr(CL_err, "clGetDeviceIDs(numDevices)");
 
-        // Forced multi-device
-        //result = (cl_device_id*)malloc(2 * sizeof(cl_device_id));
-        //CL_err = clGetDeviceIDs(platform, dev_type, 1, &result[0], 0);
-        //checkErr(CL_err, "clGetDeviceIDs(devices)");
-        //CL_err = clGetDeviceIDs(platform, dev_type, 1, &result[1], 0);
-        //checkErr(CL_err, "clGetDeviceIDs(devices)");
-        //*count = 2;
+        cl_device_id* devs = (cl_device_id*)malloc(plat_devs * sizeof(cl_device_id));
+        CL_err = clGetDeviceIDs(plat_ids[i], dev_types[i], plat_devs, devs, 0); checkErr(CL_err, "clGetDeviceIDs(devices)");
 
-#ifdef WIN32
-            printf_s( "Selected OpenCL device(s):\n" ); // TODO: don't throw away error code.
-#else
-            printf( "Selected OpenCL device(s):\n" );
-#endif
-        cl_uint i;
-        for(i = 0; i < *count; ++i)
+        if (dev_ids[i] < plat_devs)
         {
-            char pbuf[100];
-            CL_err = clGetDeviceInfo( result[i], CL_DEVICE_NAME, sizeof( pbuf ), pbuf, NULL );
-            checkErr( CL_err, "clGetDeviceInfo(CL_DEVICE_NAME)" );
-#ifdef WIN32
-            printf_s( "\t%s\n", pbuf ); // TODO: don't throw away error code.
-#else
-            printf( "\t%s\n", pbuf );
-#endif
+            result[i] = devs[dev_ids[i]];
+            CL_err = clRetainDevice(result[i]); checkErr(CL_err, "clRetainDevice(result[i])");
         }
+        else
+        {
+            printf("ERROR: User requested device id %d on platform %d not exist.\n", dev_ids[i], plat_ids[i]);
+            exit(-1);
+        }
+
+        for (cl_uint j = 0; j < plat_devs; ++j)
+        {
+            CL_err = clReleaseDevice(devs[j]); checkErr(CL_err, "clReleaseDevice(devs[j])");
+        }
+        free(devs);
+    }
+
+#ifdef WIN32
+    printf_s("Selected OpenCL device(s):\n"); // TODO: don't throw away error code.
+#else
+    printf("Selected OpenCL device(s):\n");
+#endif
+
+    for (cl_uint i = 0; i < count; ++i)
+    {
+        char pbuf[100];
+        CL_err = clGetDeviceInfo(result[i], CL_DEVICE_NAME, sizeof(pbuf), pbuf, NULL); checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_NAME)");
+#ifdef WIN32
+        printf_s("\t%s\n", pbuf); // TODO: don't throw away error code.
+#else
+        printf("\t%s\n", pbuf);
+#endif
     }
 
     return result;

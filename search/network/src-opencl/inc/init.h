@@ -23,9 +23,10 @@ cl_platform_id* select_platforms(cl_uint count, cl_uint ids[MAX_DEVICES]);
 
 /// <summary>Selects all devices of the specified type.</summary>
 ///
-cl_device_id* select_devices(cl_platform_id platform,
-                             cl_device_type dev_type,
-                             cl_uint* count);
+cl_device_id* select_devices(cl_uint count,
+                             cl_device_type* dev_types,
+                             cl_platform_id* plat_ids,
+                             cl_uint* dev_ids);
 
 /// <summary>Create a context that holds all specified devices.</summary>
 ///
