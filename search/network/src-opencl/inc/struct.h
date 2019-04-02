@@ -115,7 +115,7 @@ typedef struct _opencl_handles
   cl_uint count;
   cl_platform_id* plats;
   cl_device_id* devs;
-  cl_context* ctx;
+  cl_context* ctxs;
   cl_command_queue **write_queues,
                    **exec_queues,
                    **read_queues;

@@ -28,10 +28,10 @@ cl_device_id* select_devices(cl_uint count,
                              cl_platform_id* plat_ids,
                              cl_uint* dev_ids);
 
-/// <summary>Create a context that holds all specified devices.</summary>
+/// <summary>Create contexts for all selected devices.</summary>
 ///
-cl_context create_standard_context(cl_device_id* devices,
-                                   cl_uint count);
+cl_context* create_contexts(cl_uint count,
+                            cl_device_id* devices);
 
 /// <summary>Create a set of command queues to all the devices in the context.</summary>
 ///

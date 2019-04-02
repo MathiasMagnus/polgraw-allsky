@@ -370,8 +370,9 @@ void init_opencl(OpenCL_handles* cl_handles,
                                     cl_handles->plats,
                                     cl_sett->dev_ids);
 
-  cl_handles->ctx = create_standard_context(cl_handles->devs,
-                                            cl_handles->dev_count);
+  cl_handles->ctxs = create_contexts(cl_handles->count,
+                                     cl_handles->plats,
+                                     cl_handles->devs);
 
   cl_handles->write_queues = create_command_queue_set(cl_handles->ctx);
   cl_handles->exec_queues  = create_command_queue_set(cl_handles->ctx);
@@ -477,26 +478,26 @@ cl_device_id* select_devices(cl_uint count,
     return result;
 }
 
-cl_context create_standard_context(cl_device_id* devices, cl_uint count)
+cl_context* create_contexts(cl_uint count,
+                            cl_device_id* devices)
 {
     cl_int CL_err = CL_SUCCESS;
-    cl_context result = NULL;
-    cl_platform_id platform = NULL;
+    cl_context* result = (cl_context*)malloc(count * sizeof(cl_context));
 
-    CL_err = clGetDeviceInfo(devices[0],
-                             CL_DEVICE_PLATFORM,
-                             sizeof(cl_platform_id),
-                             &platform,
-                             NULL);
-    checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_PLATFORM)");
+    for (cl_uint i = 0; i < count; ++i)
+    {
+        cl_platform_id platform = NULL;
 
-    cl_context_properties cps[3];
-    cps[0] = CL_CONTEXT_PLATFORM;
-    cps[1] = (cl_context_properties)platform;
-    cps[2] = 0;
+        CL_err = clGetDeviceInfo(devices[0], CL_DEVICE_PLATFORM, sizeof(cl_platform_id), &platform, NULL);
+        checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_PLATFORM)");
 
-    result = clCreateContext(cps, count, devices, NULL, NULL, &CL_err);
-    checkErr(CL_err, "clCreateContext()");
+        cl_context_properties cps[3];
+        cps[0] = CL_CONTEXT_PLATFORM;
+        cps[1] = (cl_context_properties)platform;
+        cps[2] = 0;
+
+        result = clCreateContext(cps, 1, devices[i], NULL, NULL, &CL_err); checkErr(CL_err, "clCreateContext()");
+    }
 
     return result;
 }
