@@ -488,7 +488,7 @@ cl_context* create_contexts(cl_uint count,
     {
         cl_platform_id platform = NULL;
 
-        CL_err = clGetDeviceInfo(devices[0], CL_DEVICE_PLATFORM, sizeof(cl_platform_id), &platform, NULL);
+        CL_err = clGetDeviceInfo(devices[i], CL_DEVICE_PLATFORM, sizeof(cl_platform_id), &platform, NULL);
         checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_PLATFORM)");
 
         cl_context_properties cps[3];
