@@ -86,92 +86,61 @@ void search(Detector_settings* ifo,
             Aux_arrays* aux,
             int* Fnum)
 {
-//#ifdef _WIN32
-//  int low_state;
-//#endif // WIN32
-//  FILE* state = NULL;
-//
-//  if (opts->checkp_flag)
-//  {
-//#ifdef _WIN32
-//    _sopen_s(&low_state, opts->qname,
-//             _O_RDWR | _O_CREAT,   // Allowed operations
-//             _SH_DENYNO,           // Allowed sharing
-//             _S_IREAD | _S_IWRITE);// Permission settings
-//
-//    state = _fdopen(low_state, "w");
-//#else
-//    state = fopen(opts->qname, "w");
-//#endif // WIN32
-//  }
-
   Search_results*** results = init_results(s_range);
 
+  // Linearize sky coordinates (for better load balancing)
+  s_range->coord_count = 0;
+  s_range->sky_coords = NULL;
   // Loop over hemispheres //
   for (int pm = s_range->pst; pm <= s_range->pmr[1]; ++pm)
   {
     // Two main loops over sky positions //
     for (int mm = s_range->mst; mm <= s_range->mr[1]; ++mm)
     {
-      int nn;
-      #pragma omp parallel for schedule(dynamic)
-      for (nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
+      for (int nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
       {
-//        if (opts->checkp_flag)
-//        {
-//#ifdef _WIN32
-//          if (_chsize(low_state, 0))
-//          {
-//            printf("Failed to resize file");
-//            exit(EXIT_FAILURE);
-//          }
-//#else
-//          if (ftruncate(fileno(state), 0))
-//          {
-//            printf("Failed to resize file");
-//            exit(EXIT_FAILURE);
-//          }
-//#endif // _WIN32
-//          fprintf(state, "%d %d %d %d %d\n", pm, mm, nn, s_range->sst, *Fnum);
-//          fseek(state, 0, SEEK_SET);
-//        }
-        //printf("id %d trying %d %d %d\n", omp_get_thread_num(), pm, mm, nn);
+        int i = s_range->coord_count;
+        s_range->sky_coords = (int*)realloc(s_range->sky_coords, ++s_range->coord_count * 3 * sizeof(int));
 
-        // Loop over spindowns is inside job_core() //
-        results[pm - s_range->pmr[0]]
-               [mm - s_range->mr[0]]
-               [nn - s_range->nr[0]] = job_core(pm,            // hemisphere
-                                                mm,            // grid 'sky position'
-                                                nn,            // other grid 'sky position'
-                                                omp_get_thread_num(),
-                                                ifo,           // detector settings
-                                                sett,          // search settings
-                                                opts,          // cmd opts
-                                                s_range,       // range for searching
-                                                plans,         // fftw plans 
-                                                fft_arr,       // arrays for fftw
-                                                aux,           // auxiliary arrays
-                                                Fnum,          // Candidate signal number
-                                                cl_handles,    // handles to OpenCL resources
-                                                blas_handles); // handle for scaling
-
-        // Get back to regular spin-down range
-        //
-        // NOTE: without checkpoint support, writing this shared variable breaks concurrency
-        //
-        // s_range->sst = s_range->spndr[0];
-
-      } // for nn
+        s_range->sky_coords[i * 3 + 0] = pm;
+        s_range->sky_coords[i * 3 + 1] = mm;
+        s_range->sky_coords[i * 3 + 2] = nn;
+      }
       s_range->nst = s_range->nr[0];
-    } // for mm
+    }
     s_range->mst = s_range->mr[0];
-  } // for pm
+  }
+
+  // Loop over linearized sky coordinates
+  int i;
+  #pragma omp parallel for schedule(dynamic)
+  for (i = 0; i < s_range->coord_count; ++i)
+  {
+    int pm = s_range->sky_coords[i * 3 + 0];
+    int mm = s_range->sky_coords[i * 3 + 1];
+    int nn = s_range->sky_coords[i * 3 + 2];
+
+    results[pm - s_range->pmr[0]]
+           [mm - s_range->mr[0]]
+           [nn - s_range->nr[0]] = job_core(pm,            // hemisphere
+                                            mm,            // grid 'sky position'
+                                            nn,            // other grid 'sky position'
+                                            omp_get_thread_num(),
+                                            ifo,           // detector settings
+                                            sett,          // search settings
+                                            opts,          // cmd opts
+                                            s_range,       // range for searching
+                                            plans,         // fftw plans 
+                                            fft_arr,       // arrays for fftw
+                                            aux,           // auxiliary arrays
+                                            Fnum,          // Candidate signal number
+                                            cl_handles,    // handles to OpenCL resources
+                                            blas_handles); // handle for scaling
+  }
+
+  free(s_range->sky_coords);
 
   save_and_free_results(opts, s_range, results);
-
-//  if (opts->checkp_flag)
-//    fclose(state);
-
 }
 
 Search_results job_core(const int pm,                  // hemisphere
