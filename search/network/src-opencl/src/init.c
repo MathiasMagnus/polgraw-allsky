@@ -2,6 +2,8 @@
 //
 // MSVC: macro to include constants, such as M_PI (include before math.h)
 #define _USE_MATH_DEFINES
+// MSVC: macro to disable min/max macros on Windows
+#define NOMINMAX
 // ISO: request safe versions of functions
 #define __STDC_WANT_LIB_EXT1__ 1
 
@@ -51,6 +53,7 @@
 #include <errno.h>
 #include <time.h>
 #include <limits.h>     // UINT_MAX
+#include <stdbool.h>
 
 
 void handle_opts(Search_settings* sett,
@@ -473,6 +476,42 @@ cl_device_id* select_devices(cl_uint count,
 #else
         printf("\t%s\n", pbuf);
 #endif
+    }
+
+    // If there are both CPUs and non-CPUs used, break up the CPU device to leave headroom to drive the non-CPU devices.
+    bool non_cpu_found = false;
+    for (cl_uint i = 0; i < count; ++i)
+    {
+      cl_device_type type;
+      CL_err = clGetDeviceInfo(result[i], CL_DEVICE_TYPE, sizeof(cl_device_type), &type, NULL); checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_TYPE)");
+
+      if (type != CL_DEVICE_TYPE_CPU) non_cpu_found = true;
+    }
+    for (cl_uint i = 0; i < count; ++i)
+    {
+      cl_device_type type;
+      CL_err = clGetDeviceInfo(result[i], CL_DEVICE_TYPE, sizeof(cl_device_type), &type, NULL); checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_TYPE)");
+
+      if (type == CL_DEVICE_TYPE_CPU && non_cpu_found)
+      {
+        cl_uint cu_count;
+        CL_err = clGetDeviceInfo(result[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &cu_count, NULL); checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_MAX_COMPUTE_UNITS)");
+
+        const cl_device_partition_property props[] =
+        { CL_DEVICE_PARTITION_BY_COUNTS,
+          1 >= cu_count - (count - 1) ? 1 : cu_count - (count - 1),
+          CL_DEVICE_PARTITION_BY_COUNTS_LIST_END, 0 };
+        cl_device_id sub_device;
+        CL_err = clCreateSubDevices(result[i], props, 1, &sub_device, NULL); checkErr(CL_err, "clCreateSubDevices(CL_DEVICE_PARTITION_BY_COUNTS)");
+
+        // Override complete CPU device with sub-device (we leak the parent device (on purpose))
+        result[i] = sub_device;
+#ifdef WIN32
+        printf_s("Selected CPU device is using %d of %d compute-units.\n", 1 >= cu_count - (count - 1) ? 1 : cu_count - (count - 1), cu_count); // TODO: don't throw away error code.
+#else
+        printf("Selected CPU device is using %d of %d compute-units.\n", 1 >= cu_count - (count - 1) ? 1 : cu_count - (count - 1), cu_count);
+#endif
+      }
     }
 
     return result;
