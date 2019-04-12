@@ -497,9 +497,10 @@ cl_device_id* select_devices(cl_uint count,
         cl_uint cu_count;
         CL_err = clGetDeviceInfo(result[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &cu_count, NULL); checkErr(CL_err, "clGetDeviceInfo(CL_DEVICE_MAX_COMPUTE_UNITS)");
 
+        cl_uint target_cu_count = 1 >= (cl_int)cu_count - ((cl_int)count - 1) ? 1 : cu_count - (count - 1);
         const cl_device_partition_property props[] =
         { CL_DEVICE_PARTITION_BY_COUNTS,
-          1 >= cu_count - (count - 1) ? 1 : cu_count - (count - 1),
+          target_cu_count,
           CL_DEVICE_PARTITION_BY_COUNTS_LIST_END, 0 };
         cl_device_id sub_device;
         CL_err = clCreateSubDevices(result[i], props, 1, &sub_device, NULL); checkErr(CL_err, "clCreateSubDevices(CL_DEVICE_PARTITION_BY_COUNTS)");
@@ -507,9 +508,9 @@ cl_device_id* select_devices(cl_uint count,
         // Override complete CPU device with sub-device (we leak the parent device (on purpose))
         result[i] = sub_device;
 #ifdef WIN32
-        printf_s("Selected CPU device is using %d of %d compute-units.\n", 1 >= cu_count - (count - 1) ? 1 : cu_count - (count - 1), cu_count); // TODO: don't throw away error code.
+        printf_s("Selected CPU device is using %d of %d compute-units.\n", target_cu_count, cu_count); // TODO: don't throw away error code.
 #else
-        printf("Selected CPU device is using %d of %d compute-units.\n", 1 >= cu_count - (count - 1) ? 1 : cu_count - (count - 1), cu_count);
+        printf("Selected CPU device is using %d of %d compute-units.\n", target_cu_count, cu_count);
 #endif
       }
     }
