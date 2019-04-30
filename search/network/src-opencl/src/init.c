@@ -674,7 +674,7 @@ cl_program* build_programs_with_sources(cl_uint count,
         char build_params[1024];
         strcpy(build_params, " -I");
         strcat(build_params, kernel_inc_path);
-        strcat(build_params, " -cl-opt-disable");
+        //strcat(build_params, " -cl-opt-disable");
         strcat(build_params, " -cl-std=CL1.2");
         strcat(build_params, " -Werror"); // Warnings will be treated like errors, this is useful for debug
         CL_err = clBuildProgram(result[i], 1, &device, build_params, NULL, NULL);
