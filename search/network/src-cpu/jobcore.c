@@ -184,6 +184,7 @@ void search(
       // Gnuplot friendly
       for (int i = 0; i < sgnlc; ++i)
       {
+#ifdef _MSC_VER
           int out_count = fprintf_s(fc,
               "%e\t%e\t%e\t%e\t%e\n",
               sgnlv[i*NPAR + 0],
@@ -193,6 +194,15 @@ void search(
               sgnlv[i*NPAR + 4]);
 
           if (out_count < 0) perror("Failed to write output file.");
+#else
+          fprintf(fc,
+              "%e\t%e\t%e\t%e\t%e\n",
+              sgnlv[i * NPAR + 0],
+              sgnlv[i * NPAR + 1],
+              sgnlv[i * NPAR + 2],
+              sgnlv[i * NPAR + 3],
+              sgnlv[i * NPAR + 4]);
+#endif
       }
   
       int close = fclose(fc);
