@@ -54,16 +54,16 @@ void find_peaks(//const cl_int idet,
   double Fc;
   for (int i = nmin; i < nmax; i++)
   {
-    if ((Fc = F[i]) > trl) // if F-stat exceeds trl (critical value)
+    if ((Fc = F[i - nmin]) > trl) // if F-stat exceeds trl (critical value)
     {                      // Find local maximum for neighboring signals
       int ii = i;
 
-      while (++i < nmax && F[i] > trl)
+      while (++i < nmax && F[i - nmin] > trl)
       {
-        if (F[i] >= Fc)
+        if (F[i - nmin] >= Fc)
         {
           ii = i;
-          Fc = F[i];
+          Fc = F[i - nmin];
         } // if F[i] 
       } // while i 
 
