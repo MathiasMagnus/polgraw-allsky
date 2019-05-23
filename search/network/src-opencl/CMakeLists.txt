@@ -229,15 +229,22 @@ if (BUILD_TESTING)
 					         validation-cl)
 
   add_executable (validation src/validation.cpp)
+  add_executable (comparison src/comparison.cpp)
 
-  set_target_properties (validation PROPERTIES CXX_STANDARD 14
-                                               CXX_STANDARD_REQUIRED ON
-                                               CXX_EXTENSIONS OFF)
+  foreach (Target IN ITEMS validation
+                           comparison)
+
+    set_target_properties (${Target} PROPERTIES CXX_STANDARD 14
+                                                CXX_STANDARD_REQUIRED ON
+                                                CXX_EXTENSIONS OFF)
+
+  endforeach (Target)
 
   foreach (Test_Target IN ITEMS validation
                                 validation-cpu
                                 validation-cl
-								validation-data)
+                                validation-data
+                                comparison)
 
     set_target_properties(${Test_Target} PROPERTIES FOLDER "Test")
 
