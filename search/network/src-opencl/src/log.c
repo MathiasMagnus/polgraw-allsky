@@ -65,6 +65,68 @@ void print_complex_array(void* arr, size_t count, const char* msg, _Bool dp)
     print_complex_array_sp(arr, count, msg);
 }
 
+/// <summary>Prints the first 'count' values of a device side real array.</summary>
+///
+void print_real_buffer(cl_command_queue queue, cl_mem buf, int count, const char* msg, _Bool dp)
+{
+    cl_int CL_err;
+    cl_event map, unmap;
+
+    void* temp =
+        clEnqueueMapBuffer(queue,
+            buf,
+            CL_TRUE,
+            CL_MAP_READ,
+            0 * (dp ? sizeof(double) : sizeof(float)),
+            count * (dp ? sizeof(double) : sizeof(float)),
+            0, NULL,
+            &map,
+            &CL_err);
+    checkErr(CL_err, "clEnqueueMapBufffer");
+
+    CL_err = clWaitForEvents(1, &map);
+    checkErr(CL_err, "clWaitForEvents");
+
+    print_real_array(temp, count, msg, dp);
+
+    CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
+    checkErr(CL_err, "clEnqueueUnmapMemObject");
+
+    clReleaseEvent(map);
+    clReleaseEvent(unmap);
+}
+
+/// <summary>Prints the first 'count' values of a device side complex array.</summary>
+///
+void print_complex_buffer(cl_command_queue queue, cl_mem buf, int count, const char* msg, _Bool dp)
+{
+    cl_int CL_err;
+    cl_event map, unmap;
+
+    void* temp =
+        clEnqueueMapBuffer(queue,
+            buf,
+            CL_TRUE,
+            CL_MAP_READ,
+            0 * (dp ? sizeof(complex_double) : sizeof(complex_float)),
+            count * (dp ? sizeof(complex_double) : sizeof(complex_float)),
+            0, NULL,
+            &map,
+            &CL_err);
+    checkErr(CL_err, "clEnqueueMapBufffer");
+
+    CL_err = clWaitForEvents(1, &map);
+    checkErr(CL_err, "clWaitForEvents");
+
+    print_complex_array(temp, count, msg, dp);
+
+    CL_err = clEnqueueUnmapMemObject(queue, buf, temp, 0, NULL, &unmap);
+    checkErr(CL_err, "clEnqueueUnmapMemObject");
+
+    clReleaseEvent(map);
+    clReleaseEvent(unmap);
+}
+
 /// <summary>Saves values of a host side real array to disk.</summary>
 ///
 void save_real_array(void* arr, size_t count, const char* name, _Bool dp)
