@@ -622,8 +622,7 @@ int job_core(int pm,                   // Hemisphere
       smax = (int)trunc(-(nn*sett->M[9] + mm*sett->M[13] + sett->Smax)/sett->M[5]);
   } 
 
-  //printf ("\n>>%d\t%d\t%d\t[%d..%d]\n", *FNum, mm, nn, smin, smax);
-  printf("\n>>%d\t%d\t%d\t[%d..%d]\n", *sgnlc, mm, nn, smin, smax);
+  printf(">>0:\t%d\t%d\t%d\t[%d..%d]\n", pm, mm, nn, smin, smax);
  
   // No-spindown calculations
   if(opts->s0_flag) smin = smax;
@@ -950,7 +949,7 @@ int job_core(int pm,                   // Hemisphere
 
   } // for ss 
   
-#ifndef VERBOSE 
+#ifdef VERBOSE 
   printf("Number of signals found: %d\n", *sgnlc); 
 #endif 
 
