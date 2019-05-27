@@ -305,7 +305,7 @@ Search_results job_core(const int pm,                  // hemisphere
                                 aux->F_d[id],                            // input / output
                                 cl_handles, 1, &pl.compute_Fstat_event); // sync
 
-    find_peaks(/*0,*/ id, sett->nmin, sett->nmax, opts->trl,    // input
+    find_peaks(id, sett->nmin, sett->nmax, opts->trl,       // input
                sgnl_freq, sett, aux->F_d[id],               // input
                &results, sgnlt,                             // output
                cl_handles, 1, &pl.normalize_Fstat_event,    // sync
@@ -314,7 +314,7 @@ Search_results job_core(const int pm,                  // hemisphere
     extract_spindown_profiling_info(sett->nifo,
                                     pl,
                                     &results.prof);
-
+    
     release_spindown_events(sett->nifo, &pl);
 
   } // for ss
