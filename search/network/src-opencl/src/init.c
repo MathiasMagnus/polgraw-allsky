@@ -552,6 +552,11 @@ cl_command_queue** create_command_queue_set(cl_uint count, cl_context* contexts)
     {
         result[i] = (cl_command_queue*)malloc(MAX_DETECTORS * sizeof(cl_command_queue));
 
+        cl_uint num_devices;
+        CL_err = clGetContextInfo(contexts[i], CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL); checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_NUM_DEVICES)");
+
+        if (num_devices != 1) checkErr(EXIT_FAILURE, "Unexpectedly found more than one device in context");
+
         cl_device_id device;
         CL_err = clGetContextInfo(contexts[i], CL_CONTEXT_DEVICES, sizeof(cl_device_id), &device, NULL); checkErr(CL_err, "clGetContextInfo(CL_CONTEXT_DEVICES)");
 
