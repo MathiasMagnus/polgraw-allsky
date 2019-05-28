@@ -203,6 +203,9 @@ int main(int argc, char* argv[])
                                                   return acc + std::pow(val - avg_diff, 2);
                                               }) / (diff.size() - 1));
 
+    std::cout << "Avarage difference: " << avg_diff << std::endl;
+    std::cout << "Standard deviation of differences: " << dev_diff << std::endl;
+
     std::ofstream snr_vs_diff{ out_path + ".snr_vs_diff.bin" };
     for (std::size_t i = 0; i < filtered.size(); ++i)
         snr_vs_diff << filtered[i].signal_to_noise << "\t" << diff[i] << std::endl;
