@@ -564,8 +564,6 @@ cl_command_queue** create_command_queue_set(cl_uint count, cl_context* contexts)
         {
             result[i][j] = clCreateCommandQueue(contexts[i], device, CL_QUEUE_PROFILING_ENABLE, &CL_err); checkErr(CL_err, "clCreateCommandQueue()");
         }
-
-        CL_err = clReleaseDevice(device); checkErr(CL_err, "clReleaseDevice()");
     }
 
     return result;
