@@ -107,11 +107,11 @@ std::ostream& operator<<(std::ostream& os, const signal& sig)
     return os;
 }
 
-template <> static bool detail::compare_signals<member::frequency>(const signal& lhs, const signal& rhs) { return lhs.frequency < rhs.frequency; }
-template <> static bool detail::compare_signals<member::spindown>(const signal& lhs, const signal& rhs) { return lhs.spindown < rhs.spindown; }
-template <> static bool detail::compare_signals<member::declination>(const signal& lhs, const signal& rhs) { return lhs.declination < rhs.declination; }
-template <> static bool detail::compare_signals<member::ascension>(const signal& lhs, const signal& rhs) { return lhs.ascension < rhs.ascension; }
-template <> static bool detail::compare_signals<member::signal_to_noise>(const signal& lhs, const signal& rhs) { return lhs.signal_to_noise < rhs.signal_to_noise; }
+template <> bool detail::compare_signals<member::frequency>(const signal& lhs, const signal& rhs) { return lhs.frequency < rhs.frequency; }
+template <> bool detail::compare_signals<member::spindown>(const signal& lhs, const signal& rhs) { return lhs.spindown < rhs.spindown; }
+template <> bool detail::compare_signals<member::declination>(const signal& lhs, const signal& rhs) { return lhs.declination < rhs.declination; }
+template <> bool detail::compare_signals<member::ascension>(const signal& lhs, const signal& rhs) { return lhs.ascension < rhs.ascension; }
+template <> bool detail::compare_signals<member::signal_to_noise>(const signal& lhs, const signal& rhs) { return lhs.signal_to_noise < rhs.signal_to_noise; }
 
 /// <summary>
 ///     For every element in range [first1, last1) copies the nearest element from the range [first2, last2)
