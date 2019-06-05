@@ -395,6 +395,12 @@ void init_opencl(OpenCL_handles* cl_handles,
 
 cl_platform_id* select_platforms(cl_uint count, cl_uint ids[MAX_DEVICES])
 {
+  // Workaround for Nvidia kernel cache bug: https://stackoverflow.com/a/31339617/1476661
+#ifdef _WIN32
+  _putenv_s("CUDA_CACHE_DISABLE", "1");
+#else
+  setenv("CUDA_CACHE_DISABLE", "1", 1);
+#endif
     cl_int CL_err = CL_SUCCESS;
     cl_uint numPlatforms = 0;
 
@@ -674,12 +680,12 @@ cl_program* build_programs_with_sources(cl_uint count,
         result[i] = clCreateProgramWithSource(contexts[i], uint_kernel_path_count, sources, lengths, &CL_err);
         checkErr(CL_err, "clCreateProgramWithSource()");
 
-        char build_params[1024];
+        char build_params[2048];
         strcpy(build_params, " -I");
         strcat(build_params, kernel_inc_path);
-        //strcat(build_params, " -cl-opt-disable");
         strcat(build_params, " -cl-std=CL1.2");
         strcat(build_params, " -Werror"); // Warnings will be treated like errors, this is useful for debug
+
         CL_err = clBuildProgram(result[i], 1, &device, build_params, NULL, NULL);
 
         if (CL_err != CL_SUCCESS)
