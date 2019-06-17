@@ -165,10 +165,10 @@ CellS2 GridS2::new_radius_approx(double alpha, std::vector<double>& shrink,
     std::vector<double> v1 = vertices[0]; std::vector<double> v2 = vertices[1];
     std::vector<double> v3 = vertices[2]; std::vector<double> v4 = vertices[3];
 
-    std::transform(v1.begin(), v1.end(), v1.begin(), std::bind1st(std::multiplies<double>(),shrink[0]));
-    std::transform(v2.begin(), v2.end(), v2.begin(), std::bind1st(std::multiplies<double>(),shrink[1]));
-    std::transform(v3.begin(), v3.end(), v3.begin(), std::bind1st(std::multiplies<double>(),shrink[2]));
-    std::transform(v4.begin(), v4.end(), v4.begin(), std::bind1st(std::multiplies<double>(),shrink[3]));
+    std::transform(v1.begin(), v1.end(), v1.begin(), [&](const double& val){ return shrink[0] * val; });
+    std::transform(v2.begin(), v2.end(), v2.begin(), [&](const double& val){ return shrink[1] * val; });
+    std::transform(v3.begin(), v3.end(), v3.begin(), [&](const double& val){ return shrink[2] * val; });
+    std::transform(v4.begin(), v4.end(), v4.begin(), [&](const double& val){ return shrink[3] * val; });
 
     std::transform(v1.begin(), v1.end(), v2.begin(), v1.begin(), std::plus<double>());
     std::transform(v3.begin(), v3.end(), v4.begin(), v3.begin(), std::plus<double>());
@@ -202,7 +202,7 @@ CellS2 GridS2::find_radius(double alpha, double c0, std::size_t nfft) const
     for(int i=0; i<4; i++)
         std::transform(hole.begin(), hole.end(), all_cell_vectors[i].begin(), hole.begin(), std::plus<double>());
 
-    std::transform(hole.begin(), hole.end(), hole.begin(), std::bind1st(std::multiplies<double>(),0.5));
+    std::transform(hole.begin(), hole.end(), hole.begin(), [](const double& val){ return 0.5 * val; });
     //for(int i=0; i<4; i++)
     //    hole[i]*=0.5;
 
