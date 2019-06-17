@@ -11,18 +11,19 @@
 
 #include "DensityS1.h"
 #include "FisherRM.h"
-#include <vector>
+#include <vector>   // std::vector
+#include <cstdint>  // std::size_t
 
 class GridS1 : public DensityS1
 {
     public:
         GridS1(const FisherRM *const);
 
-        std::vector<double> grid(double, double, unsigned int) const;
+        std::vector<double> grid(double, double, std::size_t) const;
         std::vector<double> convert(double, double, const std::vector<double>&); // convert vector
                                                     // from hyper-sphere space to hyper-ellipsoid space
-        double density(double, unsigned int) const;
-        double density(double, unsigned int, unsigned int) const;     // Need ephemeris to set data length
+        double density(double, std::size_t) const;
+        double density(double, std::size_t, std::size_t) const;     // Need ephemeris to set data length
 
     protected:
         const FisherRM *const m_fm;

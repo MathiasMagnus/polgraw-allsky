@@ -60,7 +60,7 @@ double DensityS2::density_approx(double deltaOmegaZeroPrim) const
         std::string error="Grid S2 do not exist for this data sets.";
         throw std::domain_error(error);
     }
-    unsigned int data_size = m_data.size();
+    auto data_size = m_data.size();
     //std::cout << data_size << "\n";
     if(x<m_data[0].m_omega0p || x>m_data[data_size-1].m_omega0p)
     {
@@ -81,7 +81,7 @@ double DensityS2::density_approx(double deltaOmegaZeroPrim) const
     return (x-x1)*(y2-y1)/(x2-x1)+y1;
 }
 
-double DensityS2::density_approx(double c0, unsigned int nfft, unsigned int data_length) const
+double DensityS2::density_approx(double c0, std::size_t nfft, std::size_t data_length) const
 {
     double x = num::delta_omega_zero_prim(c0, nfft, data_length);
     return density_approx(x);

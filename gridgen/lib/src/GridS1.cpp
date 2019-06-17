@@ -31,10 +31,10 @@ GridS1::GridS1(const FisherRM *const fm=nullptr): DensityS1(), m_fm(fm)
     }
 }
 
-std::vector<double> GridS1::grid(double c0=0.75, double xi=0., unsigned int nfft=524288) const
+std::vector<double> GridS1::grid(double c0=0.75, double xi=0., std::size_t nfft=524288) const
 {
     std::vector<double> ws1(16, 0.0);
-    unsigned int data_length = m_fm->get_ephemeris_length();
+    auto data_length = m_fm->get_ephemeris_length();
 
     double r_scale=sqrt(1.0-c0);
     std::vector<double> q0 = DensityS1::grid_prim(c0, nfft, data_length);
@@ -62,13 +62,13 @@ std::vector<double> GridS1::convert(double c0, double xi, const std::vector<doub
     return ws1;
 }
 
-double GridS1::density(double c0=0.75,  unsigned int nfft=524288) const
+double GridS1::density(double c0=0.75,  std::size_t nfft=524288) const
 {
-    unsigned int data_length=m_fm->get_ephemeris_length();
+    auto data_length=m_fm->get_ephemeris_length();
     return DensityS1::density(c0, nfft, data_length);
 }
 
-double GridS1::density(double c0,  unsigned int nfft, unsigned int data_length) const
+double GridS1::density(double c0,  std::size_t nfft, std::size_t data_length) const
 {
     return DensityS1::density(c0, nfft, data_length);
 }

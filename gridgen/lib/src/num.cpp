@@ -19,7 +19,7 @@
 
 double num::simpson(const std::vector<double>& v1)
 {
-    unsigned int n=v1.size();
+    auto n=v1.size();
     if(n>=5)
     {
         double dx=1.0/static_cast<double>(n-1);
@@ -74,7 +74,7 @@ double num::simpson(const std::vector<double>& v1)
 
 double num::simpson(const std::vector<double>& v1, const std::vector<double>& v2)
 {
-    unsigned int n=v1.size();
+    auto n=v1.size();
     if(n>=5)
     {
         double dx=1.0/static_cast<double>(n-1);
@@ -489,12 +489,12 @@ std::vector<double> num::rot(const std::vector<double>& v, int u, int axis, int 
 
 /// Fourier frequency ('_prim' - at space with hyper-spheres)
 
-double num::delta_omega_zero(unsigned int nfft, unsigned int data_length)
+double num::delta_omega_zero(std::size_t nfft, std::size_t data_length)
 {
     return 2.*M_PI*static_cast<double>(data_length)/static_cast<double>(nfft);
 }
 
-double num::delta_omega_zero_prim(double c0, unsigned int nfft, unsigned int data_length)
+double num::delta_omega_zero_prim(double c0, std::size_t nfft, std::size_t data_length)
 {
     double omega0 = num::delta_omega_zero(nfft, data_length);
     double omega0_prim = omega0/(2.*sqrt(3.0*(1.0-c0)));
@@ -507,7 +507,7 @@ double num::delta_omega_zero_prim(double c0, unsigned int nfft, unsigned int dat
 
 double num::simpson_adv(const std::vector<double>& v1)
 {
-    unsigned int n=v1.size();
+    auto n=v1.size();
     if(n>=5)
     {
         double dx=1.0/static_cast<double>(n-1);
@@ -561,7 +561,7 @@ double num::simpson_adv(const std::vector<double>& v1)
 double num::simpson_adv(const std::vector<double>& v1, const std::vector<double>& v2)
 {
 
-    unsigned int n=v1.size();
+    auto n=v1.size();
     if(n>=5)
     {
         double dx=1.0/static_cast<double>(n-1);

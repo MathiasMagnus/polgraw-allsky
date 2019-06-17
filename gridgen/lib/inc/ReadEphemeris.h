@@ -11,6 +11,7 @@
 
 #include <vector>
 #include <string>
+#include <cstdint>  // std::size_t
 
 
 class ReadEphemeris
@@ -20,12 +21,12 @@ class ReadEphemeris
 
         const std::vector<double>& get_ephemeris1() const; // \mu_{1} - return Cartesian coordinates at SSB
         const std::vector<double>& get_ephemeris2() const; // \mu_{2} - return Cartesian coordinates at SSB
-        unsigned int get_length() const;
+        std::size_t get_length() const;
 
     private:
         std::vector<double> m_ephemeris1;         // \mu_{1} - Cartesian coordinates at SSB.
         std::vector<double> m_ephemeris2;         // \mu_{2} - Cartesian coordinates at SSB.
-        unsigned int m_length;                    // number of elements in ephemeris1, ephemeris2
+        std::size_t m_length;                    // number of elements in ephemeris1, ephemeris2
 
         std::vector<char> m_flag; // files streams states
         double m_epsm;            // angle of ecliptic inclination

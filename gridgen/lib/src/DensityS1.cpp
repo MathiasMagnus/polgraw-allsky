@@ -23,7 +23,7 @@ DensityS1::DensityS1()
     //ctor
 }
 
-std::vector<double> DensityS1::grid_prim(double c0, unsigned int nfft, unsigned int data_length) const
+std::vector<double> DensityS1::grid_prim(double c0, std::size_t nfft, std::size_t data_length) const
 {
     if(data_length<=0)
     {
@@ -37,7 +37,7 @@ std::vector<double> DensityS1::grid_prim(double c0, unsigned int nfft, unsigned 
     {
         double dwp=num::delta_omega_zero_prim(c0, nfft, data_length);
         double dlqq=0.0;
-        int wi = 0.0, hd = static_cast<int>(ceil(dwp/sqrt(2.0)))+3;
+        int wi = 0, hd = static_cast<int>(ceil(dwp/sqrt(2.0)))+3;
         std::vector<double> a4(16, 0.0);
         std::vector<int> wek;
         std::vector<double> qq(4, 0.0);
@@ -165,7 +165,7 @@ double DensityS1::density(const std::vector<double>& basis) const
     return std::abs( pow(M_PI, 2.0)/( 2.0*num::det(basis, 4) ) ); //M_PI -std=c99 acos (-1.0)
 }
 
-double DensityS1::density(double c0=0.75,  unsigned int nfft=524288, unsigned int data_length=344656) const
+double DensityS1::density(double c0=0.75,  std::size_t nfft=524288, std::size_t data_length=344656) const
 {
     std::vector<double> q0(grid_prim(c0, nfft, data_length));                  // 2^19 = 524288
     return density(q0);

@@ -20,7 +20,7 @@ class DensityS2
         std::vector<DataS2> get_data() const;
 
         double density_approx(double) const;
-        double density_approx(double, unsigned int, unsigned int) const;
+        double density_approx(double, std::size_t, std::size_t) const;
 
     protected:
         std::vector<DataS2> dataS2_load(std::string path="dataS2.txt") const;

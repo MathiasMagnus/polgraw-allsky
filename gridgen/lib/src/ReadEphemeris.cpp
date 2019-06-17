@@ -52,12 +52,13 @@ ReadEphemeris::ReadEphemeris(const std::vector<std::string> paths)//&
     if(m_flag[0]&&m_flag[1]&&m_flag[2])     /// probably it is safe to remove 'If' statement
     {
         m_DetSSB.resize(3);
-        unsigned int i=0;
-
-        // to read last 3 entries
-        while(is3.read( reinterpret_cast<char*>( &m_DetSSB[i++] ), sizeof(m_DetSSB[0]) ))
         {
-            if(i==3)    i=0;
+            unsigned int i=0;
+            // to read last 3 entries
+            while(is3.read( reinterpret_cast<char*>( &m_DetSSB[i++] ), sizeof(m_DetSSB[0]) ))
+            {
+                if(i==3)    i=0;
+            }
         }
         //std::cout<<m_DetSSB[0]<<std::endl;
         //std::cout<<m_DetSSB[1]<<std::endl;
@@ -70,7 +71,7 @@ ReadEphemeris::ReadEphemeris(const std::vector<std::string> paths)//&
         std::vector<double> rDet(3);
 
         is1.seekg(0, is1.end);
-        unsigned int length = is1.tellg();
+        std::streamoff length = is1.tellg();
         is1.seekg(0, is1.beg);
         length/=(3*sizeof(rSSB[0]));
         m_length=length;
@@ -116,7 +117,7 @@ const std::vector<double>& ReadEphemeris::get_ephemeris2() const
     return m_ephemeris2;
 }
 
-unsigned int ReadEphemeris::get_length() const
+std::size_t ReadEphemeris::get_length() const
 {
     return m_length;
 }

@@ -14,26 +14,27 @@
 #include "DataS2.h"
 #include <string>
 #include <vector>
+#include <cstdint>  // std::size_t
 
 class GridS2
 {
     public:
         GridS2(FisherRM const *const, int, int);
 
-        std::vector<double> grid_prim(double, unsigned int, bool, bool, std::string path="dataS2.txt") const;
+        std::vector<double> grid_prim(double, std::size_t, bool, bool, std::string path="dataS2.txt") const;
         std::vector<double> grid(double, double, unsigned int, bool, bool, std::string path="dataS2.txt") const;
         std::vector<double> convert(double, double, const std::vector<double>&) const; // convert vector
                                                 // from hyper-sphere space to hyper-ellipsoid space
         std::vector<std::vector<double> > a4star_pp() const;    // A4* basis (vector of 4 base vectors
                                                                 // perpendicular to axis Omega_{0}^{'})
-        std::vector<std::vector<double> > cell_vectors(double, double, unsigned int, int) const;
+        std::vector<std::vector<double> > cell_vectors(double, double, std::size_t, int) const;
                                             // 4-dimensional
                                             // (int = 0): 4 cell vectors (4 edges);
                                             // (int = 1 - default set): 16 cell vectors
                                             // (+ 1 origin = {0,0,0,0} - last vector))
         //double density(CellS2& );
         double density(std::vector<double>& ) const; // need 4 base vectors in 4D space with hyper-spheres
-        CellS2 find_alpha(double, double, double, unsigned int) const;
+        CellS2 find_alpha(double, double, double, std::size_t) const;
 
     protected:
         FisherRM const *const m_fm;
@@ -54,7 +55,7 @@ class GridS2
     private:
         CellS2 new_radius_approx(double, std::vector<double>&, std::vector<std::vector<double> >&,
                                  std::vector<double> &) const;
-        CellS2 find_radius(double, double, unsigned int) const;
+        CellS2 find_radius(double, double, std::size_t) const;
         int check_nalpha(int);
         int check_nradius(int);
 

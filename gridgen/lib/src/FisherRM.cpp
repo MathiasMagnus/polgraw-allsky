@@ -16,7 +16,7 @@ FisherRM::FisherRM():m_ephemeris_length(0)
 }
 
 FisherRM::FisherRM(const std::vector<double>& ephemeris1, const std::vector<double>& ephemeris2)
-: m_ephemeris_length(ephemeris1.size())
+: m_ephemeris_length(static_cast<std::uint32_t>(ephemeris1.size())) // assert 
 {
     std::vector<double> x(m_ephemeris_length,0);
     std::vector<double> x2(m_ephemeris_length,0);
@@ -94,7 +94,7 @@ std::vector<double> FisherRM::postrmf(double xi) const
     return postfisher;
 }
 
-unsigned int FisherRM::get_ephemeris_length() const
+std::size_t FisherRM::get_ephemeris_length() const
 {
     return m_ephemeris_length;
 }

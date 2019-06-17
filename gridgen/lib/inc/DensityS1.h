@@ -10,14 +10,15 @@
 #define DENSITYS1_H
 
 #include <vector>
+#include <cstdint>  // std::size_t
 
 class DensityS1
 {
     public:
         DensityS1();
         double density(const std::vector<double>& ) const; // need 4 base vectors in  4D space with hyper-spheres
-        double density(double, unsigned int, unsigned int) const; // Do not need ephemeris (to set data length)
-        std::vector<double> grid_prim(double, unsigned int, unsigned int) const;    // return basis in space
+        double density(double, std::size_t, std::size_t) const; // Do not need ephemeris (to set data length)
+        std::vector<double> grid_prim(double, std::size_t, std::size_t) const;    // return basis in space
                                                                                     // with hyper-spheres
 };
 

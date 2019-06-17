@@ -45,8 +45,8 @@ namespace num
     std::vector<double> rot(const std::vector<double>&, int, int, int);
 
     /// Fourier frequency (_prim - space with hyper-spheres)
-    double delta_omega_zero(unsigned int, unsigned int);
-    double delta_omega_zero_prim(double, unsigned int, unsigned int);
+    double delta_omega_zero(std::size_t, std::size_t);
+    double delta_omega_zero_prim(double, std::size_t, std::size_t);
 
     /// Experimental functions:
     double simpson_adv(const std::vector<double>&);

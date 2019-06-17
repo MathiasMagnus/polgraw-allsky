@@ -34,7 +34,7 @@
 
 using namespace std;
 
-int method(double c0, unsigned int nfft, unsigned int data_length);
+int method(double c0, std::size_t nfft, std::size_t data_length);
 bool if_exist(map<string, vector<string>>&, string);
 
 
@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
         map<string, vector<string> > options_found;
         for(unsigned int i=0; i<position.size(); i++)
         {
-            unsigned int b, e;
+            std::size_t b, e;
             if(position[i]!=commands.size())
             {
                 b = position[i];
@@ -130,10 +130,10 @@ int main(int argc, char* argv[])
                 else
                     e = commands.size();
 
-                unsigned int k = b+1;
+                std::size_t k = b+1;
                 if(k != e)
                 {
-                    for(unsigned int j = k; j<e; j++)
+                    for(auto j = k; j<e; j++)
                         options_found[commands[b]].push_back(commands[j]);
                 }
                 else{
@@ -680,7 +680,7 @@ int main(int argc, char* argv[])
                         CovarianceStep=1.0;
                     }
 
-                    CovarianceMax+=num::epsilon();
+                    CovarianceMax+=num::epsilon(); // // MSVC: warning C4701: potentially uninitialized local variable 'CovarianceMax' used
 
                     if(*(it->second.begin())!="")
                     {
@@ -940,7 +940,7 @@ int main(int argc, char* argv[])
                 bool conv = false;
                 if (Convert == "True") conv = true;
 
-                unsigned int nfft = pow(2, NfftExpLength);
+                std::size_t nfft = static_cast<std::size_t>(pow(2, NfftExpLength));
 
 
                 //cout << "DataLength= " << DataLength << endl;
@@ -967,7 +967,7 @@ vector<double> M(16), Mn(16);
                     GridS1 gs1 = GridS1(cp_FM);
                     GridS2 gs2 = GridS2(cp_FM, NAlpha, NRadius);
 
-                    unsigned int data_length = cp_FM->get_ephemeris_length();
+                    auto data_length = cp_FM->get_ephemeris_length();
                     //ofstream fsd;
 
                     if (SaveDensityOfCovering == "True")
@@ -983,7 +983,7 @@ vector<double> M(16), Mn(16);
                     }
 
                     if (SaveGrid == "True" || SaveDensityOfCovering == "True")
-                    for(double c0=CovarianceMin; c0<=CovarianceMax; c0+=CovarianceStep)
+                    for(double c0=CovarianceMin; c0<=CovarianceMax; c0+=CovarianceStep) // MSVC: warning C4701: potentially uninitialized local variable 'CovarianceMin' used
                     {
                         //cout << "[c0=" << c0 <<"]\n";
                         int ch_method = 0;
@@ -1022,7 +1022,7 @@ vector<double> M(16), Mn(16);
                             cout.fill('0');
                             cout.width(4);
                             cout << "Density of covering: " << left << c0 << " " << setw(13) << setprecision(12)
-                            << density << "\n";
+                            << density << "\n"; // MSVC: warning C4701: potentially uninitialized local variable 'density' used
                         }
 
 //                        if (SaveGrid == "True")
@@ -1047,14 +1047,13 @@ vector<double> M(16), Mn(16);
                                     num::chop(sgrid2);
 
 //#mb writing the fftpad to grid.bin 
-int fftpad; 
-fftpad = (log2(nfft) - ceil(log2(cp_FM->get_ephemeris_length())) + 1);
+std::int32_t fftpad = static_cast<std::int32_t>(log2(nfft) - ceil(log2(cp_FM->get_ephemeris_length())) + 1);
 
 cout << "fftpad: " << fftpad << endl ; 
 
-gridbin.write((char*) &fftpad, sizeof(int));
+gridbin.write((char*) &fftpad, sizeof(std::int32_t));
 
-unsigned int datal = cp_FM->get_ephemeris_length();  
+auto datal = cp_FM->get_ephemeris_length();  
 
 for(unsigned int i = 0; i<sgrid2.size(); i++) { 
   M[i] = sgrid2[i]/datal; 
@@ -1219,8 +1218,8 @@ gridbin.close();
 
                                 //fs.fill('0');
                                 cout.width(4);
-                                cout << left << c0 << "\t" << setw(13) << setprecision(prec)
-                                << density << " s" << ch_method << "\n";
+                                cout << left << c0 << "\t" << setw(13) << setprecision(prec) // MSVC: warning C4701: potentially uninitialized local variable 'prec' used
+                                << density << " s" << ch_method << "\n"; // MSVC: warning C4701: potentially uninitialized local variable 'density' used
                             }
 
                             cout << endl;
@@ -1287,7 +1286,7 @@ gridbin.close();
             bool hello = false;
             if (SayHello == "True") hello = true;
 
-            unsigned int nfft = pow(2, NfftExpLength);
+            std::size_t nfft = static_cast<std::size_t>(pow(2, NfftExpLength));
             if(hello)
             {
                 //char oc = 64;
@@ -1310,7 +1309,7 @@ gridbin.close();
                 GridS1 gs1 = GridS1(cp_FM);
                 GridS2 gs2 = GridS2(cp_FM, NAlpha, NRadius);
 
-                unsigned int data_length = cp_FM->get_ephemeris_length();
+                auto data_length = cp_FM->get_ephemeris_length();
                 size_t dL_Eph_size = to_string(data_length).size();
                 string sd_Eph= to_string(data_length).substr(0,dL_Eph_size);
                 string named = FilePatternDoC;
@@ -1371,7 +1370,7 @@ gridbin.close();
                         fsd.fill('0');
                         fsd.width(4);
                         fsd << left << c0 << " " << setw(13) << setprecision(12)
-                        << density << "\n";
+                        << density << "\n"; // MSVC: warning C4701: potentially uninitialized local variable 'density' used
                     }
 
                     if (SaveGrid == "True")
@@ -1551,7 +1550,7 @@ gridbin.close();
 
                             //fs.fill('0');
                             fs.width(4);
-                            fs << left << c0 << "\t" << setw(13) << setprecision(prec)
+                            fs << left << c0 << "\t" << setw(13) << setprecision(prec) // MSVC: warning C4701: potentially uninitialized local variable 'prec' used
                             << density << " s" << ch_method << "\n";
                         }
 
@@ -1575,14 +1574,14 @@ gridbin.close();
     return 0;
 }
 
-int method(double c0, unsigned int nfft, unsigned int data_length)
+int method(double c0, std::size_t nfft, std::size_t data_length)
 {
     double sq2= sqrt(2);
     double sq2_min = sq2 - num::epsilon();
     double sq2_max = sq2 + num::epsilon();
 
     double x = num::delta_omega_zero_prim(c0, nfft, data_length);
-    double s = 0;
+    int s = 0;
 
     if(x<=sqrt(3))
     {

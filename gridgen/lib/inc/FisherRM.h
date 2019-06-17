@@ -9,8 +9,8 @@
 #ifndef FISHERRM_H
 #define FISHERRM_H
 
-#include <string>
-#include <vector>
+#include <vector>   // std::vector
+#include <cstdint>  // std::size_t
 
 class FisherRM
 {
@@ -20,12 +20,12 @@ class FisherRM
 
         std::vector<double> get_prefisher() const;
         std::vector<double> postrmf(double) const;
-        unsigned int get_ephemeris_length() const;
+        std::size_t get_ephemeris_length() const;
         unsigned int dim() const;                   // gives dimension of Fisher matrix
 
     protected:
         std::vector<double> m_prefisher;            // (unchanging) elements of reduced Fisher matrix
-        const unsigned int m_ephemeris_length;      // number of elements (data length) in ephemeris1
+        std::size_t m_ephemeris_length;             // number of elements (data length) in ephemeris1
                                                     // (ephemeris2 should have this same length)
 };
 

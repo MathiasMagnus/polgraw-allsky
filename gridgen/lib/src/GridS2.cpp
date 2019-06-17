@@ -78,9 +78,9 @@ std::vector<std::vector<double> > GridS2::a4star_pp() const
 }
 
 std::vector<std::vector<double> > GridS2::cell_vectors(double alpha, double c0=0.75,
-                                                       unsigned int nfft=524288, int mode=1) const
+                                                       std::size_t nfft=524288, int mode=1) const
 {
-    unsigned int data_length = m_fm->get_ephemeris_length();
+    auto data_length = m_fm->get_ephemeris_length();
     if(data_length<=0)
     {
         std::string error="Data length can not be <= 0.\n";
@@ -193,7 +193,7 @@ CellS2 GridS2::new_radius_approx(double alpha, std::vector<double>& shrink,
     return *it;
 }
 
-CellS2 GridS2::find_radius(double alpha, double c0, unsigned int nfft) const
+CellS2 GridS2::find_radius(double alpha, double c0, std::size_t nfft) const
 {
     double sa=-1./3., sb=1./3., dd=1./6.;
     std::vector<std::vector<double> > all_cell_vectors = cell_vectors(alpha, c0, nfft);
@@ -236,7 +236,7 @@ CellS2 GridS2::find_radius(double alpha, double c0, unsigned int nfft) const
 
 }
 
-CellS2 GridS2::find_alpha(double alpha_min, double alpha_max, double c0, unsigned int nfft) const
+CellS2 GridS2::find_alpha(double alpha_min, double alpha_max, double c0, std::size_t nfft) const
 {
     double alpha_left=alpha_min, alpha_right=alpha_max, alpha_diff;
     CellS2 middle;
@@ -285,7 +285,7 @@ double GridS2::density(std::vector<double>& basis_vectors) const
     return std::abs( pow(M_PI, 2.0)/( 2.0*num::det(basis_vectors, 4) ) );
 }
 
-std::vector<double> GridS2::grid_prim(double c0, unsigned int nfft,
+std::vector<double> GridS2::grid_prim(double c0, std::size_t nfft,
         bool s2use, bool s2save, std::string path) const
 {
     double DeltaOmZeroPrim = num::delta_omega_zero_prim(c0, nfft, m_fm->get_ephemeris_length() );

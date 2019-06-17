@@ -61,4 +61,4 @@ target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${PG_VERBOSE}>:VERBO
 
 # Enable additional warnings
 target_compile_options (${Target_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall -Wextra -pedantic>
-                                               $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive->)
+                                               $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive- /EHsc>)
