@@ -271,4 +271,4 @@ if (BUILD_TESTING)
 		
 endif (BUILD_TESTING)
 
-add_subdirectory (doc)
+#add_subdirectory (doc)
