@@ -67,7 +67,7 @@ void ast2lin (real_t alfa, real_t delta, double epsm, double *be) {
 inline void
 spline(complex_t *y, int n, complex_t *y2)
 {
-#ifndef WIN32
+#ifndef _WIN32
   int i, k;
   COMPLEX_TYPE invp, qn, un;
 
