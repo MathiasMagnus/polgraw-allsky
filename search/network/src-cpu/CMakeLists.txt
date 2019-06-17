@@ -10,6 +10,10 @@ cmake_minimum_required (VERSION 3.1.0)
 # The name of our project
 set (Target_NAME gwsearch-cpu)
 
+# Find dependencies
+find_package(GSL REQUIRED)
+find_package(FFTW REQUIRED)
+
 # Adding source code files according to configuration
 set (HDRS)
 set (SRCS)

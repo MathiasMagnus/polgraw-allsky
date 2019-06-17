@@ -10,6 +10,12 @@ cmake_minimum_required (VERSION 3.9)
 # The name of our project
 set (Target_NAME gwsearch-ocl)
 
+# Find dependencies
+find_package(OpenMP REQUIRED)
+find_package(OpenCL REQUIRED)
+find_package(clFFT REQUIRED CONFIG)
+find_package(clBLAS REQUIRED CONFIG)
+
 # Adding source code files according to configuration
 set (HDRS inc/auxi.h
           inc/precision.h
