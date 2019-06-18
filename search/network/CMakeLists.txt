@@ -11,6 +11,7 @@ cmake_minimum_required (VERSION 3.9.0)
 option (BUILD_C "Build native C search suite" ON)
 option (BUILD_OPENMP "Build OpenMP accelerated search suite" OFF)
 option (BUILD_OPENCL "Build OpenCL accelerated search suite" ON)
+option (BUILD_SYCL "Build SYCL accelerated search suite" OFF)
 option (BUILD_CUDA "Build CUDA accelerated search suite" OFF)
 option (BUILD_TESTING "Build unit tests" OFF)
 
@@ -42,6 +43,10 @@ option (BUILD_TESTING "Build unit tests" OFF)
   if (${BUILD_OPENCL})
     add_subdirectory (src-opencl)
   endif (${BUILD_OPENCL})
+
+  if (${BUILD_SYCL})
+    add_subdirectory (src-sycl)
+  endif (${BUILD_SYCL})
   
   if (${USE_CUDA})
   message (FATAL_ERROR "CUDA search suite CMake build automation not yet implemented.")
