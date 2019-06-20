@@ -37,10 +37,10 @@ bool sky_positions(const int pm,                  // hemisphere
 
     Array M[.] is related to matrix M(.,.) in the following way;
 
-    [ M[0] M[4] M[8]  M[12] ]
+               [ M[0] M[4] M[8]  M[12] ]
     M(.,.) =   [ M[1] M[5] M[9]  M[13] ]
-    [ M[2] M[6] M[10] M[14] ]
-    [ M[3] M[7] M[11] M[15] ]
+               [ M[2] M[6] M[10] M[14] ]
+               [ M[3] M[7] M[11] M[15] ]
 
     and
 
