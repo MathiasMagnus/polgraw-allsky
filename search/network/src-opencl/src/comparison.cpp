@@ -173,15 +173,39 @@ int main(int argc, char* argv[])
 
     std::vector<signal> filtered;
     copy_nearest(ref_vec.cbegin(), ref_vec.cend(),
-        ocl_vec.cbegin(), ocl_vec.cend(),
-        std::back_inserter(filtered),
-        norm);
+                 ocl_vec.cbegin(), ocl_vec.cend(),
+                 std::back_inserter(filtered),
+                 norm);
+
+    std::vector<signal> missing;
+    std::copy_if(ocl_vec.cbegin(), ocl_vec.cend(),
+                 std::back_inserter(missing),
+                 [&](const signal sig) { return std::find(filtered.cbegin(), filtered.cend(), sig) == filtered.cend(); });
+
+    if (missing.size() != 0)
+    {
+        std::cout << missing.size() << " data points were filtered out." << std::endl;
+        std::sort(missing.begin(), missing.end(), signal::compare<signal_to_noise>);
+        std::cout << "Minimum SNR of missing points: " << missing[0].signal_to_noise << std::endl;
+        std::size_t count = missing.size() / 10;
+        std::cout << "SNR of top 10% missing points: " << std::endl;
+        std::transform(missing.crbegin(), missing.crbegin() + 10,
+                       std::ostream_iterator<double>{ std::cout, "\n" },
+                       [](const signal& sig){ return sig.signal_to_noise; });
+        std::cout << "Avarage SNR of missing points: " <<
+            std::accumulate(missing.cbegin(), missing.cend(), 0.0,
+                            [](const double& acc, const signal& sig){ return acc + sig.signal_to_noise; }) / missing.size() << std::endl;
+    }
+    else
+    {
+        std::cout << "No points filtered out.";
+    }
 
     std::ofstream out_full{ out_path + ".full.bin" };
     out_full << std::scientific;
     out_full.precision(6);
     std::copy(filtered.cbegin(), filtered.cend(),
-        std::ostream_iterator<signal>{ out_full });
+              std::ostream_iterator<signal>{ out_full });
     /*
     std::sort(ref_vec.begin(), ref_vec.end());
     std::sort(filtered.begin(), filtered.end());
