@@ -192,10 +192,6 @@ void spline(const fft_complex* y,
   y2[0] = u[0] = 0.;
 
   for (int i = 1; i < n - 1; ++i) {
-    //p = .5*y2[i-1]+2.;
-    //y2[i] = -.5/p;
-    //u[i] = y[i+1]-2.*y[i]+y[i-1];
-    //u[i] = (3.*u[i]-.5*u[i-1])/p;
     spline_complex invp = 2. / (y2[i - 1] + 4.);
     y2[i] = -.5*invp;
     u[i] = y[i - 1] - 2.*y[i] + y[i + 1];
