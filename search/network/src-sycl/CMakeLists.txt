@@ -22,6 +22,7 @@ find_package(ComputeCpp REQUIRED)
 
 # Adding source code files according to configuration
 set (Headers inc/Options.hpp
+             inc/Sky.hpp
              inc/AmplitudeModulation.hpp)
 
 set (Sources src/Main.cpp
