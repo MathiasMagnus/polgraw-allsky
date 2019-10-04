@@ -22,8 +22,12 @@ find_package(ComputeCpp REQUIRED)
 
 # Adding source code files according to configuration
 set (Headers inc/Options.hpp
+             inc/MathConstants.hpp
+             inc/AstronomicalConstants.hpp
              inc/Sky.hpp
-             inc/AmplitudeModulation.hpp)
+             inc/SolarSystem.hpp
+             inc/AmplitudeModulation.hpp
+             inc/AmplitudeModulationCoeff.hpp)
 
 set (Sources src/Main.cpp
              src/Options.cpp)
