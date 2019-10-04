@@ -10,6 +10,20 @@
 
 #define sqr(x) ((x)*(x))
 
+bool is_position_valid(const int mm,                  // grid 'sky position'
+                       const int nn,                  // other grid 'sky position'
+                       double* M,                     // M matrix from grid point to linear coord
+                       double oms)
+{
+  // Grid positions
+  double al1 = nn * M[10] + mm * M[14],
+         al2 = nn * M[11] + mm * M[15];
+
+  // check if the search is in an appropriate region of the grid
+  // if not, returns false
+  return (sqr(al1) + sqr(al2)) / sqr(oms) <= 1.;
+}
+
 bool sky_positions(const int pm,                  // hemisphere
                    const int mm,                  // grid 'sky position'
                    const int nn,                  // other grid 'sky position'

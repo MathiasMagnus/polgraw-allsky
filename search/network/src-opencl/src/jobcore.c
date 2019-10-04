@@ -90,6 +90,7 @@ void search(Detector_settings* ifo,
 
   // Linearize sky coordinates (for better load balancing)
   s_range->coord_count = 0;
+  s_range->valid_count = 0;
   s_range->sky_coords = NULL;
   // Loop over hemispheres //
   for (int pm = s_range->pst; pm <= s_range->pmr[1]; ++pm)
@@ -99,22 +100,28 @@ void search(Detector_settings* ifo,
     {
       for (int nn = s_range->nst; nn <= s_range->nr[1]; ++nn)
       {
-        int i = s_range->coord_count;
-        s_range->sky_coords = (int*)realloc(s_range->sky_coords, ++s_range->coord_count * 3 * sizeof(int));
+        ++s_range->coord_count;
+        if (is_position_valid(mm, nn, sett->M, sett->oms))
+        {
+          int i = s_range->valid_count;
+          s_range->sky_coords = (int*)realloc(s_range->sky_coords, ++s_range->valid_count * 3 * sizeof(int));
 
-        s_range->sky_coords[i * 3 + 0] = pm;
-        s_range->sky_coords[i * 3 + 1] = mm;
-        s_range->sky_coords[i * 3 + 2] = nn;
+          s_range->sky_coords[i * 3 + 0] = pm;
+          s_range->sky_coords[i * 3 + 1] = mm;
+          s_range->sky_coords[i * 3 + 2] = nn;
+        }
       }
       s_range->nst = s_range->nr[0];
     }
     s_range->mst = s_range->mr[0];
   }
 
+  printf("%d sky coordinates are valid out of %d\n", s_range->valid_count, s_range->coord_count);
+
   // Loop over linearized sky coordinates
   int i;
   #pragma omp parallel for schedule(dynamic)
-  for (i = 0; i < s_range->coord_count; ++i)
+  for (i = 0; i < s_range->valid_count; ++i)
   {
     int pm = s_range->sky_coords[i * 3 + 0];
     int mm = s_range->sky_coords[i * 3 + 1];

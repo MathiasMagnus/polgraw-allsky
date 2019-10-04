@@ -4,6 +4,14 @@
 #include <signal_params.h>  // signal_params_t
 #include <stdbool.h>        // bool
 
+/// <summary>Tells whether a sky position is valid.</summary>
+/// <returns>Returns true if the sky coordinate is valid, false otherwise.</returns>
+///
+bool is_position_valid(const int mm,                  // grid 'sky position'
+                       const int nn,                  // other grid 'sky position'
+                       double* M,                     // M matrix from grid point to linear coord
+                       double oms);
+
 /// <summary>Calculates sky-position dependant quantities.</summary>
 /// <returns>Returns true if the sky coordinate is valid, false otherwise.</returns>
 ///
