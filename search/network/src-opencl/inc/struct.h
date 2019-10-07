@@ -95,7 +95,7 @@ typedef struct _search_range
   int pmr[2], mr[2], nr[2], spndr[2];
   int pst, mst, nst, sst;
 
-  int coord_count, valid_count;
+  int coord_count, valid_count, spindown_count;
   int* sky_coords; // [{pm,mm,nn},...]
 
 } Search_range;

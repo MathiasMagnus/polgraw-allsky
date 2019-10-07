@@ -91,6 +91,7 @@ void search(Detector_settings* ifo,
   // Linearize sky coordinates (for better load balancing)
   s_range->coord_count = 0;
   s_range->valid_count = 0;
+  s_range->spindown_count = 0;
   s_range->sky_coords = NULL;
   // Loop over hemispheres //
   for (int pm = s_range->pst; pm <= s_range->pmr[1]; ++pm)
@@ -109,6 +110,12 @@ void search(Detector_settings* ifo,
           s_range->sky_coords[i * 3 + 0] = pm;
           s_range->sky_coords[i * 3 + 1] = mm;
           s_range->sky_coords[i * 3 + 2] = nn;
+
+          int smin, smax;
+          spindown_range(mm, nn, sett->Smin, sett->Smax, sett->M, // input
+                         s_range, opts,                           // input
+                         &smin, &smax);                           // output
+          s_range->spindown_count += smax - smin;
         }
       }
       s_range->nst = s_range->nr[0];
@@ -117,6 +124,7 @@ void search(Detector_settings* ifo,
   }
 
   printf("%d sky coordinates are valid out of %d\n", s_range->valid_count, s_range->coord_count);
+  printf("Total number of spindown calculations: %d\n", s_range->spindown_count);
 
   // Loop over linearized sky coordinates
   int i;
