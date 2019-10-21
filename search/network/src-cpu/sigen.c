@@ -1,16 +1,26 @@
+// Polgraw includes
+#include <auxi.h>
+#include <settings.h>
+#include <struct.h>
+
+// Posix includes
+#ifdef _WIN32
+#include <io.h>             // _chsize_s
+#include <direct.h>
+#include <dirent.h>
+#else
+#include <unistd.h>         // ftruncate
+#include <dirent.h>
+#endif // WIN32
+#include <getopt.h>
+
+// Standard C includes
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <math.h>
 #include <string.h>
 #include <errno.h>
-#include <getopt.h>
 
-//#include <time.h>
-
-#include "auxi.h"
-#include "settings.h"
-#include "struct.h"
 
 static int help_flag=0;
 static int evade_flag=0; 
