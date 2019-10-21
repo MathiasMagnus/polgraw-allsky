@@ -1,6 +1,17 @@
+// Polgraw includes
+#include <timer.h>
+
+// Posix includes
+#ifdef _WIN32
+#include <direct.h>
+#include <dirent.h>
+#else
+#include <unistd.h>         // ftruncate
+#include <dirent.h>
+#endif // WIN32
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <math.h>
 #include <gsl/gsl_rng.h> 
 #include <gsl/gsl_randist.h>
@@ -14,12 +25,11 @@ unsigned long int random_seed()
 {
 
  unsigned int seed;
- struct timeval tv;
  FILE *devrandom;
 
  if ((devrandom = fopen("/dev/random","r")) == NULL) {
-   gettimeofday(&tv,0);
-   seed = tv.tv_sec + tv.tv_usec;
+   struct timespec tv = get_current_time();
+   seed = tv.tv_sec + tv.tv_nsec;
  } else {
    fread(&seed,sizeof(seed),1,devrandom);
    fclose(devrandom);
