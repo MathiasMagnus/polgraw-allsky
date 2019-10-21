@@ -140,11 +140,41 @@ target_compile_options (${Target_NAME} PRIVATE $<$<OR:$<C_COMPILER_ID:GNU>,$<C_C
 
 if (BUILD_C)
   enable_language (CXX)
-  add_executable (comparison src/comparison.cpp)
+  foreach (Target
+    IN ITEMS
+      comparison
+      comparison2
+  ) # Loops over validation targets
 
-  set_target_properties (comparison PROPERTIES CXX_STANDARD 14
-                                               CXX_STANDARD_REQUIRED ON
-                                               CXX_EXTENSIONS OFF)
+    add_executable (${Target} src/${Target}.cpp)
+
+    set_target_properties (${Target}
+      PROPERTIES
+        CXX_STANDARD 14
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
+
+    target_compile_options(${Target}
+      PRIVATE
+      $<$<CXX_COMPILER_ID:MSVC>:
+        /W4           # Highest sensible warning level
+        /permissive-  # Turn on strict language conformance
+        /EHsc         # Turn on exception handling semantics
+        /FIiso646.h   # MSVC still does not support alternative keywords! :-/
+      >
+      $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:
+        -Wall         # Turn on all warnings
+        -Wextra       # Turn on even more warnings
+        -pedantic     # Turn on strict language conformance
+      >
+      $<$<CXX_COMPILER_ID:Clang>:
+        -Wno-overloaded-virtual                   # Too many false positives
+        -Wno-delete-non-abstract-non-virtual-dtor # System headers plagued
+      >
+)
+
+  endforeach ()
 endif (BUILD_C)
 
 #########################
