@@ -97,7 +97,7 @@ target_compile_definitions (${Target_NAME} PRIVATE $<$<BOOL:${PG_VERBOSE}>:VERBO
 
 #########################
 #                       #
-#         Sigen         #
+#         sigen         #
 #                       #
 #########################
 
@@ -110,10 +110,12 @@ set (SRCS)
 
 set (HDRS ${CMAKE_CURRENT_SOURCE_DIR}/auxi.h
           ${CMAKE_CURRENT_SOURCE_DIR}/settings.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/struct.h)
+          ${CMAKE_CURRENT_SOURCE_DIR}/struct.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/timer.h)
 
 set (SRCS ${CMAKE_CURRENT_SOURCE_DIR}/auxi.c
           ${CMAKE_CURRENT_SOURCE_DIR}/settings.c
+          ${CMAKE_CURRENT_SOURCE_DIR}/timer.c
           ${CMAKE_CURRENT_SOURCE_DIR}/sigen.c)
 
 # Variable to hold ALL files to build and be visible in IDE
