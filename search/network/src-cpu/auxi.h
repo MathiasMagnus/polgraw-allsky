@@ -21,7 +21,7 @@
 void lin2ast(double be1, double be2, int pm, double sepsm, double cepsm,	\
          double *sinal, double *cosal, double *sindel, double *cosdel);
 
-void ast2lin(real_t alfa, real_t delta, double epsm, double *be);
+int ast2lin(real_t alfa, real_t delta, double epsm, double *be);
  
 void spline(complex_t *, int, complex_t *);
 complex_t splint (complex_t *, complex_t *, int, double);
