@@ -204,8 +204,8 @@ void detectors_settings(
 
           if((data = fopen(x, "r")) != NULL) {
 
-            xnames[i]   = calloc(strlen(x)+1, sizeof(char));
-            detnames[i] = calloc(DETNAME_LENGTH+1, sizeof(char));
+            xnames[i]   = (char*)calloc(strlen(x)+1, sizeof(char));
+            detnames[i] = (char*)calloc(DETNAME_LENGTH+1, sizeof(char));
 
             strncpy(xnames[i], x, strlen(x));
             strncpy(detnames[i], ep->d_name, DETNAME_LENGTH);
