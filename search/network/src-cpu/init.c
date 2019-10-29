@@ -507,7 +507,7 @@ void add_signal(
   double sinaadd, cosaadd, sindadd, cosdadd, phaseadd, shiftadd; 
   double nSource[3], sgnlo[8], sgnlol[4];
  
-  char amporsnr[3];  
+  char amporsnr[4];
  
   FILE *data;
   
