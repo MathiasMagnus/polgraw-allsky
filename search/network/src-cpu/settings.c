@@ -170,8 +170,8 @@ void detectors_settings(
   DIR *dp;
   struct dirent *ep;
 
-  char **detnames  = malloc(MAX_DETECTORS*sizeof(char*));   
-  char **xnames = malloc(MAX_DETECTORS*sizeof(char*));
+  char **detnames  = (char**)malloc(MAX_DETECTORS*sizeof(char*));   
+  char **xnames = (char**)malloc(MAX_DETECTORS*sizeof(char*));
 
   dp = opendir (dirname);
   if (dp != NULL) {
