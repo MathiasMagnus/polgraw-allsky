@@ -618,9 +618,9 @@ void add_signal(
 
 
   // Allocate arrays for added signal, for each detector 
-  double **signadd = malloc((sett->nifo)*sizeof(double *));
+  double **signadd = (double**)malloc((sett->nifo)*sizeof(double *));
   for(n=0; n<sett->nifo; n++)
-    signadd[n] = malloc((sett->N)*sizeof(double));
+    signadd[n] = (double*)malloc((sett->N)*sizeof(double));
 
   // Loop for each detector - sum calculations
   for(n=0; n<sett->nifo; n++) {
