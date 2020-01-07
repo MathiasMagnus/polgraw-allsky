@@ -9,6 +9,7 @@
 #include <algorithm>    // std::transform
 #include <array>        // std::array
 #include <atomic>       // std::aromic
+#include <valarray>     // std::valarray
 
 enum member
 {
@@ -29,10 +30,10 @@ namespace detail
 struct signal
 {
     double frequency,
-        spindown,
-        declination,
-        ascension,
-        signal_to_noise;
+           spindown,
+           declination,
+           ascension,
+           signal_to_noise;
 
     bool operator==(const signal& other) const
     {
@@ -78,7 +79,72 @@ struct signal
     {
         return detail::compare_signals<M>(lhs, rhs);
     }
+
+    signal& operator+=(const signal& rhs)
+    {
+        frequency += rhs.frequency;
+        spindown += rhs.spindown;
+        declination += rhs.declination;
+        ascension += rhs.ascension;
+        signal_to_noise += rhs.signal_to_noise;
+
+        return *this;
+    }
+
+    signal operator-(const signal& rhs) const
+    {
+        return signal{ frequency - rhs.frequency,
+                       spindown - rhs.spindown,
+                       declination - rhs.declination,
+                       ascension - rhs.ascension,
+                       signal_to_noise - rhs.signal_to_noise };
+    }
+
+    signal operator/(const std::size_t& rhs) const
+    {
+        return signal{ frequency - rhs,
+                       spindown - rhs,
+                       declination - rhs,
+                       ascension - rhs,
+                       signal_to_noise - rhs };
+    }
 };
+
+namespace std
+{
+    signal pow(signal base, int iexp)
+    {
+        return signal{ std::pow(base.frequency, iexp),
+                       std::pow(base.spindown, iexp),
+                       std::pow(base.declination, iexp),
+                       std::pow(base.ascension, iexp),
+                       std::pow(base.signal_to_noise, iexp) };
+    }
+
+    template< class T >
+    std::valarray<T> pow( const std::valarray<T>& base,
+                          const int iexp )
+    {
+        //return base.apply([=](const T& val){ return std::pow(val, iexp); });
+
+        std::valarray<T> result(base.size());
+
+        std::transform(std::begin(base), std::end(base),
+                       &(*std::begin(result)),
+                       [=](const T& val){ return std::pow(val, iexp); });
+
+        return result;
+    }
+
+    signal sqrt(const signal& val)
+    {
+        return signal{ std::sqrt(val.frequency),
+                       std::sqrt(val.spindown),
+                       std::sqrt(val.declination),
+                       std::sqrt(val.ascension),
+                       std::sqrt(val.signal_to_noise) };
+    }
+}
 
 std::istream& operator>>(std::istream& is, signal& sig)
 {
@@ -167,16 +233,44 @@ std::pair<std::string, std::string> data_filenames(
 
 int main(int, char* argv[])
 {
-    const std::size_t n = 50;
-    
-    // Test
-    std::string ocl_root{ argv[1] },
-                ref_root{ argv[2] },
-                out_path{ argv[3] };
+    std::string hostname{ argv[1] };
+    std::size_t count = std::atoi(argv[2]);
 
-    for (std::size_t i = 0 ; i < n ; ++i)
+    std::vector<std::size_t> i(count);
+    std::iota(i.begin(), i.end(), 1);
+
+    std::valarray<signal> ref_signals(count),
+                          ocl_signals(count);
+    std::transform(i.cbegin(), i.cend(),
+                   std::begin(ref_signals),
+                   [=, name = "Ref"](const std::size_t& i)
     {
-    }
+        std::stringstream path;
+        path << "./" << hostname << "." << name << ".triggers.test" << i << ".1.bin";
+        std::cout << "Reading reference data set " << i << std::endl;
+        return obtain_signal(path.str());
+    });
+
+    std::transform(i.cbegin(), i.cend(),
+                   std::begin(ocl_signals),
+                   [=, name = "Ocl.Run1"](const std::size_t& i)
+    {
+        std::stringstream path;
+        path << "./" << hostname << "." << name << ".triggers.test" << i << ".1.bin";
+        std::cout << "Reading OpenCL data set " << i << std::endl;
+        return obtain_signal(path.str());
+    });
+
+    std::valarray<signal> diff = ref_signals - ocl_signals;
+    signal avg = diff.sum() / count,
+           dev = std::sqrt(std::pow(diff - avg, 2).sum() / count),
+           min = diff.min(),
+           max = diff.max();
+
+    std::cout << "Minimal difference:\n\n" << min << std::endl;
+    std::cout << "Maximal difference:\n\n" << max << std::endl;
+    std::cout << "Avarage difference:\n\n" << avg << std::endl;
+    std::cout << "Std.dev difference:\n\n" << dev << std::endl;
     
     return 0;
 }
