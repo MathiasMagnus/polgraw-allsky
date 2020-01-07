@@ -137,10 +137,10 @@ void search_settings(
   sett->nmin = (int)(sett->fftpad*NAV*sett->B);
   sett->nmax = (int)((sett->nfft/2 - NAV*sett->B)*sett->fftpad);
 
-  printf("------------------------ Settings -------------------------\n");
-  printf(" B         N          nfft         Fstat_nmin    Fstat_nmax\n");
-  printf("%6.3f  %9d  %9d  %9d       %9d\n", sett->B, sett->N, sett->nfft, sett->nmin, sett->nmax);
-  printf("-----------------------------------------------------------\n");
+  //printf("------------------------ Settings -------------------------\n");
+  //printf(" B         N          nfft         Fstat_nmin    Fstat_nmax\n");
+  //printf("%6.3f  %9d  %9d  %9d       %9d\n", sett->B, sett->N, sett->nfft, sett->nmin, sett->nmax);
+  //printf("-----------------------------------------------------------\n");
 
   // initial value of number of known instrumental lines in band 
   sett->numlines_band=0; 
