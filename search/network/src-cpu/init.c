@@ -682,6 +682,8 @@ void add_signal(
   for(n=0; n<sett->nifo; n++) 
     free(signadd[n]);
   free(signadd);
+
+  set_search_range(sett, opts, s_range);
  
 } // add_signal()
 
