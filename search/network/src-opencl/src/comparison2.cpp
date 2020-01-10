@@ -263,7 +263,7 @@ int main(int, char* argv[])
 
     std::valarray<signal> diff = ref_signals - ocl_signals;
     signal avg = diff.sum() / count,
-           dev = std::sqrt(std::pow(diff - avg, 2).sum() / count),
+           dev = std::sqrt(std::pow(std::valarray<signal>(diff - avg), 2).sum() / count),
            min = diff.min(),
            max = diff.max();
 
