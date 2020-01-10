@@ -268,6 +268,7 @@ Search_results job_core(const int pm,                  // hemisphere
   if (timespec_get(&pre_spindown_end, TIME_UTC) != TIME_UTC) { checkErr(TIME_UTC, "timespec_get(&pre_spindown_end, TIME_UTC)"); }
 #ifndef VERBOSE
   printf(">>%d:\t%d\t%d\t%d\t[%d..%d]\n", id, pm, mm, nn, smin, smax);
+  fflush(stdout);
 #endif
   // Spindown loop
   for (int ss = smin; ss <= smax; ++ss)
@@ -536,11 +537,11 @@ Search_results*** init_results(const Search_range* s_range)
     }
   }
 
-  for (int pm = s_range->pst; pm >= s_range->pmr[0]; --pm)
+  for (int pm = s_range->pmr[0]; pm <= s_range->pmr[1]; ++pm)
   {
-    for (int mm = s_range->mst; mm >= s_range->mr[0]; --mm)
+    for (int mm = s_range->mr[0]; mm <= s_range->mr[1]; ++mm)
     {
-      for (int nn = s_range->nst; nn > s_range->nr[0]; --nn)
+      for (int nn = s_range->nr[0]; nn <= s_range->nr[1]; ++nn)
       {
         Search_results* select =  &results[pm - s_range->pmr[0]]
                                           [mm - s_range->mr[0]]
