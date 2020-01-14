@@ -1441,8 +1441,6 @@ void add_signal(Search_settings *sett,
   for(n=0; n<sett->nifo; n++) 
     free(signadd[n]);
   free(signadd);
-
-  set_search_range(sett, opts, s_range); 
 }
 
 void set_search_range(Search_settings *sett,

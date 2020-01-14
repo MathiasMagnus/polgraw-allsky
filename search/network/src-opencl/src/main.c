@@ -67,6 +67,7 @@ int main (int argc, char* argv[])
   // FFT init 
   init_fft(&sett, &cl_handles, &fft_plans);
 
+  // Add signal if signal file is provided
   if(strlen(opts.addsig))
     add_signal(&sett,
                ifo,
