@@ -2,6 +2,8 @@
 //
 // MSVC: macro to include constants, such as M_PI (include before math.h)
 #define _USE_MATH_DEFINES
+// GCC: macro to include constants, such as M_PI (include before math.h)
+#define __USE_MISC
 
 #include <sky_positions.h>
 

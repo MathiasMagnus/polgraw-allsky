@@ -104,9 +104,11 @@ void init_fft_arrays(Search_settings* sett,
                      FFT_arrays* fft_arr);
 
 void add_signal(Search_settings *sett,
+                Detector_settings* ifo,
                 Command_line_opts *opts,
                 Aux_arrays *aux_arr,
-                Search_range *s_range);
+                Search_range *s_range,
+                OpenCL_handles* cl_handles);
 
 /// <summary>Set search ranges based on user preference.</summary>
 ///

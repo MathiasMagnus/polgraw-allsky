@@ -4,6 +4,8 @@
 #define _USE_MATH_DEFINES
 // MSVC: macro to disable min/max macros on Windows
 #define NOMINMAX
+// GCC: macro to include constants, such as M_PI (include before math.h)
+#define __USE_MISC
 // ISO: request safe versions of functions
 #define __STDC_WANT_LIB_EXT1__ 1
 
@@ -23,7 +25,16 @@
 #include <sky_positions.h>  // ast2lin
 #include <settings.h>   // C_EPSMA
 #include <spline_z.h>
+#include <modvir.h>
 #include <CL/util.h>    // checkErr
+
+// GSL includes
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_permutation.h>
+#include <gsl/gsl_linalg.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_eigen.h>
 
 // OpenCL includes
 #include <CL/cl.h>
@@ -837,7 +848,7 @@ void init_ifo_arrays(Search_settings* sett,
 {
   // Allocates and initializes to zero the data, detector ephemeris
   // and the F-statistic arrays
-  size_t status = 0;
+  size_t status = 0; (void)status;
 
   for (int i = 0; i < sett->nifo; i++)
   {
@@ -1184,16 +1195,17 @@ void init_aux_arrays(Search_settings* sett,
 }
 
 void add_signal(Search_settings *sett,
+                Detector_settings* ifo,
                 Command_line_opts *opts,
                 Aux_arrays *aux_arr,
-                Search_range *s_range)
+                Search_range *s_range,
+                OpenCL_handles* cl_handles)
 {
-  int i, j, n, gsize, reffr; 
-  double snr=0, sum = 0., h0=0, cof;//, d1; 
+  int /*i, j,*/ n, gsize, reffr; 
+  double snr=0, sum = 0., h0=0;
   double sigma_noise = 1.0;
-  double be[2];
-  double sinaadd, cosaadd, sindadd, cosdadd, phaseadd, shiftadd; 
-  double nSource[3], sgnlo[8], sgnlol[4];
+  double sgnlo[8], sgnlol[4];
+  cl_int CL_err = CL_SUCCESS;
  
   char amporsnr[4];
  
@@ -1223,7 +1235,7 @@ void add_signal(Search_settings *sett,
     // four amplitudes sgnlo[4], ..., sgnlo[7] 
     // (see sigen.c and Phys. Rev. D 82, 022005 2010, Eqs. 2.13a-d) 
 
-    for(i=0; i<8; i++)
+    for(int i=0; i<8; i++)
       fscanf(data, "%le",i+sgnlo); 
     
     fclose (data);
@@ -1242,35 +1254,37 @@ void add_signal(Search_settings *sett,
   if(sgnlo[0]<0) exit(171);          // &laquo;  
   else if (sgnlo[0]>M_PI) exit(187); // &raquo;
 
-  cof = sett->oms + sgnlo[0]; 
+  double cof = sett->oms + sgnlo[0];
   
-  for(i=0; i<2; i++) sgnlol[i] = sgnlo[i]; 
+  for(int i=0; i<2; i++) sgnlol[i] = sgnlo[i];
   
   // Calculate the hemisphere and be vector 
-  s_range->pmr[0] = ast2lin(sgnlo[3], sgnlo[2], C_EPSMA, be);
+  {
+    double be[2];
+    s_range->pmr[0] = ast2lin(sgnlo[3], sgnlo[2], C_EPSMA, be);
 
-  sgnlol[2] = be[0]*cof;  
-  sgnlol[3] = be[1]*cof; 
-
+    sgnlol[2] = be[0]*cof;  
+    sgnlol[3] = be[1]*cof; 
+  }
  		 	
   // solving a linear system in order to translate 
   // sky position, frequency and spindown (sgnlo parameters) 
   // into the position in the grid
 
   double *MM ; 
-  MM = (double *) calloc (16, sizeof (double));
-  for(i=0; i<16; i++) MM[i] = sett->M[i] ;
+  MM = (double *)calloc(16, sizeof (double));
+  for(int i=0; i<16; i++) MM[i] = sett->M[i] ;
   
-  gsl_vector *x = gsl_vector_alloc (4);     
+  gsl_vector *x = gsl_vector_alloc(4);     
   int s;
   
-  gsl_matrix_view m = gsl_matrix_view_array (MM, 4, 4);
-  gsl_matrix_transpose (&m.matrix) ; 
-  gsl_vector_view b = gsl_vector_view_array (sgnlol, 4);
-  gsl_permutation *p = gsl_permutation_alloc (4);
+  gsl_matrix_view m = gsl_matrix_view_array(MM, 4, 4);
+  gsl_matrix_transpose(&m.matrix) ; 
+  gsl_vector_view b = gsl_vector_view_array(sgnlol, 4);
+  gsl_permutation *p = gsl_permutation_alloc(4);
   
-  gsl_linalg_LU_decomp (&m.matrix, p, &s);
-  gsl_linalg_LU_solve (&m.matrix, p, &b.vector, x);
+  gsl_linalg_LU_decomp(&m.matrix, p, &s);
+  gsl_linalg_LU_solve(&m.matrix, p, &b.vector, x);
   
   s_range->spndr[0] = round(gsl_vector_get(x,1)); 
   s_range->nr[0] 	= round(gsl_vector_get(x,2));
@@ -1278,93 +1292,150 @@ void add_signal(Search_settings *sett,
   
   gsl_permutation_free (p);
   gsl_vector_free (x);
-  free (MM);
-  
-  // Define the grid range in which the signal will be looked for
-  s_range->spndr[1] = s_range->spndr[0] + gsize; 
-  s_range->spndr[0] -= gsize;
-  s_range->nr[1] = s_range->nr[0] + gsize; 
-  s_range->nr[0] -= gsize;
-  s_range->mr[1] = s_range->mr[0] + gsize; 
-  s_range->mr[0] -= gsize;
-  s_range->pmr[1] = s_range->pmr[0]; 
-  
-  printf("add_signal(): following grid range is used (spndr, nr, mr, pmr pairs)\n");
-  printf("%d %d %d %d %d %d %d %d\n", \
-   s_range->spndr[0], s_range->spndr[1], s_range->nr[0], s_range->nr[1],
-   s_range->mr[0], s_range->mr[1], s_range->pmr[0], s_range->pmr[1]);
+  free(MM);
 
   // sgnlo[2]: declination, sgnlo[3]: right ascension 
-  sindadd = sin(sgnlo[2]); 
-  cosdadd = cos(sgnlo[2]); 
-  sinaadd = sin(sgnlo[3]);  
-  cosaadd = cos(sgnlo[3]); 
+  double sindadd = sin(sgnlo[2]),
+         cosdadd = cos(sgnlo[2]),
+         sinaadd = sin(sgnlo[3]), 
+         cosaadd = cos(sgnlo[3]); 
 	
   // To keep coherent phase between time segments  
   double phaseshift = sgnlo[0]*sett->N*(reffr - opts->ident)   
     + sgnlo[1]*pow(sett->N*(reffr - opts->ident), 2); 
 
-
+  
   // Allocate arrays for added signal, for each detector 
   double **signadd = (double**)malloc((sett->nifo)*sizeof(double *));
   for(n=0; n<sett->nifo; n++)
     signadd[n] = (double*)malloc((sett->N)*sizeof(double));
 
   // Loop for each detector - sum calculations
-  for(n=0; n<sett->nifo; n++) {
-    
-    modvir(sinaadd, cosaadd, sindadd, cosdadd,
-	   sett->N, &ifo[n], aux_arr);
+  for(n=0; n<sett->nifo; n++)
+  {  
+    cl_event modvir_event =
+      modvir(n, 0, sett->N,                            // input
+             sinaadd, cosaadd, sindadd, cosdadd,        // input
+             ifo[n].sig.cphir, ifo[n].sig.sphir,        // input
+             sett->omr, aux_arr->ifo_amod_d[0],        // input
+             ifo[n].sig.aa_d[0], ifo[n].sig.bb_d[0],  // output
+             cl_handles, 0, NULL);                      // sync
 
-    nSource[0] = cosaadd*cosdadd;
-    nSource[1] = sinaadd*cosdadd;
-    nSource[2] = sindadd;
+    // NOTE: this code resembles tshift_pmod a lot, but not enough
+    //       to simply invoke that kernel. Because it's "only" init
+    //       we'll just map to host side memory.
+
+    cl_event map_events[2];
+    fstat_real* aa =
+      (fstat_real*)clEnqueueMapBuffer(cl_handles->read_queues[0][n],
+                                      ifo[n].sig.aa_d[0],
+                                      CL_TRUE,
+                                      CL_MAP_WRITE,
+                                      0,
+                                      (sett->N) * sizeof(ampl_mod_real),
+                                      1,
+                                      &modvir_event,
+                                      &map_events[0],
+                                      &CL_err);
+    checkErr(CL_err, "clEnqueueMapBuffer(aa_d)");
+    fstat_real* bb =
+      (fstat_real*)clEnqueueMapBuffer(cl_handles->read_queues[0][n],
+                                      ifo[n].sig.bb_d[0],
+                                      CL_TRUE,
+                                      CL_MAP_WRITE,
+                                      0,
+                                      (sett->N) * sizeof(ampl_mod_real),
+                                      1,
+                                      &modvir_event,
+                                      &map_events[1],
+                                      &CL_err);
+    checkErr(CL_err, "clEnqueueMapBuffer(bb_d)");
+
+    CL_err = clWaitForEvents(2, map_events);
+    checkErr(CL_err, "clWaitForEvents(map_events)");
+
+    // Calculate detector positions with respect to baricenter
+    cl_double3 nSource;
+    nSource.s0 = cosaadd * cosdadd;
+    nSource.s1 = sinaadd * cosdadd;
+    nSource.s2 = sindadd;
 					
-    for (i=0; i<sett->N; i++) {
-      
-      shiftadd = 0.; 					 
-      for (j=0; j<3; j++)
-      	shiftadd += nSource[j]*ifo[n].sig.DetSSB[i*3+j];		 
+    for (int i=0; i<sett->N; i++)
+    {  
+      double shiftadd = nSource.s[0] * ifo[n].sig.DetSSB[i].s[0] +
+                        nSource.s[1] * ifo[n].sig.DetSSB[i].s[1] +
+                        nSource.s[2] * ifo[n].sig.DetSSB[i].s[2];
       
       // Phase 
-      phaseadd = sgnlo[0]*i + sgnlo[1] * (double)(i * i) 
+      double phaseadd = sgnlo[0]*i + sgnlo[1] * (double)(i * i) 
         + (cof + 2.*sgnlo[1]*i)*shiftadd
         - phaseshift; 
 
       // The whole signal with 4 amplitudes and modulations 
-      signadd[n][i] = sgnlo[4]*(ifo[n].sig.aa[i])*cos(phaseadd) 
-                    + sgnlo[6]*(ifo[n].sig.aa[i])*sin(phaseadd) 
-                    + sgnlo[5]*(ifo[n].sig.bb[i])*cos(phaseadd) 
-                    + sgnlo[7]*(ifo[n].sig.bb[i])*sin(phaseadd);
+      signadd[n][i] = sgnlo[4]*(aa[i])*cos(phaseadd) 
+                    + sgnlo[6]*(aa[i])*sin(phaseadd) 
+                    + sgnlo[5]*(bb[i])*cos(phaseadd) 
+                    + sgnlo[7]*(bb[i])*sin(phaseadd);
 
       // Sum over signals
       sum += pow(signadd[n][i], 2.);
     
     } // data loop
-   
-  } // detector loop
 
+    cl_event unmap_events[2];
+    CL_err = clEnqueueUnmapMemObject(cl_handles->read_queues[0][0],
+                                     ifo[n].sig.aa_d[0],
+                                     aa,
+                                     0,
+                                     NULL,
+                                     &unmap_events[0]);
+    checkErr(CL_err, "clEnqueueUnMapMemObject(aa_d)");
+    CL_err = clEnqueueUnmapMemObject(cl_handles->read_queues[0][0],
+                                     ifo[n].sig.bb_d[0],
+                                     bb,
+                                     0,
+                                     NULL,
+                                     &unmap_events[0]);
+    checkErr(CL_err, "clEnqueueUnMapMemObject(bb_d)");
+
+    CL_err = clWaitForEvents(2, unmap_events);
+    checkErr(CL_err, "clWaitForEvents(unmap_events)");
+
+  } // detector loop
 
   // Signal amplitude h0 from the snr 
   // (currently only makes sense for Gaussian noise with fixed sigma)
-  if(snr)
+  if (snr)
     h0 = (snr*sigma_noise)/(sqrt(sum));
 
-  // Loop for each detector - adding signal to data (point by point)  								
-  for(n=0; n<sett->nifo; n++) {
-    for (i=0; i<sett->N; i++) {
-
+  // Loop for each detector - adding signal to data (point by point)
+  for (n=0; n<sett->nifo; n++)
+  {
+    xDat_real* tmp = (xDat_real*)malloc(sett->N * sizeof(xDat_real));
+      
+    for (int i=0; i<sett->N; i++)
+    {
       // Adding the signal to the data vector 
-      if(ifo[n].sig.xDat[i]) { 
-        ifo[n].sig.xDat[i] += h0*signadd[n][i];
-
-      } 
-
+      if(ifo[n].sig.xDat[i]) ifo[n].sig.xDat[i] += h0*signadd[n][i];
+      tmp[i] = ifo[n].sig.xDat[i];
     } // data loop
 
-  } // detector loop
+    for (cl_uint id = 0; id < cl_handles->count; ++id)
+    {
+      CL_err = clEnqueueWriteBuffer(cl_handles->write_queues[id][n],
+                                    ifo[n].sig.xDat_d[id],
+                                    CL_TRUE,
+                                    0,
+                                    sett->N * sizeof(xDat_real),
+                                    tmp,
+                                    0,
+                                    NULL,
+                                    NULL);
+      checkErr(CL_err, "clEnqueueWriteBuffer(xDat_d)");
+    }
 
-  // printf("snr=%le h0=%le\n", snr, h0);
+    free(tmp);
+  } // detector loop
 
   // Free auxiliary 2d array 
   for(n=0; n<sett->nifo; n++) 

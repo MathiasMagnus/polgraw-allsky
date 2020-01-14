@@ -106,6 +106,7 @@ target_include_directories (${Target_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/in
 # Link dependant libraries
 target_link_libraries (${Target_NAME} PRIVATE OpenCL::OpenCL
                                               OpenMP::OpenMP_C
+                                              GSL::gsl
                                               clFFT
                                               clBLAS)
 
