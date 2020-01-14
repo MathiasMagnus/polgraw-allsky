@@ -1181,6 +1181,197 @@ void init_aux_arrays(Search_settings* sett,
   }
 }
 
+void add_signal(Search_settings *sett,
+                Command_line_opts *opts,
+                Aux_arrays *aux_arr,
+                Search_range *s_range)
+{
+  int i, j, n, gsize, reffr; 
+  double snr=0, sum = 0., h0=0, cof, d1; 
+  double sigma_noise = 1.0;
+  double be[2];
+  double sinaadd, cosaadd, sindadd, cosdadd, phaseadd, shiftadd; 
+  double nSource[3], sgnlo[8], sgnlol[4];
+ 
+  char amporsnr[4];
+ 
+  FILE *data;
+  
+  // Signal parameters are read
+  if ((data=fopen (opts->addsig, "rb")) != NULL) {
+	
+    // Fscanning for the GW amplitude h0 or signal-to-noise,  
+    // the grid size and the reference frame 
+    // (for which the signal freq. is not spun-down/up)
+
+    fscanf (data, "%s", amporsnr);    
+
+    if(!strcmp(amporsnr, "amp")) { 
+      fscanf (data, "%le %d %d", &h0, &gsize, &reffr); 
+      printf("add_signal(): GW amplitude h0 is %le\n", h0); 
+    } else if(!strcmp(amporsnr, "snr")) { 
+      fscanf (data, "%le %d %d", &snr, &gsize, &reffr); 
+      printf("add_signal(): GW (network) signal-to-noise ratio is %le\n", snr); 
+    } else { 
+      printf("Problem with the signal file. Exiting...\n"); 
+      exit(0); 
+    } 
+
+    // Fscanning signal parameters: f, fdot, delta, alpha (sgnlo[0], ..., sgnlo[3])
+    // four amplitudes sgnlo[4], ..., sgnlo[7] 
+    // (see sigen.c and Phys. Rev. D 82, 022005 2010, Eqs. 2.13a-d) 
+
+    for(i=0; i<8; i++)
+      fscanf(data, "%le",i+sgnlo); 
+    
+    fclose (data);
+                 
+  } else {
+    perror (opts->addsig);
+  }
+  
+  // Search-specific parametrization of freq. 
+  // for the software injections
+  // sgnlo[0]: frequency, sgnlo[1]: frequency. derivative  
+ 
+  sgnlo[0] += -2.*sgnlo[1]*(sett->N)*(reffr - opts->ident); 
+ 
+  // Check if the signal is in band 
+  if(sgnlo[0]<0) exit(171);          // &laquo;  
+  else if (sgnlo[0]>M_PI) exit(187); // &raquo;
+
+  cof = sett->oms + sgnlo[0]; 
+  
+  for(i=0; i<2; i++) sgnlol[i] = sgnlo[i]; 
+  
+  // Calculate the hemisphere and be vector 
+  s_range->pmr[0] = ast2lin(sgnlo[3], sgnlo[2], C_EPSMA, be);
+
+  sgnlol[2] = be[0]*cof;  
+  sgnlol[3] = be[1]*cof; 
+
+ 		 	
+  // solving a linear system in order to translate 
+  // sky position, frequency and spindown (sgnlo parameters) 
+  // into the position in the grid
+
+  double *MM ; 
+  MM = (double *) calloc (16, sizeof (double));
+  for(i=0; i<16; i++) MM[i] = sett->M[i] ;
+  
+  gsl_vector *x = gsl_vector_alloc (4);     
+  int s;
+  
+  gsl_matrix_view m = gsl_matrix_view_array (MM, 4, 4);
+  gsl_matrix_transpose (&m.matrix) ; 
+  gsl_vector_view b = gsl_vector_view_array (sgnlol, 4);
+  gsl_permutation *p = gsl_permutation_alloc (4);
+  
+  gsl_linalg_LU_decomp (&m.matrix, p, &s);
+  gsl_linalg_LU_solve (&m.matrix, p, &b.vector, x);
+  
+  s_range->spndr[0] = round(gsl_vector_get(x,1)); 
+  s_range->nr[0] 	= round(gsl_vector_get(x,2));
+  s_range->mr[0] 	= round(gsl_vector_get(x,3));
+  
+  gsl_permutation_free (p);
+  gsl_vector_free (x);
+  free (MM);
+  
+  // Define the grid range in which the signal will be looked for
+  s_range->spndr[1] = s_range->spndr[0] + gsize; 
+  s_range->spndr[0] -= gsize;
+  s_range->nr[1] = s_range->nr[0] + gsize; 
+  s_range->nr[0] -= gsize;
+  s_range->mr[1] = s_range->mr[0] + gsize; 
+  s_range->mr[0] -= gsize;
+  s_range->pmr[1] = s_range->pmr[0]; 
+  
+  printf("add_signal(): following grid range is used (spndr, nr, mr, pmr pairs)\n");
+  printf("%d %d %d %d %d %d %d %d\n", \
+   s_range->spndr[0], s_range->spndr[1], s_range->nr[0], s_range->nr[1],
+   s_range->mr[0], s_range->mr[1], s_range->pmr[0], s_range->pmr[1]);
+
+  // sgnlo[2]: declination, sgnlo[3]: right ascension 
+  sindadd = sin(sgnlo[2]); 
+  cosdadd = cos(sgnlo[2]); 
+  sinaadd = sin(sgnlo[3]);  
+  cosaadd = cos(sgnlo[3]); 
+	
+  // To keep coherent phase between time segments  
+  double phaseshift = sgnlo[0]*sett->N*(reffr - opts->ident)   
+    + sgnlo[1]*pow(sett->N*(reffr - opts->ident), 2); 
+
+
+  // Allocate arrays for added signal, for each detector 
+  double **signadd = (double**)malloc((sett->nifo)*sizeof(double *));
+  for(n=0; n<sett->nifo; n++)
+    signadd[n] = (double*)malloc((sett->N)*sizeof(double));
+
+  // Loop for each detector - sum calculations
+  for(n=0; n<sett->nifo; n++) {
+    
+    modvir(sinaadd, cosaadd, sindadd, cosdadd,
+	   sett->N, &ifo[n], aux_arr);
+
+    nSource[0] = cosaadd*cosdadd;
+    nSource[1] = sinaadd*cosdadd;
+    nSource[2] = sindadd;
+					
+    for (i=0; i<sett->N; i++) {
+      
+      shiftadd = 0.; 					 
+      for (j=0; j<3; j++)
+      	shiftadd += nSource[j]*ifo[n].sig.DetSSB[i*3+j];		 
+      
+      // Phase 
+      phaseadd = sgnlo[0]*i + sgnlo[1]*aux_arr->t2[i] 
+        + (cof + 2.*sgnlo[1]*i)*shiftadd
+        - phaseshift; 
+
+      // The whole signal with 4 amplitudes and modulations 
+      signadd[n][i] = sgnlo[4]*(ifo[n].sig.aa[i])*cos(phaseadd) 
+                    + sgnlo[6]*(ifo[n].sig.aa[i])*sin(phaseadd) 
+                    + sgnlo[5]*(ifo[n].sig.bb[i])*cos(phaseadd) 
+                    + sgnlo[7]*(ifo[n].sig.bb[i])*sin(phaseadd);
+
+      // Sum over signals
+      sum += pow(signadd[n][i], 2.);
+    
+    } // data loop
+   
+  } // detector loop
+
+
+  // Signal amplitude h0 from the snr 
+  // (currently only makes sense for Gaussian noise with fixed sigma)
+  if(snr)
+    h0 = (snr*sigma_noise)/(sqrt(sum));
+
+  // Loop for each detector - adding signal to data (point by point)  								
+  for(n=0; n<sett->nifo; n++) {
+    for (i=0; i<sett->N; i++) {
+
+      // Adding the signal to the data vector 
+      if(ifo[n].sig.xDat[i]) { 
+        ifo[n].sig.xDat[i] += h0*signadd[n][i];
+
+      } 
+
+    } // data loop
+
+  } // detector loop
+
+  // printf("snr=%le h0=%le\n", snr, h0);
+
+  // Free auxiliary 2d array 
+  for(n=0; n<sett->nifo; n++) 
+    free(signadd[n]);
+  free(signadd);
+
+  set_search_range(sett, opts, s_range); 
+}
+
 void set_search_range(Search_settings *sett,
                       Command_line_opts *opts,
                       Search_range *s_range)
