@@ -14,6 +14,7 @@
 
 // Standard C includes
 #include <stdio.h>      // fopen_s
+#include <string.h>     // strlen
 
 int main (int argc, char* argv[])
 {
@@ -65,6 +66,14 @@ int main (int argc, char* argv[])
 
   // FFT init 
   init_fft(&sett, &cl_handles, &fft_plans);
+
+  if(strlen(opts.addsig))
+    add_signal(&sett,
+               ifo,
+               &opts,
+               &aux_arr,
+               &s_range,
+               &cl_handles);
 
   // Checkpointing
   int Fnum = 0;   // candidate signal number
