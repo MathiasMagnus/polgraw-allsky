@@ -41,3 +41,8 @@ void lin2ast(const double be1,
              double *cosal,
              double *sindel,
              double *cosdel);
+
+int ast2lin(double alfa,
+            double delta,
+            double epsm,
+            double *be);
