@@ -20,6 +20,8 @@
 #include <struct.h>     // Search_settings, Command_line_opts, OpenCL_handles, ...
 #include <settings.h>
 #include <auxi.h>
+#include <sky_positions.h>  // ast2lin
+#include <settings.h>   // C_EPSMA
 #include <spline_z.h>
 #include <CL/util.h>    // checkErr
 
@@ -1187,7 +1189,7 @@ void add_signal(Search_settings *sett,
                 Search_range *s_range)
 {
   int i, j, n, gsize, reffr; 
-  double snr=0, sum = 0., h0=0, cof, d1; 
+  double snr=0, sum = 0., h0=0, cof;//, d1; 
   double sigma_noise = 1.0;
   double be[2];
   double sinaadd, cosaadd, sindadd, cosdadd, phaseadd, shiftadd; 
@@ -1325,7 +1327,7 @@ void add_signal(Search_settings *sett,
       	shiftadd += nSource[j]*ifo[n].sig.DetSSB[i*3+j];		 
       
       // Phase 
-      phaseadd = sgnlo[0]*i + sgnlo[1]*aux_arr->t2[i] 
+      phaseadd = sgnlo[0]*i + sgnlo[1] * (double)(i * i) 
         + (cof + 2.*sgnlo[1]*i)*shiftadd
         - phaseshift; 
 
