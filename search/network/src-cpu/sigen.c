@@ -285,6 +285,7 @@ int main(int argc, char *argv[]) {
 
   // Random signal parameters 
   //------------------------- 
+  seed_rand();
 
   // Frequency derivative 
   sgnlo[1] = sett.Smin - (sett.Smin + sett.Smax)*get_rand();
