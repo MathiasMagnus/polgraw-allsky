@@ -1261,7 +1261,7 @@ void add_signal(Search_settings *sett,
   // Calculate the hemisphere and be vector 
   {
     double be[2];
-    s_range->pmr[0] = ast2lin(sgnlo[3], sgnlo[2], C_EPSMA, be);
+    //s_range->pmr[0] = ast2lin(sgnlo[3], sgnlo[2], C_EPSMA, be);
 
     sgnlol[2] = be[0]*cof;  
     sgnlol[3] = be[1]*cof; 
@@ -1286,9 +1286,9 @@ void add_signal(Search_settings *sett,
   gsl_linalg_LU_decomp(&m.matrix, p, &s);
   gsl_linalg_LU_solve(&m.matrix, p, &b.vector, x);
   
-  s_range->spndr[0] = round(gsl_vector_get(x,1)); 
-  s_range->nr[0] 	= round(gsl_vector_get(x,2));
-  s_range->mr[0] 	= round(gsl_vector_get(x,3));
+  //s_range->spndr[0] = round(gsl_vector_get(x,1)); 
+  //s_range->nr[0] 	= round(gsl_vector_get(x,2));
+  //s_range->mr[0] 	= round(gsl_vector_get(x,3));
   
   gsl_permutation_free (p);
   gsl_vector_free (x);
@@ -1353,6 +1353,9 @@ void add_signal(Search_settings *sett,
 
     CL_err = clWaitForEvents(2, map_events);
     checkErr(CL_err, "clWaitForEvents(map_events)");
+    clReleaseEvent(modvir_event);
+    clReleaseEvent(map_events[0]);
+    clReleaseEvent(map_events[1]);
 
     // Calculate detector positions with respect to baricenter
     cl_double3 nSource;
@@ -1395,11 +1398,13 @@ void add_signal(Search_settings *sett,
                                      bb,
                                      0,
                                      NULL,
-                                     &unmap_events[0]);
+                                     &unmap_events[1]);
     checkErr(CL_err, "clEnqueueUnMapMemObject(bb_d)");
 
     CL_err = clWaitForEvents(2, unmap_events);
     checkErr(CL_err, "clWaitForEvents(unmap_events)");
+    clReleaseEvent(unmap_events[0]);
+    clReleaseEvent(unmap_events[1]);
 
   } // detector loop
 
