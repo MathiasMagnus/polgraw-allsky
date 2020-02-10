@@ -10,6 +10,7 @@
 #include <array>        // std::array
 #include <atomic>       // std::aromic
 #include <valarray>     // std::valarray
+#include <cmath>
 
 enum member
 {
@@ -100,13 +101,22 @@ struct signal
                        signal_to_noise - rhs.signal_to_noise };
     }
 
+    signal operator/(const signal& rhs) const
+    {
+        return signal{ frequency / rhs.frequency,
+                       spindown / rhs.spindown,
+                       declination / rhs.declination,
+                       ascension / rhs.ascension,
+                       signal_to_noise / rhs.signal_to_noise };
+    }
+
     signal operator/(const std::size_t& rhs) const
     {
-        return signal{ frequency - rhs,
-                       spindown - rhs,
-                       declination - rhs,
-                       ascension - rhs,
-                       signal_to_noise - rhs };
+        return signal{ frequency / rhs,
+                       spindown / rhs,
+                       declination / rhs,
+                       ascension / rhs,
+                       signal_to_noise / rhs };
     }
 };
 
@@ -144,7 +154,18 @@ namespace std
                        std::sqrt(val.ascension),
                        std::sqrt(val.signal_to_noise) };
     }
+
+    signal abs(const signal& val)
+    {
+        return signal{ std::abs(val.frequency),
+                       std::abs(val.spindown),
+                       std::abs(val.declination),
+                       std::abs(val.ascension),
+                       std::abs(val.signal_to_noise) };
+    }
 }
+
+signal abs(const signal& val) { return std::abs(val); }
 
 std::istream& operator>>(std::istream& is, signal& sig)
 {
@@ -214,7 +235,11 @@ OutputIt copy_nearest(InputIt1 first1, InputIt1 last1,
 
 signal obtain_signal(std::string filename)
 {
+    using namespace std::literals;
+
     std::ifstream in{filename};
+    if (!in.is_open())
+        throw std::runtime_error{"Could not open: "s + filename};
 
     std::vector<signal> vec(std::istream_iterator<signal>{ in },
                             std::istream_iterator<signal>{});
@@ -222,13 +247,22 @@ signal obtain_signal(std::string filename)
     return *std::max_element(vec.cbegin(), vec.cend(), signal::compare<signal_to_noise>);
 }
 
-std::pair<std::string, std::string> data_filenames(
-    std::string root,
-    std::string fpo,
-    std::string hemisphere
-)
+void mate_metric(const std::valarray<signal>& ref_signals,
+                 const std::valarray<signal>& ocl_signals)
 {
-    return {{},{}};
+    std::size_t count = ref_signals.size();
+
+    std::valarray<signal> diff = std::abs(ref_signals - ocl_signals),
+                          ndif = diff / std::abs(ref_signals);
+    signal avg = ndif.sum() / count,
+           dev = std::sqrt(std::pow(std::valarray<signal>(ndif - avg), 2).sum() / count),
+           min = ndif.min(),
+           max = ndif.max();
+
+    std::cout << "Normalized minimal difference:\n\n" << min << std::endl;
+    std::cout << "Normalized maximal difference:\n\n" << max << std::endl;
+    std::cout << "Normalized avarage difference:\n\n" << avg << std::endl;
+    std::cout << "Standard deviation:\n\n" << dev << std::endl;
 }
 
 int main(int, char* argv[])
@@ -247,7 +281,6 @@ int main(int, char* argv[])
     {
         std::stringstream path;
         path << "./" << hostname << "." << name << ".triggers.test" << i << ".1.bin";
-        std::cout << "Reading reference data set " << i << std::endl;
         return obtain_signal(path.str());
     });
 
@@ -257,20 +290,16 @@ int main(int, char* argv[])
     {
         std::stringstream path;
         path << "./" << hostname << "." << name << ".triggers.test" << i << ".1.bin";
-        std::cout << "Reading OpenCL data set " << i << std::endl;
         return obtain_signal(path.str());
     });
 
-    std::valarray<signal> diff = ref_signals - ocl_signals;
-    signal avg = diff.sum() / count,
-           dev = std::sqrt(std::pow(std::valarray<signal>(diff - avg), 2).sum() / count),
-           min = diff.min(),
-           max = diff.max();
+    std::cout << "\nfrequency , spindown , declination , ascension , signal_to_noise\n" << std::endl;
 
-    std::cout << "Minimal difference:\n\n" << min << std::endl;
-    std::cout << "Maximal difference:\n\n" << max << std::endl;
-    std::cout << "Avarage difference:\n\n" << avg << std::endl;
-    std::cout << "Std.dev difference:\n\n" << dev << std::endl;
+    std::cout << "Ref: " << ref_signals[0] << std::endl;
+    std::cout << "Ocl: " << ocl_signals[0] << std::endl;
+
+
+    mate_metric(ref_signals, ocl_signals);
     
     return 0;
 }
